@@ -35,12 +35,20 @@
 		if (!userProfile) return null;
 		/** @type {any} */
 		const profile = userProfile;
-		// 관리자/마스터는 모든 코드 접근 가능
+		const topLevelCodes = Array.isArray(profile?.top_level_codes) ? profile.top_level_codes : [];
+		
+		// top_level_codes가 있으면 그것을 사용 (관리자/마스터도 포함)
+		if (topLevelCodes.length > 0) {
+			return topLevelCodes;
+		}
+		
+		// top_level_codes가 없고 관리자/마스터인 경우 모든 코드 접근 가능
 		if (profile?.role && isAdmin(profile.role)) {
 			return null; // null이면 모든 코드 접근 가능
 		}
-		// 일반 사용자는 top_level_codes 배열 사용
-		return profile?.top_level_codes || [];
+		
+		// 일반 사용자이고 top_level_codes가 없으면 빈 배열
+		return [];
 	});
 
 	/**
@@ -66,13 +74,30 @@
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
 			authLoading = state.loading;
+			const prevUserProfile = userProfile;
 			userProfile = state.userProfile;
 
 			if (!state.loading && !state.user) {
 				goto('/login');
 			} else if (state.user && state.userProfile) {
 				// 사용자 프로필이 로드된 후에만 설정 로드
-				loadAllSettings();
+				if (!prevUserProfile && state.userProfile) {
+					// 처음 프로필이 로드될 때만
+					loadAllSettings();
+				} else if (prevUserProfile && state.userProfile) {
+					// top_level_codes가 변경된 경우 다시 로드
+					const prevCodes = JSON.stringify(prevUserProfile?.top_level_codes || []);
+					const newCodes = JSON.stringify(state.userProfile?.top_level_codes || []);
+					if (prevCodes !== newCodes) {
+						loadAllSettings();
+					} else if (allSettings.length === 0) {
+						// 설정이 없으면 로드
+						loadAllSettings();
+					} else {
+						// 설정은 있지만 옵션이 업데이트되지 않은 경우
+						loadAccessibleTopLevelOptions();
+					}
+				}
 			}
 		});
 
@@ -110,8 +135,16 @@
 
 			allSettings = data || [];
 			// 설정 로드 후 접근 가능한 최상위 코드 옵션 로드
+			// userProfile이 준비될 때까지 기다림
 			if (userProfile) {
 				loadAccessibleTopLevelOptions();
+			} else {
+				// userProfile이 아직 없으면 잠시 후 다시 시도
+				setTimeout(() => {
+					if (userProfile && allSettings.length > 0) {
+						loadAccessibleTopLevelOptions();
+					}
+				}, 100);
 			}
 		} catch (err) {
 			console.error('환경설정 코드 로드 예외:', err);
@@ -124,24 +157,63 @@
 	 * @returns {void}
 	 */
 	function loadAccessibleTopLevelOptions() {
+		if (!userProfile || allSettings.length === 0) {
+			console.log('loadAccessibleTopLevelOptions: userProfile 또는 allSettings가 없음');
+			return;
+		}
+		
 		const accessibleCodes = accessibleTopLevelCodes;
+		const topLevelCodesFromProfile = Array.isArray(userProfile.top_level_codes) ? userProfile.top_level_codes : [];
+		
+		console.log('loadAccessibleTopLevelOptions 호출:', {
+			accessibleCodes,
+			topLevelCodesFromProfile,
+			allSettingsCount: allSettings.length,
+			userProfileRole: userProfile?.role,
+			isAdmin: userProfile?.role && isAdmin(userProfile.role)
+		});
+		
+		/** @type {Array<any>} */
+		let newOptions = [];
 		
 		if (accessibleCodes === null) {
 			// 관리자/마스터: 모든 최상위 코드 표시
-			accessibleTopLevelOptions = allSettings.filter((/** @type {any} */ s) => !s.parent_code);
+			newOptions = allSettings.filter((/** @type {any} */ s) => !s.parent_code);
 		} else if (accessibleCodes.length > 0) {
-			// 일반 사용자: 접근 가능한 최상위 코드만 표시
-			accessibleTopLevelOptions = allSettings.filter((/** @type {any} */ s) => 
-				!s.parent_code && accessibleCodes.includes(s.code)
-			);
-		} else {
-			accessibleTopLevelOptions = [];
+			// 일반 사용자: 접근 가능한 코드만 표시 (최상위 코드가 아니어도 포함)
+			const accessibleCodesSet = new Set(accessibleCodes);
+			console.log('접근 가능한 코드:', Array.from(accessibleCodesSet));
+			
+			// 접근 가능한 코드 목록을 기준으로 allSettings에서 직접 찾기
+			newOptions = accessibleCodes.map((code) => {
+				const setting = allSettings.find((/** @type {any} */ s) => s.code === code);
+				if (setting) {
+					console.log(`코드 ${code} 찾음:`, {
+						code: setting.code,
+						title: setting.title,
+						parent_code: setting.parent_code,
+						isTopLevel: !setting.parent_code
+					});
+				} else {
+					console.warn(`코드 ${code}를 allSettings에서 찾을 수 없음`);
+				}
+				return setting;
+			}).filter((/** @type {any} */ s) => {
+				// 설정이 존재하면 포함 (최상위 코드가 아니어도 포함)
+				return s !== undefined;
+			});
+			
+			console.log('필터링된 옵션:', newOptions.map((/** @type {any} */ s) => `${s.code} - ${s.title} (parent: ${s.parent_code || '최상위'})`));
 		}
+		
+		console.log('필터링된 옵션:', newOptions.map((/** @type {any} */ o) => `${o.code} - ${o.title}`));
+		accessibleTopLevelOptions = newOptions;
 
 		// 기본 선택: 첫 번째 옵션 (이미 선택된 값이 없을 때만)
 		if (accessibleTopLevelOptions.length > 0 && !selectedTopLevelCode && !initialSelectionDone) {
 			selectedTopLevelCode = accessibleTopLevelOptions[0].code;
 			initialSelectionDone = true;
+			console.log('기본 선택 설정:', selectedTopLevelCode);
 		}
 	}
 
@@ -263,7 +335,7 @@
 									{@const topLevelCodes = Array.isArray(userProfile.top_level_codes) ? userProfile.top_level_codes : []}
 									{#if topLevelCodes.length > 0}
 										<div class="flex items-center gap-2 flex-wrap">
-											<span class="text-sm text-gray-600 whitespace-nowrap">접근 가능한 최상위 코드:</span>
+											<span class="text-sm text-gray-600 whitespace-nowrap">접근 가능한 매출 코드:</span>
 											<div class="flex flex-wrap gap-2">
 												{#each topLevelCodes as code}
 													{@const setting = allSettings.find((/** @type {any} */ s) => s.code === code)}
@@ -287,7 +359,7 @@
 						<div class="bg-white rounded-lg shadow-md p-4 mb-6">
 							<div class="flex items-center gap-4">
 								<label for="top-level-code-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">
-									최상위 코드:
+									매출 구분:
 								</label>
 								<select
 									id="top-level-code-select"
@@ -327,8 +399,6 @@
 									<div class="text-xs text-gray-400">
 										{#if isLoading}
 											데이터를 불러오는 중...
-										{:else}
-											테이블이 생성되지 않았다면 docs/supabase/ev_sales.sql 파일을 Supabase SQL Editor에서 실행하세요.
 										{/if}
 									</div>
 								</div>
