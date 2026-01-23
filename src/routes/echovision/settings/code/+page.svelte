@@ -13,10 +13,13 @@
 		deleteSetting
 	} from '$lib/settingsService';
 	import { authStore } from '$lib/stores/authStore';
+	import { isAdmin } from '$lib/userService';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
 	let authLoading = $state(true);
+	/** @type {Object | null} */
+	let userProfile = $state(null);
 	/** @type {boolean} 모바일 사이드바 열림 상태 */
 	let isSidebarOpen = $state(false);
 	/** @type {Array<any>} 전체 환경설정 코드 목록 (부모 이름 조회용) */
@@ -31,6 +34,22 @@
 	let parentOptions = $state([]);
 	/** @type {string|null|undefined} 현재 선택된 상위 코드 (undefined = 아직 초기화 안됨) */
 	let currentParentCode = $state(undefined);
+
+	/**
+	 * 사용자가 접근 가능한 최상위 코드 목록
+	 * @type {string[]|null}
+	 */
+	const accessibleTopLevelCodes = $derived.by(() => {
+		if (!userProfile) return null;
+		/** @type {any} */
+		const profile = userProfile;
+		// 관리자/마스터는 모든 코드 접근 가능
+		if (profile?.role && isAdmin(profile.role)) {
+			return null; // null이면 모든 코드 접근 가능
+		}
+		// 일반 사용자는 top_level_codes 배열 사용
+		return profile?.top_level_codes || [];
+	});
 
 	// 폼 상태
 	/** @type {string} */
@@ -62,6 +81,7 @@
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
 			authLoading = state.loading;
+			userProfile = state.userProfile;
 
 			if (!state.loading && !state.user) {
 				goto('/login');
@@ -104,7 +124,22 @@
 			orderByOrder: true
 		});
 		if (allData) {
-			allSettings = allData;
+			// 접근 제한 적용
+			const accessibleCodes = accessibleTopLevelCodes;
+			if (accessibleCodes !== null && accessibleCodes.length > 0) {
+				// 접근 가능한 최상위 코드와 그 하위 코드만 필터링
+				const filtered = allData.filter((/** @type {any} */ setting) => {
+					// 최상위 코드인 경우
+					if (!setting.parent_code) {
+						return accessibleCodes.includes(setting.code);
+					}
+					// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
+					return isCodeAccessible(setting.code, accessibleCodes, allData);
+				});
+				allSettings = filtered;
+			} else {
+				allSettings = allData;
+			}
 		}
 		
 		// currentParentCode가 undefined이면 null로 처리 (최상위)
@@ -120,9 +155,44 @@
 			console.error('환경설정 코드 목록 로드 실패:', error);
 			displayedSettings = [];
 		} else {
-			displayedSettings = data || [];
+			let filteredData = data || [];
+			
+			// 접근 제한 적용
+			const accessibleCodes = accessibleTopLevelCodes;
+			if (accessibleCodes !== null && accessibleCodes.length > 0) {
+				filteredData = filteredData.filter((/** @type {any} */ setting) => {
+					// 최상위 코드인 경우
+					if (!setting.parent_code) {
+						return accessibleCodes.includes(setting.code);
+					}
+					// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
+					return isCodeAccessible(setting.code, accessibleCodes, allSettings);
+				});
+			}
+			
+			displayedSettings = filteredData;
 		}
 		isLoading = false;
+	}
+
+	/**
+	 * 코드가 접근 가능한지 확인 (재귀적으로 상위 코드 확인)
+	 * @param {string} code - 확인할 코드
+	 * @param {string[]} accessibleCodes - 접근 가능한 최상위 코드 목록
+	 * @param {Array<any>} allSettings - 전체 설정 목록
+	 * @returns {boolean}
+	 */
+	function isCodeAccessible(code, accessibleCodes, allSettings) {
+		const setting = allSettings.find((/** @type {any} */ s) => s.code === code);
+		if (!setting) return false;
+		
+		// 최상위 코드인 경우
+		if (!setting.parent_code) {
+			return accessibleCodes.includes(code);
+		}
+		
+		// 하위 코드인 경우, 부모 코드가 접근 가능한지 재귀적으로 확인
+		return isCodeAccessible(setting.parent_code, accessibleCodes, allSettings);
 	}
 
 	/**
@@ -132,7 +202,15 @@
 	async function loadParentOptions() {
 		const { data, error } = await getRootSettings();
 		if (!error && data) {
-			parentOptions = data || [];
+			// 접근 제한 적용
+			const accessibleCodes = accessibleTopLevelCodes;
+			if (accessibleCodes !== null && accessibleCodes.length > 0) {
+				parentOptions = (data || []).filter((/** @type {any} */ option) =>
+					accessibleCodes.includes(option.code)
+				);
+			} else {
+				parentOptions = data || [];
+			}
 		}
 	}
 

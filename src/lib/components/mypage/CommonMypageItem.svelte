@@ -133,6 +133,18 @@
 										{user.created_at ? new Date(user.created_at).toLocaleDateString('ko-KR') : '-'}
 									</p>
 								</div>
+								{#if userProfile?.top_level_codes && Array.isArray(userProfile.top_level_codes) && userProfile.top_level_codes.length > 0}
+									<div class="md:col-span-2">
+										<p class="text-sm text-gray-500">접근 가능한 최상위 코드</p>
+										<div class="flex flex-wrap gap-2 mt-1">
+											{#each userProfile.top_level_codes as code}
+												<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+													{code}
+												</span>
+											{/each}
+										</div>
+									</div>
+								{/if}
 							</div>
 						</div>
 					</div>

@@ -74,7 +74,7 @@ export async function getSettings(options = {}) {
 							throw cacheError;
 						}
 					}
-				} catch (rpcError) {
+				} catch {
 					// RPC 함수가 없거나 실패한 경우 무시하고 원래 에러 메시지 사용
 				}
 				
@@ -358,6 +358,42 @@ export async function getRootSettings() {
 		return await getSettings({ parentCode: null, orderByOrder: true });
 	} catch (error) {
 		console.error('최상위 환경설정 조회 실패:', error);
+		return { data: [], error };
+	}
+}
+
+/**
+ * 모든 환경설정 코드를 title로 검색 (parent_code 제약 없음)
+ * @param {Object} [options] - 조회 옵션
+ * @param {string} [options.search] - 검색어 (title에 대한 LIKE 검색)
+ * @returns {Promise<{data: Array<SettingData>|null, error: Error|null}>}
+ */
+export async function searchSettingsByTitle(options = {}) {
+	try {
+		const { search } = options;
+		
+		let query = supabase
+			.from('env_code')
+			.select('*');
+		
+		// 검색어가 있으면 title에 LIKE 검색 적용
+		if (search && search.trim()) {
+			const searchTerm = search.trim();
+			query = query.ilike('title', `%${searchTerm}%`);
+		}
+		
+		query = query.order('order', { ascending: true });
+		
+		const { data, error } = await query;
+		
+		if (error) {
+			console.error('환경설정 코드 검색 실패:', error);
+			return { data: [], error };
+		}
+		
+		return { data: data || [], error: null };
+	} catch (error) {
+		console.error('환경설정 코드 검색 실패:', error);
 		return { data: [], error };
 	}
 }

@@ -305,6 +305,57 @@ export async function updateUserRole(userId, role) {
 }
 
 /**
+ * 사용자 최상위 코드 업데이트 (관리자 전용)
+ * @param {string} userId - 사용자 ID
+ * @param {string[]} topLevelCodes - 최상위 코드 배열 (env_code.code 값들)
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
+ */
+export async function updateUserTopLevelCodes(userId, topLevelCodes) {
+	try {
+		// 배열이 아닌 경우 빈 배열로 처리
+		const codes = Array.isArray(topLevelCodes) ? topLevelCodes : [];
+		
+		const { data, error } = await supabase
+			.from('user_profiles')
+			.update({ top_level_codes: codes })
+			.eq('id', userId)
+			.select()
+			.single();
+		
+		if (error) throw error;
+
+		// 로그 기록
+		await logAction({
+			actionType: ACTION_TYPES.USER_UPDATE,
+			actionCategory: ACTION_CATEGORIES.USER,
+			actionDetails: {
+				targetUserId: userId,
+				topLevelCodes: codes
+			},
+			result: 'success'
+		});
+
+		return { data, error: null };
+	} catch (error) {
+		console.error('최상위 코드 업데이트 실패:', error);
+
+		// 에러 로그 기록
+		await logAction({
+			actionType: ACTION_TYPES.USER_UPDATE,
+			actionCategory: ACTION_CATEGORIES.USER,
+			actionDetails: {
+				targetUserId: userId,
+				topLevelCodes: topLevelCodes
+			},
+			result: 'error',
+			errorMessage: error instanceof Error ? error.message : String(error)
+		});
+
+		return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+	}
+}
+
+/**
  * 사용자 활성화/비활성화
  * @param {string} userId - 사용자 ID
  * @param {boolean} banned - 비활성화 여부

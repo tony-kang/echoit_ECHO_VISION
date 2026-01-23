@@ -7,11 +7,13 @@
 		getAllUsers,
 		updateUserRole,
 		toggleUserStatus,
+		updateUserTopLevelCodes,
 		getUserStatistics,
 		USER_ROLE_LABELS,
 		USER_ROLES,
 		isAdmin
 	} from '$lib/userService';
+	import { searchSettingsByTitle } from '$lib/settingsService';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
@@ -36,6 +38,20 @@
 		status: '',
 		search: ''
 	});
+
+	/** @type {Array<any>} 최상위 코드 목록 (검색 결과) */
+	let topLevelCodeOptions = $state([]);
+	/** @type {string|null} 최상위 코드 설정 모달을 위한 사용자 ID */
+	let editingTopLevelCodesUserId = $state(null);
+	/** @type {string[]} 편집 중인 최상위 코드 목록 */
+	let editingTopLevelCodes = $state([]);
+	let showTopLevelCodesModal = $state(false);
+	/** @type {string} 최상위 코드 검색어 */
+	let topLevelCodeSearch = $state('');
+	/** @type {number|null} 검색 debounce 타이머 */
+	let searchDebounceTimer = null;
+	/** @type {boolean} 검색 로딩 상태 */
+	let isLoadingSearch = $state(false);
 
 	/**
 	 * 관리자 권한 확인
@@ -259,6 +275,139 @@
 	function handleResetFilters() {
 		userFilters = { role: '', status: '', search: '' };
 	}
+
+	/**
+	 * 최상위 코드 설정 모달 열기
+	 * @param {any} usr - 사용자 객체
+	 * @returns {Promise<void>}
+	 */
+	async function openTopLevelCodesModal(usr) {
+		editingTopLevelCodesUserId = usr.id;
+		/** @type {any} */
+		const user = usr;
+		editingTopLevelCodes = Array.isArray(user.top_level_codes) ? [...user.top_level_codes] : [];
+		topLevelCodeSearch = '';
+		showTopLevelCodesModal = true;
+		
+		// 초기 데이터 로드 (검색어 없이 전체 조회)
+		await searchTopLevelCodes('');
+	}
+
+	/**
+	 * 최상위 코드 설정 모달 닫기
+	 * @returns {void}
+	 */
+	function closeTopLevelCodesModal() {
+		showTopLevelCodesModal = false;
+		editingTopLevelCodesUserId = null;
+		editingTopLevelCodes = [];
+		topLevelCodeSearch = '';
+		topLevelCodeOptions = [];
+		isLoadingSearch = false;
+		
+		// 타이머 정리
+		if (searchDebounceTimer !== null) {
+			clearTimeout(searchDebounceTimer);
+			searchDebounceTimer = null;
+		}
+	}
+	
+	/**
+	 * 검색어 입력 핸들러 (debounce 적용)
+	 * @param {Event} event - 입력 이벤트
+	 * @returns {void}
+	 */
+	function handleSearchInput(event) {
+		const value = event.currentTarget.value;
+		topLevelCodeSearch = value;
+		
+		// 기존 타이머 취소
+		if (searchDebounceTimer !== null) {
+			clearTimeout(searchDebounceTimer);
+			searchDebounceTimer = null;
+		}
+		
+		const searchTrimmed = value?.trim() || '';
+		
+		// debounce: 300ms 후 검색 실행
+		searchDebounceTimer = setTimeout(() => {
+			searchTopLevelCodes(searchTrimmed);
+			searchDebounceTimer = null;
+		}, 300);
+	}
+
+	/**
+	 * 서버에서 모든 코드를 title로 검색
+	 * @param {string} searchTerm - 검색어
+	 * @returns {Promise<void>}
+	 */
+	async function searchTopLevelCodes(searchTerm) {
+		isLoadingSearch = true;
+		
+		try {
+			const { data, error } = await searchSettingsByTitle({ search: searchTerm });
+			
+			if (error) {
+				console.error('코드 검색 실패:', error);
+				topLevelCodeOptions = [];
+			} else {
+				topLevelCodeOptions = data || [];
+			}
+		} catch (err) {
+			console.error('검색 예외:', err);
+			topLevelCodeOptions = [];
+		} finally {
+			isLoadingSearch = false;
+		}
+	}
+
+	/**
+	 * 최상위 코드 설정 저장
+	 * @returns {Promise<void>}
+	 */
+	async function saveTopLevelCodes() {
+		if (!editingTopLevelCodesUserId) return;
+
+		const { error: updateError } = await updateUserTopLevelCodes(
+			editingTopLevelCodesUserId,
+			editingTopLevelCodes
+		);
+		if (updateError) {
+			alert('최상위 코드 설정에 실패했습니다.');
+		} else {
+			alert('최상위 코드가 설정되었습니다.');
+			closeTopLevelCodesModal();
+			await loadData();
+		}
+	}
+
+	/**
+	 * 최상위 코드 토글
+	 * @param {string} code - 코드
+	 * @returns {void}
+	 */
+	function toggleTopLevelCode(code) {
+		const index = editingTopLevelCodes.indexOf(code);
+		if (index >= 0) {
+			editingTopLevelCodes = editingTopLevelCodes.filter((c) => c !== code);
+		} else {
+			editingTopLevelCodes = [...editingTopLevelCodes, code];
+		}
+	}
+
+	/**
+	 * 사용자의 최상위 코드 표시 (최대 3개)
+	 * @param {any} usr - 사용자 객체
+	 * @returns {string}
+	 */
+	function getTopLevelCodesDisplay(usr) {
+		/** @type {any} */
+		const user = usr;
+		const codes = Array.isArray(user.top_level_codes) ? user.top_level_codes : [];
+		if (codes.length === 0) return '-';
+		if (codes.length <= 3) return codes.join(', ');
+		return codes.slice(0, 3).join(', ') + ` 외 ${codes.length - 3}개`;
+	}
 </script>
 
 <div class="main-content-page">
@@ -401,6 +550,7 @@
 												<th>이메일</th>
 												<th>이름</th>
 												<th>역할</th>
+												<th>최상위 코드</th>
 												<th>가입일</th>
 												<th>마지막 로그인</th>
 												<th>상태</th>
@@ -410,7 +560,7 @@
 										<tbody>
 											{#if filteredUsers.length === 0}
 												<tr>
-													<td colspan="7" class="empty-message">사용자가 없습니다.</td>
+													<td colspan="8" class="empty-message">사용자가 없습니다.</td>
 												</tr>
 											{:else}
 												{#each filteredUsers as usr}
@@ -434,6 +584,22 @@
 																	{/if}
 																{/each}
 															</select>
+														</td>
+														<td>
+															<div class="flex items-center gap-2">
+																<span class="text-sm">{getTopLevelCodesDisplay(usr)}</span>
+																{#if isAdminUser && usr.role !== USER_ROLES.MASTER && usr.id !== user?.id}
+																	<button
+																		onclick={() => openTopLevelCodesModal(usr)}
+																		class="btn-icon-small"
+																		title="최상위 코드 설정"
+																	>
+																		<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+																		</svg>
+																	</button>
+																{/if}
+															</div>
 														</td>
 														<td>
 															{usr.created_at
@@ -473,6 +639,108 @@
 		</main>
 	</div>
 </div>
+
+<!-- 최상위 코드 설정 모달 -->
+{#if showTopLevelCodesModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="modal-overlay" onclick={closeTopLevelCodesModal}>
+		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+			<div class="modal-header">
+				<h2>최상위 코드 설정</h2>
+				<button onclick={closeTopLevelCodesModal} class="modal-close">×</button>
+			</div>
+			<div class="modal-body">
+				<p class="text-sm text-gray-600 mb-4">
+					사용자가 접근 가능한 최상위 환경설정 코드를 선택하세요. 선택한 코드와 그 하위 코드만 접근할 수 있습니다.
+				</p>
+				
+				<!-- 검색 입력 -->
+				<div class="mb-4">
+					<input
+						type="text"
+						value={topLevelCodeSearch}
+						oninput={handleSearchInput}
+						placeholder="제목으로 검색..."
+						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+					/>
+					<div class="mt-2 text-xs text-gray-500">
+						{#if isLoadingSearch}
+							<p>검색 중...</p>
+						{:else if topLevelCodeSearch}
+							<p>검색 결과: {topLevelCodeOptions.length}개</p>
+						{:else}
+							<p>전체 {topLevelCodeOptions.length}개 코드</p>
+						{/if}
+					</div>
+				</div>
+
+				<!-- 선택된 코드 표시 -->
+				{#if editingTopLevelCodes.length > 0}
+					<div class="mb-4 p-3 bg-blue-50 rounded-lg">
+						<p class="text-sm font-medium text-blue-900 mb-2">선택된 코드 ({editingTopLevelCodes.length}개):</p>
+						<div class="flex flex-wrap gap-2">
+							{#each editingTopLevelCodes as code}
+								{@const option = topLevelCodeOptions.find((/** @type {any} */ opt) => opt.code === code)}
+								<span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+									{option?.code || code}
+									{#if option?.title}
+										<span class="text-blue-600">- {option.title}</span>
+									{/if}
+									<button
+										onclick={() => toggleTopLevelCode(code)}
+										class="ml-1 text-blue-600 hover:text-blue-800"
+										title="제거"
+									>
+										<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+										</svg>
+									</button>
+								</span>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- 코드 목록 -->
+				<div class="max-h-48 overflow-y-auto">
+					{#if isLoadingSearch}
+						<div class="text-center py-8 text-gray-500">
+							검색 중...
+						</div>
+					{:else if topLevelCodeOptions.length === 0}
+						<div class="text-center py-8 text-gray-500">
+							{#if topLevelCodeSearch}
+								검색 결과가 없습니다.
+							{:else}
+								코드를 불러오는 중...
+							{/if}
+						</div>
+					{:else}
+						{#each topLevelCodeOptions as option}
+							<label class="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+								<input
+									type="checkbox"
+									checked={editingTopLevelCodes.includes(option.code)}
+									onchange={() => toggleTopLevelCode(option.code)}
+									class="checkbox-input"
+								/>
+								<span class="flex-1">
+									<span class="font-mono text-sm font-medium">{option.code}</span>
+									<span class="text-sm text-gray-600 ml-2">- {option.title}</span>
+								</span>
+							</label>
+						{/each}
+					{/if}
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button onclick={closeTopLevelCodesModal} class="btn-secondary">취소</button>
+				<button onclick={saveTopLevelCodes} class="btn-primary">저장</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.admin-content-page {
@@ -803,6 +1071,129 @@
 	.loading-data p {
 		margin-top: 20px;
 		color: #718096;
+	}
+
+	.btn-icon-small {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 4px;
+		border-radius: 4px;
+		border: 1px solid #d1d5db;
+		background: white;
+		color: #374151;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn-icon-small:hover {
+		background: #f3f4f6;
+		border-color: #9ca3af;
+	}
+
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.modal-content {
+		background: white;
+		border-radius: 8px;
+		width: 90%;
+		max-width: 600px;
+		max-height: 90vh;
+		overflow-y: auto;
+		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+	}
+
+	.modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 20px;
+		border-bottom: 1px solid #e5e7eb;
+	}
+
+	.modal-header h2 {
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #111827;
+	}
+
+	.modal-close {
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		color: #6b7280;
+		cursor: pointer;
+		padding: 0;
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 4px;
+	}
+
+	.modal-close:hover {
+		background: #f3f4f6;
+		color: #111827;
+	}
+
+	.modal-body {
+		padding: 20px;
+	}
+
+	.modal-footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: 12px;
+		padding: 20px;
+		border-top: 1px solid #e5e7eb;
+	}
+
+	.checkbox-input {
+		width: 18px;
+		height: 18px;
+		cursor: pointer;
+	}
+
+	.btn-primary {
+		background: #2563eb;
+		color: white;
+		padding: 8px 16px;
+		border-radius: 6px;
+		border: none;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background 0.2s;
+	}
+
+	.btn-primary:hover {
+		background: #1d4ed8;
+	}
+
+	.btn-secondary {
+		background: #f3f4f6;
+		color: #374151;
+		padding: 8px 16px;
+		border-radius: 6px;
+		border: 1px solid #d1d5db;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background 0.2s;
+	}
+
+	.btn-secondary:hover {
+		background: #e5e7eb;
 	}
 
 	@media (max-width: 768px) {
