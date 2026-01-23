@@ -6,7 +6,7 @@ import { logAction, ACTION_TYPES, ACTION_CATEGORIES } from './logService';
  * 환경설정 데이터 타입
  * @typedef {Object} SettingData
  * @property {string} code - 환경설정 코드 (Primary Key, 최대 16자리)
- * @property {string|null} parent_code - 부모 코드 (종속성 관리)
+ * @property {string|null} parent_code - 상위 코드 (종속성 관리)
  * @property {number} order - 표시 순서
  * @property {number} value - 값 (Number, 1~N)
  * @property {string} title - 제목
@@ -29,7 +29,7 @@ export async function getSettings(options = {}) {
 			.from('env_code')
 			.select('*');
 
-		// 부모 코드 필터링
+		// 상위 코드 필터링
 		if (parentCode !== undefined) {
 			if (parentCode === null) {
 				// 최상위 항목만 (parent_code가 NULL인 것)
@@ -48,11 +48,58 @@ export async function getSettings(options = {}) {
 
 		const { data, error } = await query;
 
-		if (error) throw error;
+		if (error) {
+			// 테이블이 없는 경우 또는 스키마 캐시 문제
+			if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+				// 스키마 캐시 문제일 수 있으므로, 직접 SQL로 테이블 존재 확인 시도
+				try {
+					const { data: tableCheck, error: checkError } = await supabase.rpc('get_all_tables');
+					if (!checkError && tableCheck) {
+						const tables = Array.isArray(tableCheck) 
+							? tableCheck.map(t => typeof t === 'object' ? t.table_name : t)
+							: [];
+						const tableExists = tables.some(t => t === 'env_code');
+						
+						if (tableExists) {
+							// 테이블은 존재하지만 스키마 캐시 문제
+							const cacheError = new Error(
+								'env_code 테이블은 존재하지만 Supabase 스키마 캐시 문제가 발생했습니다.\n\n' +
+								'해결 방법:\n' +
+								'1. Supabase Dashboard → Settings → API → "Reload schema cache" 클릭\n' +
+								'2. 또는 잠시 후 다시 시도 (캐시가 자동으로 업데이트됨)\n' +
+								'3. 브라우저를 완전히 종료한 후 다시 열기\n\n' +
+								'원본 에러: ' + error.message
+							);
+							cacheError.code = error.code;
+							throw cacheError;
+						}
+					}
+				} catch (rpcError) {
+					// RPC 함수가 없거나 실패한 경우 무시하고 원래 에러 메시지 사용
+				}
+				
+				const setupError = new Error(
+					'env_code 테이블이 Supabase에 생성되지 않았거나 스키마 캐시 문제가 있습니다.\n\n' +
+					'해결 방법:\n' +
+					'1. Supabase Dashboard → Settings → API → "Reload schema cache" 클릭\n' +
+					'2. Supabase Dashboard → SQL Editor에서 다음 쿼리 실행:\n' +
+					'   SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' AND table_name = \'env_code\';\n' +
+					'3. 테이블이 없다면 docs/supabase/env_code.sql 파일을 실행\n' +
+					'4. 브라우저를 완전히 종료한 후 다시 열기\n\n' +
+					'원본 에러: ' + error.message
+				);
+				setupError.code = error.code;
+				throw setupError;
+			}
+			throw error;
+		}
 
 		return { data: data || [], error: null };
 	} catch (error) {
 		console.error('환경설정 목록 조회 실패:', error);
+		if (error.code === 'PGRST205') {
+			console.error('⚠️ env_code 테이블을 생성해야 합니다. docs/supabase/env_code.sql 파일을 Supabase SQL Editor에서 실행하세요.');
+		}
 		return { data: [], error };
 	}
 }
@@ -83,7 +130,7 @@ export async function getSetting(code) {
  * 환경설정 생성
  * @param {Object} settingData - 환경설정 데이터
  * @param {string} settingData.code - 환경설정 코드 (최대 16자리)
- * @param {string|null} [settingData.parent_code] - 부모 코드
+ * @param {string|null} [settingData.parent_code] - 상위 코드
  * @param {number} [settingData.order] - 표시 순서
  * @param {number} settingData.value - 값 (1~N)
  * @param {string} settingData.title - 제목
@@ -91,7 +138,7 @@ export async function getSetting(code) {
  */
 export async function createSetting(settingData) {
 	try {
-		const { code, parent_code, order, value, title } = settingData;
+		const { code, parent_code, order, value, title, comment } = settingData;
 
 		// 유효성 검사
 		if (!code || code.length > 16) {
@@ -122,6 +169,10 @@ export async function createSetting(settingData) {
 		if (parent_code !== undefined) {
 			insertData.parent_code = parent_code || null;
 		}
+		
+		if (comment !== undefined) {
+			insertData.comment = comment || null;
+		}
 
 		const { data, error } = await supabase
 			.from('env_code')
@@ -149,7 +200,7 @@ export async function createSetting(settingData) {
  * 환경설정 수정
  * @param {string} code - 환경설정 코드
  * @param {Object} updateData - 수정할 데이터
- * @param {string|null} [updateData.parent_code] - 부모 코드
+ * @param {string|null} [updateData.parent_code] - 상위 코드
  * @param {number} [updateData.order] - 표시 순서
  * @param {number} [updateData.value] - 값 (1~N)
  * @param {string} [updateData.title] - 제목
@@ -157,7 +208,7 @@ export async function createSetting(settingData) {
  */
 export async function updateSetting(code, updateData) {
 	try {
-		const { parent_code, order, value, title } = updateData;
+		const { parent_code, order, value, title, comment } = updateData;
 
 		// 유효성 검사
 		if (value !== undefined && value < 1) {
@@ -182,6 +233,7 @@ export async function updateSetting(code, updateData) {
 		if (order !== undefined) updateFields.order = order;
 		if (value !== undefined) updateFields.value = value;
 		if (title !== undefined) updateFields.title = title;
+		if (comment !== undefined) updateFields.comment = comment || null;
 
 		if (Object.keys(updateFields).length === 0) {
 			throw new Error('수정할 데이터가 없습니다.');
@@ -285,7 +337,7 @@ export async function getSettingValues(codes) {
 
 /**
  * 부모 코드로 자식 환경설정 조회
- * @param {string} parentCode - 부모 코드
+ * @param {string} parentCode - 상위 코드
  * @returns {Promise<{data: Array<SettingData>|null, error: Error|null}>}
  */
 export async function getChildSettings(parentCode) {

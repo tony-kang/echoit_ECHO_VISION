@@ -486,7 +486,7 @@
 							></path>
 						</svg>
 					</button>
-					<h1 class="text-3xl font-bold text-gray-900">화물일정</h1>
+					<h1 class="text-3xl font-bold text-gray-900">주요일정</h1>
 				</div>
 				<div class="flex gap-2">
 					<button
