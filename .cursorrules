@@ -1,0 +1,40 @@
+# [Svelte & JSDoc Coding Standards]
+- 모든 Svelte 컴포넌트와 관련 스크립트 작성 시, 반드시 JSDoc 주석을 포함하라.
+- 새로운 변수 선언, 함수 생성, 혹은 기존 코드 수정 시 JSDoc이 누락되었다면 즉시 추가하라.
+
+## 1. Svelte Runes ($state, $derived, $props) 적용 규칙
+- 모든 `$state` 변수 위에는 `@type`을 명시하여 상태의 의도를 분명히 한다.
+- `$props` 선언 시 각 속성에 대한 설명을 JSDoc으로 작성하라.
+- 예시:
+  /** @type {string} 사용자의 현재 상태 메시지 */
+  let status = $state('online');
+
+  /** @type {{ items: string[], active: boolean }} 컴포넌트 Props */
+  let { items, active } = $props();
+
+## 2. Functions & Logic
+- 모든 함수(비동기 포함)는 반드시 `@param`과 `@returns`를 포함해야 한다.
+- 스벨트 컴포넌트 내부의 `helper` 함수들도 예외 없이 적용한다.
+- 예시:
+  /**
+   * 아이템 리스트를 필터링하는 함수
+   * @param {string[]} list - 원본 리스트
+   * @param {string} query - 검색어
+   * @returns {string[]} 필터링된 결과
+   */
+  const filterList = (list, query) => { ... };
+
+## 3. Event Handlers
+- 인라인 핸들러보다는 명시적 함수 선언을 권장하며, 핸들러 상단에 이벤트를 설명하는 JSDoc을 작성하라.
+- 예시:
+  /** @param {MouseEvent} event - 클릭 이벤트 객체 */
+  function handleClick(event) { ... }
+
+# [Strict Action]
+- 사용자가 코드를 요청할 때 JSDoc이 없는 코드를 답변으로 출력하지 마라.
+- 코드를 제안하기 전, 모든 선언문에 JSDoc이 붙어 있는지 최종 확인하라.
+- Problems 에 에러가 없도록 하라
+- 불필요한 설명 금지(코딩 중간에 각 파일의 수정내용은 보여주지 않아도 됨 - 요약으로 충분)
+- 쓸때 없는 일은 하지 말고 물어 보고 진행하기 바랍니다.
+- onMount 와 $effect 에서 동일한 데이터를 로드하는 경우 중복 로드 처리가 되지 않도록 하라.
+- 상태변화와 관계없다면 onMount 에서 처리하고 상태변화가 있을때는 $effect 에서 처리하라.
