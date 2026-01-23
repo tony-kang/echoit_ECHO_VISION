@@ -356,8 +356,6 @@
 									</button>
 									<span class="text-gray-400">/</span>
 									<span class="text-sm text-gray-700">{getCurrentParentTitle()}</span>
-								{:else}
-									<span class="text-sm text-gray-700 font-medium">최상위 코드</span>
 								{/if}
 							</div>
 							
