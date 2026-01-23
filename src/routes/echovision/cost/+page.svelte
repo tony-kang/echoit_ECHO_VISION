@@ -5,7 +5,8 @@
 	import YearMonthCodeFilter from '$lib/components/YearMonthCodeFilter.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import { getSettings } from '$lib/settingsService';
-	import { getSales, getChildCodes } from '$lib/salesService';
+	import { getCosts } from '$lib/costService';
+	import { getChildCodes } from '$lib/salesService';
 	import { isAdmin } from '$lib/userService';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
@@ -24,8 +25,8 @@
 	let selectedTopLevelCode = $state(null);
 	/** @type {boolean} 초기 선택 완료 여부 */
 	let initialSelectionDone = $state(false);
-	/** @type {Array<any>} 표시할 매출 데이터 */
-	let salesData = $state([]);
+	/** @type {Array<any>} 표시할 원가 데이터 */
+	let costData = $state([]);
 	let isLoading = $state(false);
 	
 	/** @type {number|null} 선택된 연도 */
@@ -80,30 +81,13 @@
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
 			authLoading = state.loading;
-			const prevUserProfile = userProfile;
 			userProfile = state.userProfile;
 
 			if (!state.loading && !state.user) {
 				goto('/login');
 			} else if (state.user && state.userProfile) {
 				// 사용자 프로필이 로드된 후에만 설정 로드
-				if (!prevUserProfile && state.userProfile) {
-					// 처음 프로필이 로드될 때만
-					loadAllSettings();
-				} else if (prevUserProfile && state.userProfile) {
-					// top_level_codes가 변경된 경우 다시 로드
-					const prevCodes = JSON.stringify(prevUserProfile?.top_level_codes || []);
-					const newCodes = JSON.stringify(state.userProfile?.top_level_codes || []);
-					if (prevCodes !== newCodes) {
-						loadAllSettings();
-					} else if (allSettings.length === 0) {
-						// 설정이 없으면 로드
-						loadAllSettings();
-					} else {
-						// 설정은 있지만 옵션이 업데이트되지 않은 경우
-						loadAccessibleTopLevelOptions();
-					}
-				}
+				loadAllSettings();
 			}
 		});
 
@@ -113,11 +97,11 @@
 	});
 
 	/**
-	 * 선택된 코드, 연도, 월 변경 시 매출 데이터 로드
+	 * 선택된 코드, 연도, 월 변경 시 원가 데이터 로드
 	 */
 	$effect(() => {
 		if (user && !authLoading && selectedTopLevelCode && allSettings.length > 0 && selectedCodes.length > 0 && initialSelectionDone && selectedYear) {
-			loadSalesData();
+			loadCostData();
 		}
 	});
 
@@ -224,18 +208,18 @@
 	}
 
 	/**
-	 * 매출 데이터 로드
+	 * 원가 데이터 로드
 	 * @returns {Promise<void>}
 	 */
-	async function loadSalesData() {
+	async function loadCostData() {
 		if (!selectedTopLevelCode || selectedCodes.length === 0 || !selectedYear) {
-			salesData = [];
+			costData = [];
 			return;
 		}
 
 		isLoading = true;
 		try {
-			const { data, error } = await getSales({
+			const { data, error } = await getCosts({
 				codes: selectedCodes,
 				year: selectedYear,
 				month: selectedMonth || undefined,
@@ -244,18 +228,18 @@
 			});
 
 			if (error) {
-				console.error('매출 데이터 로드 실패:', error);
+				console.error('원가 데이터 로드 실패:', error);
 				// 테이블이 없는 경우 에러 메시지 표시
 				if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
-					console.error('⚠️ ev_sales 테이블이 생성되지 않았습니다. docs/supabase/ev_sales.sql 파일을 Supabase SQL Editor에서 실행하세요.');
+					console.error('⚠️ ev_cost 테이블이 생성되지 않았습니다. docs/supabase/ev_cost.sql 파일을 Supabase SQL Editor에서 실행하세요.');
 				}
-				salesData = [];
+				costData = [];
 			} else {
-				salesData = data || [];
+				costData = data || [];
 			}
 		} catch (err) {
-			console.error('매출 데이터 로드 예외:', err);
-			salesData = [];
+			console.error('원가 데이터 로드 예외:', err);
+			costData = [];
 		} finally {
 			isLoading = false;
 		}
@@ -337,13 +321,13 @@
 											/>
 										</svg>
 									</button>
-									<h1 class="text-2xl font-bold text-gray-900">매출 정보</h1>
+									<h1 class="text-2xl font-bold text-gray-900">원가 정보</h1>
 								</div>
 								{#if userProfile}
 									{@const topLevelCodes = Array.isArray(userProfile.top_level_codes) ? userProfile.top_level_codes : []}
 									{#if topLevelCodes.length > 0}
 										<div class="flex items-center gap-2 flex-wrap">
-											<span class="text-sm text-gray-600 whitespace-nowrap">접근 가능한 매출 코드:</span>
+											<span class="text-sm text-gray-600 whitespace-nowrap">접근 가능한 원가 코드:</span>
 											<div class="flex flex-wrap gap-2">
 												{#each topLevelCodes as code}
 													{@const setting = allSettings.find((/** @type {any} */ s) => s.code === code)}
@@ -369,14 +353,14 @@
 							bind:selectedMonth
 							bind:selectedCode={selectedTopLevelCode}
 							bind:codeOptions={accessibleTopLevelOptions}
-							codeLabel="매출 구분"
+							codeLabel="원가 구분"
 							onFilterChange={() => {
 								initialSelectionDone = true;
-								loadSalesData();
+								loadCostData();
 							}}
 						/>
 
-						<!-- 매출 데이터 테이블 -->
+						<!-- 원가 데이터 테이블 -->
 						<div class="bg-white rounded-lg shadow-md overflow-hidden">
 							{#if isLoading}
 								<div class="flex items-center justify-center py-12">
@@ -384,11 +368,11 @@
 								</div>
 							{:else if !selectedTopLevelCode}
 								<div class="flex items-center justify-center py-12">
-									<div class="text-gray-500">최상위 코드를 선택해주세요.</div>
+									<div class="text-gray-500">코드를 선택해주세요.</div>
 								</div>
-							{:else if salesData.length === 0}
+							{:else if costData.length === 0}
 								<div class="flex flex-col items-center justify-center py-12">
-									<div class="text-gray-500 mb-2">매출 데이터가 없습니다.</div>
+									<div class="text-gray-500 mb-2">원가 데이터가 없습니다.</div>
 									<div class="text-xs text-gray-400">
 										{#if isLoading}
 											데이터를 불러오는 중...
@@ -402,38 +386,44 @@
 											<tr>
 												<th>코드</th>
 												<th>기간</th>
-												<th>목표 매출액</th>
-												<th>매출액</th>
-												<th>매출 원가</th>
-												<th>매출 총손실</th>
-												<th>판매 관리비</th>
-												<th>영업 손실</th>
-												<th>영업외 수익</th>
-												<th>영업외 비용</th>
-												<th>법인세 비용 차감전 순손실</th>
-												<th>법인세 비용</th>
-												<th>당기 순손실</th>
+												<th>목표 원가</th>
+												<th>원재료비</th>
+												<th>노무비</th>
+												<th>외주비</th>
+												<th>경비</th>
+												<th>당기 총공사 비용</th>
+												<th>공사손실 충당금 전입</th>
+												<th>공사손실 충당금 환입</th>
+												<th>기초 미완성 공사액</th>
+												<th>타계정에서 대체액</th>
+												<th>합계</th>
+												<th>기말 미완성 공사액</th>
+												<th>타계정으로 대체액</th>
+												<th>당기 공사 원가</th>
 											</tr>
 										</thead>
 										<tbody>
-											{#each salesData as item}
+											{#each costData as item}
 												<tr>
 													<td>
 														<div class="font-mono text-sm">{item.code}</div>
 														<div class="text-xs text-gray-500">{getCodeTitle(item.code)}</div>
 													</td>
 													<td>{formatPeriod(item.year, item.month)}</td>
-													<td class="text-right">{formatAmount(item.target_sales_amount)}</td>
-													<td class="text-right">{formatAmount(item.sales_amount)}</td>
-													<td class="text-right">{formatAmount(item.sales_cost)}</td>
-													<td class="text-right">{formatAmount(item.sales_gross_loss)}</td>
-													<td class="text-right">{formatAmount(item.selling_admin_expenses)}</td>
-													<td class="text-right">{formatAmount(item.operating_loss)}</td>
-													<td class="text-right">{formatAmount(item.non_operating_income)}</td>
-													<td class="text-right">{formatAmount(item.non_operating_expenses)}</td>
-													<td class="text-right">{formatAmount(item.loss_before_tax)}</td>
-													<td class="text-right">{formatAmount(item.corporate_tax_expenses)}</td>
-													<td class="text-right font-semibold">{formatAmount(item.net_loss)}</td>
+													<td class="text-right">{formatAmount(item.target_cost)}</td>
+													<td class="text-right">{formatAmount(item.material_cost)}</td>
+													<td class="text-right">{formatAmount(item.labor_cost)}</td>
+													<td class="text-right">{formatAmount(item.subcontract_cost)}</td>
+													<td class="text-right">{formatAmount(item.expenses)}</td>
+													<td class="text-right">{formatAmount(item.total_construction_cost)}</td>
+													<td class="text-right">{formatAmount(item.construction_loss_provision_transfer)}</td>
+													<td class="text-right">{formatAmount(item.construction_loss_provision_reversal)}</td>
+													<td class="text-right">{formatAmount(item.opening_unfinished_construction)}</td>
+													<td class="text-right">{formatAmount(item.transfer_from_other_accounts)}</td>
+													<td class="text-right font-semibold">{formatAmount(item.total_amount)}</td>
+													<td class="text-right">{formatAmount(item.closing_unfinished_construction)}</td>
+													<td class="text-right">{formatAmount(item.transfer_to_other_accounts)}</td>
+													<td class="text-right font-semibold">{formatAmount(item.current_period_construction_cost)}</td>
 												</tr>
 											{/each}
 										</tbody>
