@@ -86,6 +86,7 @@
 	 * @returns {Promise<void>}
 	 */
 	async function handleUploadSuccess() {
+		listLoaded = false; // 리스트 갱신을 위해 플래그 리셋
 		await loadExcelFiles();
 	}
 
@@ -119,6 +120,7 @@
 	 */
 	async function handleApplyFilters() {
 		// 검색어가 변경되면 파일 목록 다시 로드
+		listLoaded = false; // 리스트 갱신을 위해 플래그 리셋
 		await loadExcelFiles();
 	}
 
@@ -189,6 +191,7 @@
 			return;
 		}
 
+		listLoaded = false; // 리스트 갱신을 위해 플래그 리셋
 		await loadExcelFiles();
 		alert('파일이 삭제되었습니다.');
 	}

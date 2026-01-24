@@ -6,6 +6,7 @@
 	import Header from '$lib/components/Header.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import { authStore } from '$lib/stores/authStore';
+	import { Toaster } from 'svelte-sonner';
 
 	let { children } = $props();
 	/** @type {import('@supabase/supabase-js').User | null} */
@@ -57,6 +58,8 @@
 	<Footer user={user} />
 {/if}
 
+<Toaster position="top-right" />
+
 <style>
 	/* 공통 페이지 컨테이너 스타일 */
 	:global(.main-content-page) {
@@ -67,5 +70,24 @@
 
 	:global(.main-content-page > main) {
 		min-height: calc(100vh - 100px);
+	}
+
+	/* Toast 성공 메시지 녹색 배경 */
+	:global([data-sonner-toast][data-type="success"]) {
+		background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+		color: white !important;
+		border: none !important;
+	}
+
+	:global([data-sonner-toast][data-type="success"] [data-icon]) {
+		color: white !important;
+	}
+
+	:global([data-sonner-toast][data-type="success"] [data-title]) {
+		color: white !important;
+	}
+
+	:global([data-sonner-toast][data-type="success"] [data-description]) {
+		color: rgba(255, 255, 255, 0.9) !important;
 	}
 </style>

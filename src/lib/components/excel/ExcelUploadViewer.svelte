@@ -3,6 +3,7 @@
 	import { uploadExcelFile } from '$lib/excelUploadService';
 	import { getSettings } from '$lib/settingsService';
 	import ExcelDataTable from './ExcelDataTable.svelte';
+	import { toast } from 'svelte-sonner';
 
 	/**
 	 * 컴포넌트 Props
@@ -526,7 +527,7 @@
 			if (onUploadSuccess) {
 				onUploadSuccess();
 			}
-			alert('파일이 성공적으로 업로드되었습니다.');
+			toast.success('파일이 성공적으로 업로드되었습니다.', { duration: 1500 });
 			handleClose();
 		}
 
@@ -597,8 +598,9 @@
 	<!-- 업로드 섹션 -->
 	<div class="viewer-body">
 		<div class="upload-section">
-			<div class="upload-controls">
-				<div class="upload-controls-left">
+			{#if !fileName}
+				<!-- 파일 선택 전: 중앙 정렬 -->
+				<div class="upload-controls upload-controls-center">
 					<input
 						type="file"
 						accept=".xlsx,.xls,.csv"
@@ -610,27 +612,46 @@
 						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
 						</svg>
-						{fileName || '파일 선택'}
+						파일 선택
 					</label>
 				</div>
+			{:else}
+				<!-- 파일 선택 후: 기존 레이아웃 -->
+				<div class="upload-controls">
+					<div class="upload-controls-left">
+						<input
+							type="file"
+							accept=".xlsx,.xls,.csv"
+							onchange={handleFileSelect}
+							id="file-input"
+							class="file-input-hidden"
+						/>
+						<label for="file-input" class="upload-button">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+							</svg>
+							{fileName}
+						</label>
+					</div>
 
-				<div class="upload-controls-right">
-					{#if fileName && !isUploading}
-						<button onclick={handleUpload} class="btn-primary" disabled={!canUpload}>
-							업로드
-						</button>
-						{#if !hasYearAndMonth}
-							<span class="year-month-warning">⚠️ 파일명에 년도와 월 정보가 필요합니다 (예: 2024년 01월)</span>
+					<div class="upload-controls-right">
+						{#if !isUploading}
+							<button onclick={handleUpload} class="btn-primary" disabled={!canUpload}>
+								업로드
+							</button>
+							{#if !hasYearAndMonth}
+								<span class="year-month-warning">⚠️ 파일명에 년도와 월 정보가 필요합니다 (예: 2024년 01월)</span>
+							{/if}
 						{/if}
-					{/if}
 
-					{#if fileName}
-						<button onclick={handleClear} class="btn-secondary">
-							초기화
-						</button>
-					{/if}
+						{#if fileName}
+							<button onclick={handleClear} class="btn-secondary">
+								초기화
+							</button>
+						{/if}
+					</div>
 				</div>
-			</div>
+			{/if}
 
 			{#if error}
 				<div class="error-message">
@@ -748,6 +769,13 @@
 		align-items: center;
 		gap: 1rem;
 		flex-wrap: wrap;
+	}
+
+	.upload-controls-center {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		min-height: 200px;
 	}
 
 	.upload-controls-left {

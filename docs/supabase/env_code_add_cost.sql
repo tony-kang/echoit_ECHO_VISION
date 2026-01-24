@@ -652,3 +652,47 @@ ON CONFLICT (code) DO UPDATE SET
   value = EXCLUDED.value,
   title = EXCLUDED.title,
   param = EXCLUDED.param;
+
+-- 차량유지비-보험료 (COST_0500 하위)
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('6220006', 'cost', 'COST_0500', 48, 6220006, '차량유지비-보험료', ARRAY['차량유지비-보험료'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+-- 지급수수료-보증료 (COST_0500 하위)
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('6310004', 'cost', 'COST_0500', 49, 6310004, '지급수수료-보증료', ARRAY['지급수수료-보증료'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+-- 광고선전비 (COST_0500 하위)
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('6360000', 'cost', 'COST_0500', 50, 6360000, '광고선전비', ARRAY['광고선전비'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+-- 도서인쇄비-기타 (COST_0500 하위)
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('6260099', 'cost', 'COST_0500', 51, 6260099, '도서인쇄비-기타', ARRAY['도서인쇄비-기타'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
