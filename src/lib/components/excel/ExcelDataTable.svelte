@@ -189,7 +189,7 @@
 
 			envCodes = allCodes;
 			const endTime = performance.now();
-			console.log(`env_code 로드 완료: ${allCodes.length}개 (${(endTime - startTime).toFixed(2)}ms)`);
+			// console.log(`env_code 로드 완료: ${allCodes.length}개 (${(endTime - startTime).toFixed(2)}ms)`);
 		}).catch(err => {
 			console.error('env_code 로드 실패:', err);
 			throw err;
@@ -389,8 +389,9 @@
 			</div>
 		{:else if isLoading}
 			<div class="loading-message">
+				<div class="loading-icon">📊</div>
 				<div class="spinner"></div>
-				<p>엑셀 파일을 읽는 중...</p>
+				<p class="loading-text">엑셀 파일을 읽는 중...</p>
 			</div>
 		{:else if fileName && workbook}
 			<div class="preview-section">
@@ -610,17 +611,41 @@
 		align-items: center;
 		justify-content: center;
 		gap: 1rem;
-		padding: 2rem;
+		padding: 3rem 2rem;
 		color: #6b7280;
+		background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+		border-radius: 1rem;
+		border: 1px solid #e5e7eb;
+	}
+
+	.loading-icon {
+		font-size: 3rem;
+		animation: bounce 1.5s ease-in-out infinite;
+	}
+
+	.loading-text {
+		font-size: 1.125rem;
+		font-weight: 500;
+		color: #374151;
+		margin: 0;
 	}
 
 	.spinner {
-		width: 2rem;
-		height: 2rem;
-		border: 3px solid #e5e7eb;
+		width: 2.5rem;
+		height: 2.5rem;
+		border: 4px solid #e5e7eb;
 		border-top-color: #3b82f6;
 		border-radius: 50%;
 		animation: spin 1s linear infinite;
+	}
+
+	@keyframes bounce {
+		0%, 100% {
+			transform: translateY(0);
+		}
+		50% {
+			transform: translateY(-10px);
+		}
 	}
 
 	@keyframes spin {

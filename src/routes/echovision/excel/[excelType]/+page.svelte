@@ -46,7 +46,9 @@
 		if (!excelTypeParam) return;
 		
 		isLoadingFiles = true;
-		const { data, error: listError } = await listExcelFiles(excelTypeParam);
+		// 검색어를 포함하여 파일 목록 조회
+		const searchQuery = filters.search || '';
+		const { data, error: listError } = await listExcelFiles(excelTypeParam, searchQuery);
 		
 		if (listError) {
 			console.error('파일 목록을 불러오는 중 오류가 발생했습니다:', listError);
@@ -108,10 +110,11 @@
 
 	/**
 	 * 필터 적용 핸들러
-	 * @returns {void}
+	 * @returns {Promise<void>}
 	 */
-	function handleApplyFilters() {
-		// 필터는 자동으로 적용되므로 별도 처리 불필요
+	async function handleApplyFilters() {
+		// 검색어가 변경되면 파일 목록 다시 로드
+		await loadExcelFiles();
 	}
 
 	/**
@@ -123,20 +126,12 @@
 	}
 
 	/**
-	 * 검색어로 필터링된 파일 목록
+	 * 필터링된 파일 목록 (서버에서 이미 필터링된 결과 사용)
 	 * @type {Array<any>}
 	 */
 	const filteredFiles = $derived.by(() => {
-		const searchQuery = filters.search || '';
-		if (!searchQuery.trim()) {
-			return excelFiles;
-		}
-		
-		const query = searchQuery.toLowerCase();
-		return excelFiles.filter((file) => {
-			const fileName = file.name.toLowerCase();
-			return fileName.includes(query);
-		});
+		// 서버에서 이미 검색어로 필터링된 결과를 반환
+		return excelFiles;
 	});
 
 	onMount(() => {
@@ -157,7 +152,7 @@
 	});
 
 	/**
-	 * excelType 변경 시 파일 목록 다시 로드
+	 * excelType 또는 검색어 변경 시 파일 목록 다시 로드
 	 */
 	$effect(() => {
 		if (user && !authLoading && excelTypeParam) {

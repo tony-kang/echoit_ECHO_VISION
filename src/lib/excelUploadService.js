@@ -216,33 +216,47 @@ export async function deleteExcelFile(filePath) {
 /**
  * 엑셀 파일 목록 조회
  * @param {string} excelType - 엑셀 타입 ('sales' 또는 'cost')
+ * @param {string} searchQuery - 검색어 (원본 파일명 LIKE 검색)
  * @returns {Promise<{data: Array<{name: string, id: string, created_at: string, updated_at: string, metadata: any}> | null, error: Error | null}>}
  */
-export async function listExcelFiles(excelType) {
+export async function listExcelFiles(excelType, searchQuery = '') {
 	try {
 		if (!excelType) {
 			return { data: [], error: new Error('excelType이 필요합니다.') };
 		}
 
 		// ev_excel_file 테이블에서 파일 목록 조회
-		const { data, error } = await supabase
+		let query = supabase
 			.from('ev_excel_file')
 			.select('*')
-			.eq('excel_type', excelType)
-			.order('created_at', { ascending: false });
+			.eq('excel_type', excelType);
+		
+		// 검색어가 있으면 원본 파일명으로 LIKE 검색
+		if (searchQuery && searchQuery.trim()) {
+			const trimmedQuery = searchQuery.trim();
+			query = query.ilike('original_file_name', `%${trimmedQuery}%`);
+			console.log('[listExcelFiles] 검색 쿼리:', {
+				excelType,
+				searchQuery: trimmedQuery,
+				ilikePattern: `%${trimmedQuery}%`,
+				queryString: `SELECT * FROM ev_excel_file WHERE excel_type = '${excelType}' AND original_file_name ILIKE '%${trimmedQuery}%' ORDER BY created_at DESC`
+			});
+		} else {
+			console.log('[listExcelFiles] 전체 조회 쿼리:', {
+				excelType,
+				queryString: `SELECT * FROM ev_excel_file WHERE excel_type = '${excelType}' ORDER BY created_at DESC`
+			});
+		}
+		
+		const { data, error } = await query.order('created_at', { ascending: false });
 
 		if (error) {
-			console.error('[listExcelFiles] ev_excel_file 조회 실패:', { excelType, error });
+			console.error('[listExcelFiles] ev_excel_file 조회 실패:', { excelType, searchQuery, error });
 			return { data: [], error };
 		}
 
 		// ev_excel_file 데이터를 Storage 파일 형식으로 변환
 		const files = (data || []).map(item => {
-			// storage_path에서 파일명 추출 (excel-files/cost/file.xlsx -> file.xlsx)
-			const fileName = item.storage_path.split('/').pop();
-			// file_path에서 폴더명 추출 (cost/ -> cost)
-			const folderPath = item.file_path.replace('/', '');
-			
 			return {
 				id: item.id,
 				name: item.stored_file_name,
@@ -258,7 +272,7 @@ export async function listExcelFiles(excelType) {
 			};
 		});
 
-		console.log('[listExcelFiles] 파일 목록 (ev_excel_file):', files.length, '개');
+		// console.log('[listExcelFiles] 파일 목록 (ev_excel_file):', files.length, '개');
 
 		return { data: files, error: null };
 	} catch (error) {

@@ -6,11 +6,11 @@ import {
 } from '$env/static/public';
 
 // 디버깅: 현재 로드된 환경 변수 확인
-if (typeof window !== 'undefined') {
-	console.log('🔍 Supabase 환경 변수 확인:');
-	console.log('  PUBLIC_SUPABASE_URL:', PUBLIC_SUPABASE_URL);
-	console.log('  PUBLIC_SUPABASE_ANON_KEY:', PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '없음');
-}
+// if (typeof window !== 'undefined') {
+// 	console.log('🔍 Supabase 환경 변수 확인:');
+// 	console.log('  PUBLIC_SUPABASE_URL:', PUBLIC_SUPABASE_URL);
+// 	console.log('  PUBLIC_SUPABASE_ANON_KEY:', PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '없음');
+// }
 
 // 환경 변수 검증
 if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_ANON_KEY) {

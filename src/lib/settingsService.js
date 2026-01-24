@@ -54,64 +54,64 @@ export async function getSettings(options = {}) {
 
 		const { data, error } = await query;
 		
-		if (error) {
-			console.error('[getSettings] 쿼리 실행 실패:', { category, parentCode, error });
-		} else {
-			console.log(`[getSettings] 쿼리 성공: ${data?.length || 0}개 조회`, { category, parentCode });
-		}
+		// if (error) {
+		// 	console.error('[getSettings] 쿼리 실행 실패:', { category, parentCode, error });
+		// } else {
+		// 	console.log(`[getSettings] 쿼리 성공: ${data?.length || 0}개 조회`, { category, parentCode });
+		// }
 
 		if (error) {
 			// 테이블이 없는 경우 또는 스키마 캐시 문제
-			if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
-				// 스키마 캐시 문제일 수 있으므로, 직접 SQL로 테이블 존재 확인 시도
-				try {
-					const { data: tableCheck, error: checkError } = await supabase.rpc('get_all_tables');
-					if (!checkError && tableCheck) {
-						const tables = Array.isArray(tableCheck) 
-							? tableCheck.map(t => typeof t === 'object' ? t.table_name : t)
-							: [];
-						const tableExists = tables.some(t => t === 'env_code');
+			// if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+			// 	// 스키마 캐시 문제일 수 있으므로, 직접 SQL로 테이블 존재 확인 시도
+			// 	try {
+			// 		const { data: tableCheck, error: checkError } = await supabase.rpc('get_all_tables');
+			// 		if (!checkError && tableCheck) {
+			// 			const tables = Array.isArray(tableCheck) 
+			// 				? tableCheck.map(t => typeof t === 'object' ? t.table_name : t)
+			// 				: [];
+			// 			const tableExists = tables.some(t => t === 'env_code');
 						
-						if (tableExists) {
-							// 테이블은 존재하지만 스키마 캐시 문제
-							const cacheError = new Error(
-								'env_code 테이블은 존재하지만 Supabase 스키마 캐시 문제가 발생했습니다.\n\n' +
-								'해결 방법:\n' +
-								'1. Supabase Dashboard → Settings → API → "Reload schema cache" 클릭\n' +
-								'2. 또는 잠시 후 다시 시도 (캐시가 자동으로 업데이트됨)\n' +
-								'3. 브라우저를 완전히 종료한 후 다시 열기\n\n' +
-								'원본 에러: ' + error.message
-							);
-							cacheError.code = error.code;
-							throw cacheError;
-						}
-					}
-				} catch {
-					// RPC 함수가 없거나 실패한 경우 무시하고 원래 에러 메시지 사용
-				}
+			// 			if (tableExists) {
+			// 				// 테이블은 존재하지만 스키마 캐시 문제
+			// 				const cacheError = new Error(
+			// 					'env_code 테이블은 존재하지만 Supabase 스키마 캐시 문제가 발생했습니다.\n\n' +
+			// 					'해결 방법:\n' +
+			// 					'1. Supabase Dashboard → Settings → API → "Reload schema cache" 클릭\n' +
+			// 					'2. 또는 잠시 후 다시 시도 (캐시가 자동으로 업데이트됨)\n' +
+			// 					'3. 브라우저를 완전히 종료한 후 다시 열기\n\n' +
+			// 					'원본 에러: ' + error.message
+			// 				);
+			// 				cacheError.code = error.code;
+			// 				throw cacheError;
+			// 			}
+			// 		}
+			// 	} catch {
+			// 		// RPC 함수가 없거나 실패한 경우 무시하고 원래 에러 메시지 사용
+			// 	}
 				
-				const setupError = new Error(
-					'env_code 테이블이 Supabase에 생성되지 않았거나 스키마 캐시 문제가 있습니다.\n\n' +
-					'해결 방법:\n' +
-					'1. Supabase Dashboard → Settings → API → "Reload schema cache" 클릭\n' +
-					'2. Supabase Dashboard → SQL Editor에서 다음 쿼리 실행:\n' +
-					'   SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' AND table_name = \'env_code\';\n' +
-					'3. 테이블이 없다면 docs/supabase/env_code.sql 파일을 실행\n' +
-					'4. 브라우저를 완전히 종료한 후 다시 열기\n\n' +
-					'원본 에러: ' + error.message
-				);
-				setupError.code = error.code;
-				throw setupError;
-			}
+			// 	const setupError = new Error(
+			// 		'env_code 테이블이 Supabase에 생성되지 않았거나 스키마 캐시 문제가 있습니다.\n\n' +
+			// 		'해결 방법:\n' +
+			// 		'1. Supabase Dashboard → Settings → API → "Reload schema cache" 클릭\n' +
+			// 		'2. Supabase Dashboard → SQL Editor에서 다음 쿼리 실행:\n' +
+			// 		'   SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\' AND table_name = \'env_code\';\n' +
+			// 		'3. 테이블이 없다면 docs/supabase/env_code.sql 파일을 실행\n' +
+			// 		'4. 브라우저를 완전히 종료한 후 다시 열기\n\n' +
+			// 		'원본 에러: ' + error.message
+			// 	);
+			// 	setupError.code = error.code;
+			// 	throw setupError;
+			// }
 			throw error;
 		}
 
 		return { data: data || [], error: null };
 	} catch (error) {
-		console.error('환경설정 목록 조회 실패:', error);
-		if (error.code === 'PGRST205') {
-			console.error('⚠️ env_code 테이블을 생성해야 합니다. docs/supabase/env_code.sql 파일을 Supabase SQL Editor에서 실행하세요.');
-		}
+		// console.error('환경설정 목록 조회 실패:', error);
+		// if (error.code === 'PGRST205') {
+		// 	console.error('⚠️ env_code 테이블을 생성해야 합니다. docs/supabase/env_code.sql 파일을 Supabase SQL Editor에서 실행하세요.');
+		// }
 		return { data: [], error };
 	}
 }
