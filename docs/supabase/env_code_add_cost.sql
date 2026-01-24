@@ -3,9 +3,9 @@
 -- value는 1부터 순차적으로
 -- param는 title을 첫 번째 항목으로
 
--- Ⅰ. 원재료비 (최상위)
+-- 원재료비 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_0100', 'cost', NULL, 1, 1, 'Ⅰ. 원재료비', ARRAY['Ⅰ. 원재료비'])
+VALUES ('COST_0100', 'cost', NULL, 1, 1, '원재료비', ARRAY['원재료비'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -14,9 +14,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅱ. 노무비 (최상위)
+-- 노무비 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_0200', 'cost', NULL, 2, 2, 'Ⅱ. 노무비', ARRAY['Ⅱ. 노무비'])
+VALUES ('COST_0200', 'cost', NULL, 2, 2, '노무비', ARRAY['노무비'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -80,9 +80,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅲ. 외주비 (최상위)
+-- 외주비 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_0300', 'cost', NULL, 8, 8, 'Ⅲ. 외주비', ARRAY['Ⅲ. 외주비'])
+VALUES ('COST_0300', 'cost', NULL, 8, 8, '외주비', ARRAY['외주비'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -113,9 +113,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅳ. 중기 및 운반비 (최상위)
+-- 중기 및 운반비 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_0400', 'cost', NULL, 11, 11, 'Ⅳ. 중기 및 운반비', ARRAY['Ⅳ. 중기 및 운반비'])
+VALUES ('COST_0400', 'cost', NULL, 11, 11, '중기 및 운반비', ARRAY['중기 및 운반비'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -124,9 +124,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅴ. 경비 (최상위)
+-- 경비 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_0500', 'cost', NULL, 12, 12, 'Ⅴ. 경비', ARRAY['Ⅴ. 경비'])
+VALUES ('COST_0500', 'cost', NULL, 12, 12, '경비', ARRAY['경비'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -520,9 +520,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅵ. 당기 총 공사비용 (최상위)
+-- 당기 총 공사비용 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_0600', 'cost', NULL, 48, 48, 'Ⅵ. 당기 총 공사비용', ARRAY['Ⅵ. 당기 총 공사비용'])
+VALUES ('COST_0600', 'cost', NULL, 48, 48, '당기 총 공사비용', ARRAY['당기 총 공사비용'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -531,9 +531,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅶ. 공사손실충당금전입 (최상위)
+-- 공사손실충당금전입 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_0700', 'cost', NULL, 49, 49, 'Ⅶ. 공사손실충당금전입', ARRAY['Ⅶ. 공사손실충당금전입'])
+VALUES ('COST_0700', 'cost', NULL, 49, 49, '공사손실충당금전입', ARRAY['공사손실충당금전입'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -542,9 +542,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅷ. 공사손실충당금환입 (최상위)
+-- 공사손실충당금환입 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_0800', 'cost', NULL, 50, 50, 'Ⅷ. 공사손실충당금환입', ARRAY['Ⅷ. 공사손실충당금환입'])
+VALUES ('COST_0800', 'cost', NULL, 50, 50, '공사손실충당금환입', ARRAY['공사손실충당금환입'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -564,9 +564,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅹ. 타계정에서 대체액 (최상위)
+-- 타계정에서 대체액 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_1000', 'cost', NULL, 52, 52, 'Ⅹ. 타계정에서 대체액', ARRAY['Ⅹ. 타계정에서 대체액'])
+VALUES ('COST_1000', 'cost', NULL, 52, 52, '타계정에서 대체액', ARRAY['타계정에서 대체액'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -575,9 +575,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- ⅩⅠ. 합계 (최상위)
+-- 합계 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_1100', 'cost', NULL, 53, 53, 'ⅩⅠ. 합계', ARRAY['ⅩⅠ. 합계'])
+VALUES ('COST_1100', 'cost', NULL, 53, 53, '합계', ARRAY['합계'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -586,9 +586,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- ⅩⅡ. 기말 미완성 공사액 (최상위)
+-- 기말 미완성 공사액 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_1200', 'cost', NULL, 54, 54, 'ⅩⅡ. 기말 미완성 공사액', ARRAY['ⅩⅡ. 기말 미완성 공사액'])
+VALUES ('COST_1200', 'cost', NULL, 54, 54, '기말 미완성 공사액', ARRAY['기말 미완성 공사액'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -597,9 +597,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- ⅩⅢ. 타계정으로 대체액 (최상위)
+-- 타계정으로 대체액 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_1300', 'cost', NULL, 55, 55, 'ⅩⅢ. 타계정으로 대체액', ARRAY['ⅩⅢ. 타계정으로 대체액'])
+VALUES ('COST_1300', 'cost', NULL, 55, 55, '타계정으로 대체액', ARRAY['타계정으로 대체액'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -608,9 +608,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- ⅩⅣ. 당기 공사 원가 (최상위)
+-- 당기 공사 원가 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('COST_1400', 'cost', NULL, 56, 56, 'ⅩⅣ. 당기 공사 원가', ARRAY['ⅩⅣ. 당기 공사 원가'])
+VALUES ('COST_1400', 'cost', NULL, 56, 56, '당기 공사 원가', ARRAY['당기 공사 원가'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,

@@ -72,12 +72,15 @@
 
 	/**
 	 * 문자열 정규화 (trim, 공백 제거, 소문자 변환)
+	 * [xxxx] 패턴 제거 후 정규화
 	 * @param {string} str - 정규화할 문자열
 	 * @returns {string} 정규화된 문자열
 	 */
 	function normalizeString(str) {
 		if (!str || typeof str !== 'string') return '';
-		return str.trim().replace(/\s+/g, '').toLowerCase();
+		// [xxxx] 패턴 제거 (예: [4120001] SAP/SI → SAP/SI)
+		let normalized = str.replace(/^\[[^\]]+\]\s*/g, '');
+		return normalized.trim().replace(/\s+/g, '').toLowerCase();
 	}
 
 	/**

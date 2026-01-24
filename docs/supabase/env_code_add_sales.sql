@@ -3,9 +3,9 @@
 -- value는 1부터 순차적으로
 -- param는 title을 첫 번째 항목으로
 
--- Ⅰ. 매출액 (최상위)
+-- 매출액 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_0100', 'sales', NULL, 1, 1, 'Ⅰ. 매출액', ARRAY['Ⅰ. 매출액'])
+VALUES ('SALES_0100', 'sales', NULL, 1, 1, '매출액', ARRAY['매출액'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -36,9 +36,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅱ. 매출 원가 (최상위)
+-- 매출 원가 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_0200', 'sales', NULL, 4, 4, 'Ⅱ. 매출 원가', ARRAY['Ⅱ. 매출 원가'])
+VALUES ('SALES_0200', 'sales', NULL, 4, 4, '매출 원가', ARRAY['매출 원가'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -58,9 +58,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅲ. 매출 총 손실 (최상위)
+-- 매출 총 손실 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_0300', 'sales', NULL, 6, 6, 'Ⅲ. 매출 총 손실', ARRAY['Ⅲ. 매출 총 손실'])
+VALUES ('SALES_0300', 'sales', NULL, 6, 6, '매출 총 손실', ARRAY['매출 총 손실'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -69,9 +69,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅳ. 판매 관리비 (최상위)
+-- 판매 관리비 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_0400', 'sales', NULL, 7, 7, 'Ⅳ. 판매 관리비', ARRAY['Ⅳ. 판매 관리비'])
+VALUES ('SALES_0400', 'sales', NULL, 7, 7, '판매 관리비', ARRAY['판매 관리비'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -267,9 +267,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅴ. 영업 손실 (최상위)
+-- 영업 손실 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_0500', 'sales', NULL, 25, 25, 'Ⅴ. 영업 손실', ARRAY['Ⅴ. 영업 손실'])
+VALUES ('SALES_0500', 'sales', NULL, 25, 25, '영업 손실', ARRAY['영업 손실'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -278,9 +278,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅵ. 영업 외 수익 (최상위)
+-- 영업 외 수익 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_0600', 'sales', NULL, 26, 26, 'Ⅵ. 영업 외 수익', ARRAY['Ⅵ. 영업 외 수익'])
+VALUES ('SALES_0600', 'sales', NULL, 26, 26, '영업 외 수익', ARRAY['영업 외 수익'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -322,9 +322,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅶ. 영업 외 비용 (최상위)
+-- 영업 외 비용 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_0700', 'sales', NULL, 30, 30, 'Ⅶ. 영업 외 비용', ARRAY['Ⅶ. 영업 외 비용'])
+VALUES ('SALES_0700', 'sales', NULL, 30, 30, '영업 외 비용', ARRAY['영업 외 비용'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -344,9 +344,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅷ. 법인세비용차감전순손실 (최상위)
+-- 법인세비용차감전순손실 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_0800', 'sales', NULL, 32, 32, 'Ⅷ. 법인세비용차감전순손실', ARRAY['Ⅷ. 법인세비용차감전순손실'])
+VALUES ('SALES_0800', 'sales', NULL, 32, 32, '법인세비용차감전순손실', ARRAY['법인세비용차감전순손실'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -355,9 +355,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅸ. 법인세 비용 (최상위)
+-- 법인세 비용 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_0900', 'sales', NULL, 33, 33, 'Ⅸ. 법인세 비용', ARRAY['Ⅸ. 법인세 비용'])
+VALUES ('SALES_0900', 'sales', NULL, 33, 33, '법인세 비용', ARRAY['법인세 비용'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
@@ -366,9 +366,9 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
--- Ⅹ. 당기 순 손실 (최상위)
+-- 당기 순 손실 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
-VALUES ('SALES_1000', 'sales', NULL, 34, 34, 'Ⅹ. 당기 순 손실', ARRAY['Ⅹ. 당기 순 손실'])
+VALUES ('SALES_1000', 'sales', NULL, 34, 34, '당기 순 손실', ARRAY['당기 순 손실'])
 ON CONFLICT (code) DO UPDATE SET
   category = EXCLUDED.category,
   parent_code = EXCLUDED.parent_code,
