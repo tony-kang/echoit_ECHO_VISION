@@ -396,9 +396,11 @@
 			<div class="preview-section">
 				<div class="file-info-section">
 					<div class="file-info-left">
-						<!-- <div class="file-info">
-							<strong>파일명:</strong> {fileName}
-						</div> -->
+						{#if !inline}
+							<div class="file-info">
+								<strong>파일명:</strong> {fileName}
+							</div>
+						{/if}
 						
 						{#if headers.length > 0}
 							<div class="data-info">
@@ -652,8 +654,9 @@
 	}
 
 	.file-info {
-		font-size: 0.95rem;
-		color: #374151;
+		font-size: 1.2rem;
+		color: #000000;
+		font-weight: 600;
 	}
 
 	.sheet-selector {
