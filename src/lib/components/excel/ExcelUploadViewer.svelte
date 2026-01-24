@@ -1,6 +1,7 @@
 <script>
 	import * as XLSX from 'xlsx';
 	import { uploadExcelFile } from '$lib/excelUploadService';
+	import { getSettings } from '$lib/settingsService';
 
 	/**
 	 * 컴포넌트 Props
@@ -32,6 +33,133 @@
 	let uploadedFileId = $state(null);
 	/** @type {string | null} 업로드된 파일명 */
 	let uploadedFileName = $state(null);
+	/** @type {Array<any>} 환경 코드 목록 */
+	let envCodes = $state([]);
+	/** @type {boolean} 환경 코드 로딩 중 여부 */
+	let isLoadingEnvCodes = $state(false);
+	/** @type {Promise<any> | null} 로딩 중인 Promise (중복 로드 방지) */
+	let loadingPromise = $state(null);
+
+	/**
+	 * 엑셀 타입에 따른 카테고리 결정
+	 * @param {string} type - 엑셀 타입 (sales, cost 등)
+	 * @returns {string[]} 카테고리 배열
+	 */
+	function getCategoryFromExcelType(type) {
+		if (type === 'sales') {
+			return ['organization', 'sales'];
+		} else if (type === 'cost') {
+			return ['organization', 'cost'];
+		}
+		return ['organization'];
+	}
+
+	/**
+	 * 문자열 정규화 (trim, 공백 제거, 소문자 변환)
+	 * @param {string} str - 정규화할 문자열
+	 * @returns {string} 정규화된 문자열
+	 */
+	function normalizeString(str) {
+		if (!str || typeof str !== 'string') return '';
+		return str.trim().replace(/\s+/g, '').toLowerCase();
+	}
+
+	/**
+	 * 칼럼명과 매칭되는 환경 코드 찾기
+	 * @param {string} columnName - 칼럼명
+	 * @returns {any | null} 매칭되는 코드 또는 null
+	 */
+	function findMatchingCode(columnName) {
+		if (!columnName || envCodes.length === 0) return null;
+		
+		const normalizedColumn = normalizeString(columnName);
+		
+		for (const code of envCodes) {
+			if (code.param && Array.isArray(code.param)) {
+				for (const param of code.param) {
+					if (normalizeString(param) === normalizedColumn) {
+						return code;
+					}
+				}
+			}
+		}
+		
+		return null;
+	}
+
+	/**
+	 * 환경 코드 로드
+	 * @returns {Promise<void>}
+	 */
+	async function loadEnvCodes() {
+		// 이미 로딩 중이면 기존 Promise 반환
+		if (loadingPromise) {
+			return loadingPromise;
+		}
+
+		// envCodes가 이미 있으면 로드하지 않음
+		if (envCodes.length > 0) {
+			return Promise.resolve();
+		}
+
+		isLoadingEnvCodes = true;
+		const startTime = performance.now();
+
+		const categories = getCategoryFromExcelType(excelType);
+		
+		loadingPromise = Promise.allSettled(
+			categories.map(category => getSettings({ category }))
+		).then(results => {
+			const allCodes = [];
+			results.forEach((result, index) => {
+				if (result.status === 'fulfilled' && result.value.data) {
+					allCodes.push(...result.value.data);
+				} else {
+					console.error(`[${categories[index]}] env_code 로드 실패:`, result.reason);
+				}
+			});
+
+			envCodes = allCodes;
+			const endTime = performance.now();
+			console.log(`env_code 로드 완료: ${allCodes.length}개 (${(endTime - startTime).toFixed(2)}ms)`);
+		}).catch(err => {
+			console.error('env_code 로드 실패:', err);
+		}).finally(() => {
+			isLoadingEnvCodes = false;
+			loadingPromise = null;
+		});
+
+		// 타임아웃 설정 (30초)
+		const timeoutPromise = new Promise((_, reject) => {
+			setTimeout(() => {
+				reject(new Error('env_code 로드 타임아웃'));
+			}, 30000);
+		});
+
+		return Promise.race([loadingPromise, timeoutPromise]).catch(err => {
+			console.error('env_code 로드 타임아웃 또는 오류:', err);
+			isLoadingEnvCodes = false;
+			loadingPromise = null;
+		});
+	}
+
+	/**
+	 * 매칭되지 않은 칼럼 수 계산
+	 */
+	const unmatchedColumnsCount = $derived.by(() => {
+		if (headers.length === 0) return 0;
+		return headers.filter(header => {
+			if (!header) return true;
+			return !findMatchingCode(header);
+		}).length;
+	});
+
+	/**
+	 * 업로드 가능 여부 (모든 칼럼이 매칭되어야 함)
+	 */
+	const canUpload = $derived.by(() => {
+		return unmatchedColumnsCount === 0 && headers.length > 0;
+	});
 
 	/**
 	 * 파일 선택 핸들러
@@ -67,15 +195,22 @@
 	/**
 	 * 엑셀 파일 읽기
 	 * @param {File} file - 읽을 파일
-	 * @returns {void}
+	 * @returns {Promise<void>}
 	 */
-	function readExcelFile(file) {
+	async function readExcelFile(file) {
 		isLoading = true;
 		error = '';
 		
+		try {
+			// 환경 코드 먼저 로드
+			await loadEnvCodes();
+		} catch (err) {
+			console.error('env_code 로드 실패:', err);
+		}
+		
 		const reader = new FileReader();
 
-		reader.onload = (e) => {
+		reader.onload = async (e) => {
 			try {
 				const data = new Uint8Array(e.target.result);
 				workbook = XLSX.read(data, { type: 'array' });
@@ -83,7 +218,7 @@
 				
 				if (sheetNames.length > 0) {
 					selectedSheet = sheetNames[0];
-					loadSheet(selectedSheet);
+					await loadSheet(selectedSheet);
 				} else {
 					error = '엑셀 파일에 시트가 없습니다.';
 					isLoading = false;
@@ -106,43 +241,61 @@
 	/**
 	 * 시트 로드
 	 * @param {string} sheetName - 시트 이름
-	 * @returns {void}
+	 * @returns {Promise<void>}
 	 */
-	function loadSheet(sheetName) {
-		if (!workbook || !sheetName) return;
-
-		const worksheet = workbook.Sheets[sheetName];
-		const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-
-		// 빈 행 제거 함수
-		const isRowEmpty = (row) => {
-			if (!row || row.length === 0) return true;
-			return row.every(cell => cell === '' || cell === null || cell === undefined);
-		};
-
-		// 빈 행이 아닌 데이터만 필터링
-		const filteredData = jsonData.filter(row => !isRowEmpty(row));
-
-		if (filteredData.length > 0) {
-			headers = filteredData[0] || [];
-			rows = filteredData.slice(1);
-		} else {
-			headers = [];
-			rows = [];
+	async function loadSheet(sheetName) {
+		if (!workbook || !sheetName) {
+			isLoading = false;
+			return;
 		}
 
-		isLoading = false;
+		try {
+			// envCodes가 비어있으면 다시 로드 시도
+			if (envCodes.length === 0) {
+				console.log('시트 로드 전 envCodes가 비어있어서 다시 로드합니다.');
+				try {
+					await loadEnvCodes();
+				} catch (err) {
+					console.error('env_code 로드 실패:', err);
+				}
+			}
+
+			const worksheet = workbook.Sheets[sheetName];
+			const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+			// 빈 행 제거 함수
+			const isRowEmpty = (row) => {
+				if (!row || row.length === 0) return true;
+				return row.every(cell => cell === '' || cell === null || cell === undefined);
+			};
+
+			// 빈 행이 아닌 데이터만 필터링
+			const filteredData = jsonData.filter(row => !isRowEmpty(row));
+
+			if (filteredData.length > 0) {
+				headers = filteredData[0] || [];
+				rows = filteredData.slice(1);
+			} else {
+				headers = [];
+				rows = [];
+			}
+		} catch (err) {
+			console.error('시트 로드 오류:', err);
+			error = '시트를 로드하는 중 오류가 발생했습니다: ' + err.message;
+		} finally {
+			isLoading = false;
+		}
 	}
 
 	/**
 	 * 시트 변경 핸들러
 	 * @param {Event} event - 변경 이벤트
-	 * @returns {void}
+	 * @returns {Promise<void>}
 	 */
-	function handleSheetChange(event) {
+	async function handleSheetChange(event) {
 		const sheetName = event.target.value;
 		selectedSheet = sheetName;
-		loadSheet(sheetName);
+		await loadSheet(sheetName);
 	}
 
 	/**
@@ -196,6 +349,8 @@
 		isUploading = false;
 		uploadedFileId = null;
 		uploadedFileName = null;
+		envCodes = [];
+		loadingPromise = null;
 		
 		// 파일 입력 요소 초기화
 		const fileInput = document.getElementById('file-input');
@@ -249,7 +404,7 @@
 
 				<div class="upload-controls-right">
 					{#if fileName && !isUploading}
-						<button onclick={handleUpload} class="btn-primary">
+						<button onclick={handleUpload} class="btn-primary" disabled={!canUpload}>
 							업로드
 						</button>
 					{/if}
@@ -291,6 +446,9 @@
 						{#if headers.length > 0}
 							<div class="data-info">
 								컬럼: {headers.length}개 | 행: {rows.length}개
+								{#if unmatchedColumnsCount > 0}
+									<span class="unmatched-badge">매칭 안됨: {unmatchedColumnsCount}개 - 환경설정 - 코드관리 - 조직 에서 코드를 매칭시켜 주세요. </span>
+								{/if}
 							</div>
 						{/if}
 						
@@ -319,6 +477,7 @@
 								<thead>
 									<tr>
 										{#each headers as header, index}
+											{@const matchingCode = findMatchingCode(header)}
 											<th
 												class:frozen={index < frozenColumns}
 												style={index < frozenColumns ? `left: ${index * 150}px;` : ''}
@@ -326,10 +485,24 @@
 												{#if index < frozenColumns}
 													<div class="frozen-th-cell-content {index === (frozenColumns - 1) ? `th-frozen` : ''}">
 														{header || `컬럼 ${index + 1}`}
+														{#if header}
+															{#if matchingCode}
+																<span class="code-match">({matchingCode.code})</span>
+															{:else}
+																<span class="code-unmatched">(없음)</span>
+															{/if}
+														{/if}
 													</div>
 												{:else}
 													<div class="th-cell-content">
 														{header || `컬럼 ${index + 1}`}
+														{#if header}
+															{#if matchingCode}
+																<span class="code-match">({matchingCode.code})</span>
+															{:else}
+																<span class="code-unmatched">(없음)</span>
+															{/if}
+														{/if}
 													</div>
 												{/if}
 											</th>
@@ -483,8 +656,14 @@
 		transition: background-color 0.2s;
 	}
 
-	.btn-primary:hover {
+	.btn-primary:hover:not(:disabled) {
 		background-color: #059669;
+	}
+
+	.btn-primary:disabled {
+		background-color: #9ca3af;
+		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
 	.btn-secondary {
@@ -586,6 +765,30 @@
 	.data-info {
 		font-size: 0.9rem;
 		color: #6b7280;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.unmatched-badge {
+		background-color: #dc2626;
+		color: white;
+		padding: 0.25rem 0.5rem;
+		border-radius: 0.25rem;
+		font-size: 0.85rem;
+		font-weight: 600;
+	}
+
+	.code-match {
+		color: #2563eb;
+		font-weight: 600;
+		margin-left: 0.5rem;
+	}
+
+	.code-unmatched {
+		color: #dc2626;
+		font-weight: 600;
+		margin-left: 0.5rem;
 	}
 
 	.table-section {

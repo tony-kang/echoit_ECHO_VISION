@@ -108,6 +108,11 @@
 	 * @returns {void}
 	 */
 	function goToLogistics() {
+		if (!user) {
+			alert('경영지표 관리는 로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+			goto('/login');
+			return;
+		}
 		goto('/echovision');
 	}
 
@@ -116,6 +121,11 @@
 	 * @returns {void}
 	 */
 	function goToSchedules() {
+		if (!user) {
+			alert('주요일정은 로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+			goto('/login');
+			return;
+		}
 		goto('/schedules');
 	}
 
