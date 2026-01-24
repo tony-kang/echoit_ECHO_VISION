@@ -142,11 +142,11 @@
 	});
 
 	onMount(() => {
-		console.log('(S)', new Date().toISOString());
+		// console.log('(S)', new Date().toISOString());
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
 			authLoading = state.loading;
-			console.log('(A)',user === null, authLoading, new Date().toISOString());
+			// console.log('(A)',user === null, authLoading, new Date().toISOString());
 
 			if (!state.loading && !state.user) {
 				goto('/login');
@@ -319,7 +319,7 @@
 		return labels[type] || type;
 	}
 
-	console.log('(F)', new Date().toISOString());
+	// console.log('(F)', new Date().toISOString());
 </script>
 
 <div class="main-content-page">

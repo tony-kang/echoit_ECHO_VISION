@@ -70,16 +70,22 @@
 	 */
 	function normalizeString(str) {
 		if (!str || typeof str !== 'string') return '';
-		let normalized = str;
+		let normalized = str.trim();
 		
 		// [xxxx] 패턴 제거 (예: [4120001] SAP/SI → SAP/SI)
-		normalized = normalized.replace(/^\[[^\]]+\]\s*/g, '');
+		// 대괄호 안의 모든 문자(공백 포함)와 뒤의 공백 제거
+		normalized = normalized.replace(/^\s*\[[^\]]+\]\s*/g, '');
 		
-		// 로마 숫자 패턴 제거 (전각: Ⅰ-Ⅻ, 반각: I-XII) + 점 + 공백
-		normalized = normalized.replace(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫI-VX]+\.\s*/gi, '');
+		// 로마 숫자 패턴 제거 (전각: Ⅰ-Ⅻ, 반각: I-XII) + 공백(선택) + 점 + 공백(선택)
+		// 예: 'Ⅰ . 매 출 액 ' → '매 출 액 '
+		normalized = normalized.replace(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫI-VX]+\s*\.\s*/gi, '');
 		
-		// 공백 제거 및 소문자 변환
-		return normalized.trim().replace(/\s+/g, '').toLowerCase();
+		// 모든 종류의 공백 제거 (일반 공백, 전각 공백, 탭, 줄바꿈 등)
+		// \s는 모든 공백 문자를 포함하므로 추가 유니코드 공백도 제거
+		normalized = normalized.replace(/[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF\u200C\u200D]/g, '');
+		
+		// 소문자 변환
+		return normalized.toLowerCase();
 	}
 
 	/**
@@ -119,13 +125,14 @@
 	 * @returns {any | null | 'excluded'} 매칭되는 코드, null, 또는 'excluded' (제외된 칼럼)
 	 */
 	function findMatchingCodeForFirstColumn(cellValue) {
-		if (!cellValue) return null;
+		if (!cellValue || cellValue.trim() === '') return null;
 		
 		// 제외할 텍스트가 포함된 경우 매칭 검사에서 제외
 		if (shouldExcludeFromMatching(cellValue)) {
 			return 'excluded';
 		}
 		
+		// envCodes가 로드되지 않았으면 null 반환 (매칭 안됨으로 표시)
 		if (envCodes.length === 0) return null;
 		
 		// excelType에 따라 검색할 카테고리 결정
@@ -135,16 +142,23 @@
 		const normalizedValue = normalizeString(cellValue);
 		
 		// 해당 카테고리의 코드만 검색
+		let matchedCodes = [];
 		for (const code of envCodes) {
 			if (code.category === targetCategory && code.param && Array.isArray(code.param)) {
 				for (const param of code.param) {
-					if (normalizeString(param) === normalizedValue) {
+					const normalizedParam = normalizeString(param);
+					if (normalizedParam === normalizedValue) {
+						// console.log('[findMatchingCodeForFirstColumn] 매칭됨:', code.code, 'param:', param, 'normalizedParam:', normalizedParam);
 						return code;
 					}
+					matchedCodes.push({ code: code.code, param, normalizedParam });
 				}
 			}
 		}
 		
+		// 매칭되지 않으면 null 반환 (매칭 안됨으로 표시)
+		// console.log('[findMatchingCodeForFirstColumn] cellValue:', cellValue, 'normalizedValue:', normalizedValue);
+		// console.log('[findMatchingCodeForFirstColumn] 검색한 코드들:', matchedCodes.slice(0, 5)); // 처음 5개만 출력
 		return null;
 	}
 
@@ -189,7 +203,7 @@
 
 			envCodes = allCodes;
 			const endTime = performance.now();
-			// console.log(`env_code 로드 완료: ${allCodes.length}개 (${(endTime - startTime).toFixed(2)}ms)`);
+			// console.log(`env_code 로드 완료: ${excelType} - ${allCodes.length}개 (${(endTime - startTime).toFixed(2)}ms)`, allCodes);
 		}).catch(err => {
 			console.error('env_code 로드 실패:', err);
 			throw err;
@@ -207,8 +221,13 @@
 	 */
 	const unmatchedColumnsCount = $derived.by(() => {
 		if (headers.length === 0) return 0;
+		// envCodes가 로드되지 않았으면 모든 헤더를 매칭 안됨으로 카운트
+		if (envCodes.length === 0) {
+			return headers.filter(header => header && header.trim() !== '').length;
+		}
+		
 		return headers.filter(header => {
-			if (!header) return true;
+			if (!header || header.trim() === '') return false; // 빈 헤더는 제외
 			const matchResult = findMatchingCode(header);
 			// 'excluded'는 제외하고, null인 경우만 카운트
 			return matchResult === null;
@@ -220,12 +239,19 @@
 	 */
 	const unmatchedColumnNames = $derived.by(() => {
 		if (headers.length === 0) return [];
-		return headers.filter(header => {
-			if (!header) return true;
+		// envCodes가 로드되지 않았으면 모든 헤더를 매칭 안됨으로 표시
+		if (envCodes.length === 0) {
+			return headers.filter(header => header && header.trim() !== '');
+		}
+		
+		const unmatched = headers.filter(header => {
+			if (!header || header.trim() === '') return false; // 빈 헤더는 제외
 			const matchResult = findMatchingCode(header);
 			// 'excluded'는 제외하고, null인 경우만 포함
 			return matchResult === null;
-		}).filter(header => header); // 빈 문자열 제거
+		});
+		
+		return unmatched;
 	});
 
 	/**
@@ -409,9 +435,13 @@
 								{#if unmatchedColumnsCount > 0}
 									<span class="unmatched-badge">매칭 안됨: {unmatchedColumnsCount}개 - 환경설정 - 코드관리 - 조직 에서 코드를 매칭시켜 주세요. </span>
 								{/if}
-								{#if unmatchedColumnNames.length > 0}
+								{#if unmatchedColumnNames && unmatchedColumnNames.length > 0}
 									<div class="unmatched-names">
 										매칭 안된 칼럼: {unmatchedColumnNames.join(', ')}
+									</div>
+								{:else if unmatchedColumnsCount > 0 && (!unmatchedColumnNames || unmatchedColumnNames.length === 0)}
+									<div class="unmatched-names">
+										매칭 안된 칼럼: (로딩 중...)
 									</div>
 								{/if}
 							</div>
@@ -482,7 +512,7 @@
 												>
 													<div class="frozen-td-cell-content">
 														{cellValue}
-														{#if isFirstColumn && cellValue && matchingCode !== 'excluded'}
+														{#if isFirstColumn && cellValue && cellValue.trim() !== '' && matchingCode !== 'excluded'}
 															{#if matchingCode}
 																<span class="code-match">({matchingCode.code})</span>
 															{:else}

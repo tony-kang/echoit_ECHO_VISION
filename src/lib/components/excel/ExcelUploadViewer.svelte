@@ -83,16 +83,18 @@
 		let normalized = str;
 		
 		// [xxxx] 패턴 제거 (예: [4120001] SAP/SI → SAP/SI)
-		normalized = normalized.replace(/^\[[^\]]+\]\s*/g, '');
+		// 대괄호 안의 모든 문자(공백 포함)와 뒤의 공백 제거
+		normalized = normalized.replace(/^\s*\[[^\]]+\]\s*/g, '');
 		
-		// 로마 숫자 패턴 제거 (전각: Ⅰ-Ⅻ, 반각: I-XII) + 점 + 공백
-		// 예: "Ⅰ. 원 재 료 비" → "원 재 료 비", "II.노 무 비" → "노 무 비"
-		// 전각 로마 숫자: Ⅰ, Ⅱ, Ⅲ, Ⅳ, Ⅴ, Ⅵ, Ⅶ, Ⅷ, Ⅸ, Ⅹ, Ⅺ, Ⅻ
-		// 반각 로마 숫자: I, II, III, IV, V, VI, VII, VIII, IX, X, XI, XII
-		normalized = normalized.replace(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫI-VX]+\.\s*/gi, '');
+		// 로마 숫자 패턴 제거 (전각: Ⅰ-Ⅻ, 반각: I-XII) + 공백(선택) + 점 + 공백(선택)
+		// 예: 'Ⅰ . 매 출 액 ' → '매 출 액 '
+		normalized = normalized.replace(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫI-VX]+\s*\.\s*/gi, '');
 		
-		// 공백 제거 및 소문자 변환
-		return normalized.trim().replace(/\s+/g, '').toLowerCase();
+		// 모든 종류의 공백 제거 (일반 공백, 전각 공백, 탭, 줄바꿈 등)
+		normalized = normalized.replace(/[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, '');
+		
+		// 소문자 변환
+		return normalized.toLowerCase();
 	}
 
 	/**

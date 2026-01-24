@@ -235,21 +235,21 @@ export async function listExcelFiles(excelType, searchQuery = '') {
 		if (searchQuery && searchQuery.trim()) {
 			const trimmedQuery = searchQuery.trim();
 			query = query.ilike('original_file_name', `%${trimmedQuery}%`);
-			console.log('[listExcelFiles] 검색 쿼리:', {
-				excelType,
-				searchQuery: trimmedQuery,
-				ilikePattern: `%${trimmedQuery}%`,
-				queryString: `SELECT * FROM ev_excel_file WHERE excel_type = '${excelType}' AND original_file_name ILIKE '%${trimmedQuery}%' ORDER BY created_at DESC`
-			});
+			// console.log('[listExcelFiles] 검색 쿼리:', {
+			// 	excelType,
+			// 	searchQuery: trimmedQuery,
+			// 	ilikePattern: `%${trimmedQuery}%`,
+			// 	queryString: `SELECT * FROM ev_excel_file WHERE excel_type = '${excelType}' AND original_file_name ILIKE '%${trimmedQuery}%' ORDER BY created_at DESC`
+			// });
 		} else {
-			console.log(new Date().toISOString(),'(QS)', '[listExcelFiles] 전체 조회 쿼리:', {
-				excelType,
-				queryString: `SELECT * FROM ev_excel_file WHERE excel_type = '${excelType}' ORDER BY created_at DESC`
-			});
+			// console.log(new Date().toISOString(),'(QS)', '[listExcelFiles] 전체 조회 쿼리:', {
+			// 	excelType,
+			// 	queryString: `SELECT * FROM ev_excel_file WHERE excel_type = '${excelType}' ORDER BY created_at DESC`
+			// });
 		}
 		
 		const { data, error } = await query.order('created_at', { ascending: false });
-		console.log(new Date().toISOString(),'(EE)', data);
+		// console.log(new Date().toISOString(),'(EE)', data);
 		if (error) {
 			console.error('[listExcelFiles] ev_excel_file 조회 실패:', { excelType, searchQuery, error });
 			return { data: [], error };
