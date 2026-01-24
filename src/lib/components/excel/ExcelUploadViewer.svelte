@@ -4,9 +4,9 @@
 
 	/**
 	 * 컴포넌트 Props
-	 * @type {{ excelType: string, onClose: Function, onUploadSuccess: Function, frozenColumns?: number }}
+	 * @type {{ excelType: string, onClose: Function, onUploadSuccess: Function, frozenColumns?: number, frozenRows?: number }}
 	 */
-	let { excelType = '', onClose, onUploadSuccess, frozenColumns = 1 } = $props();
+	let { excelType = '', onClose, onUploadSuccess, frozenColumns = 1, frozenRows = 1 } = $props();
 
 	/** @type {File | null} 선택된 파일 */
 	let selectedFile = $state(null);
@@ -320,10 +320,12 @@
 									<tr>
 										{#each headers as header, index}
 											<th
-												class:frozen={index < frozenColumns}
+												class:frozen={true}
 												style={index < frozenColumns ? `left: ${index * 150}px;` : ''}
 											>
-												{header || `컬럼 ${index + 1}`}
+												<div class="frozen-th-cell-content">
+													{header || `컬럼 ${index + 1}`}
+												</div>
 											</th>
 										{/each}
 									</tr>
@@ -336,7 +338,9 @@
 													class:frozen={colIndex < frozenColumns}
 													style={colIndex < frozenColumns ? `left: ${colIndex * 150}px;` : ''}
 												>
-													{row[colIndex] ?? ''}
+													<div class="frozen-td-cell-content">
+														{row[colIndex] ?? ''}
+													</div>
 												</td>
 											{/each}
 										</tr>
@@ -603,12 +607,17 @@
 		z-index: 10;
 	}
 
+	.excel-table thead tr {
+		position: sticky;
+		top: 0;
+		z-index: 10;
+	}
+
 	.excel-table th {
 		padding: 0.75rem;
 		text-align: left;
 		font-weight: 600;
 		color: #374151;
-		border-bottom: 2px solid #0a0a0a;
 		border-right: 1px solid #e5e7eb;
 		white-space: nowrap;
 		background: #f9fafb;
@@ -618,9 +627,40 @@
 		position: sticky;
 		left: 0;
 		z-index: 11;
+		background: transparent;
+		padding: 0;
+		height: 100%;
+	}
+
+	.excel-table th.frozen div.frozen-th-cell-content {
+		padding: 0.75rem;
+		height: 100%;
+		width: 100%;
+		box-sizing: border-box;
 		background: #f9fafb;
-		box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+		display: flex;
+		align-items: center;
+		border-bottom: 2px solid #0a0a0a;
+		position: relative;
+		z-index: 12;
+	}
+
+	.excel-table td.frozen .frozen-td-cell-content {
+		padding: 0.75rem;
+		height: 100%;
+		width: 100%;
+		box-sizing: border-box;
 		border-right: 2px solid #0a0a0a;
+		background: white;
+		display: flex;
+		align-items: center;
+		position: relative;
+		z-index: 2;
+	}
+
+
+	.excel-table tbody tr:hover td.frozen .frozen-td-cell-content {
+		background: #f9fafb;
 	}
 
 	.excel-table th:last-child {
@@ -639,9 +679,9 @@
 		position: sticky;
 		left: 0;
 		z-index: 1;
-		background: white;
-		box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
-		border-right: 2px solid #0a0a0a;
+		background: transparent;
+		padding: 0;
+		height: 100%;
 	}
 
 	.excel-table td:last-child {
