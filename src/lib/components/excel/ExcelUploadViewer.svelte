@@ -40,6 +40,22 @@
 	/** @type {Promise<any> | null} 로딩 중인 Promise (중복 로드 방지) */
 	let loadingPromise = $state(null);
 
+	/** @type {string[]} 매칭 검사에서 제외할 텍스트 목록 */
+	const EXCLUDED_MATCHING_TEXTS = ['과목'];
+
+	/**
+	 * 칼럼명이 매칭 검사에서 제외되어야 하는지 확인
+	 * @param {string} columnName - 칼럼명
+	 * @returns {boolean} 제외 여부
+	 */
+	function shouldExcludeFromMatching(columnName) {
+		if (!columnName || typeof columnName !== 'string') return false;
+		const normalizedColumn = normalizeString(columnName);
+		return EXCLUDED_MATCHING_TEXTS.some(excludedText => 
+			normalizedColumn.includes(normalizeString(excludedText))
+		);
+	}
+
 	/**
 	 * 엑셀 타입에 따른 카테고리 결정
 	 * @param {string} type - 엑셀 타입 (sales, cost 등)
@@ -67,10 +83,17 @@
 	/**
 	 * 칼럼명과 매칭되는 환경 코드 찾기
 	 * @param {string} columnName - 칼럼명
-	 * @returns {any | null} 매칭되는 코드 또는 null
+	 * @returns {any | null | 'excluded'} 매칭되는 코드, null, 또는 'excluded' (제외된 칼럼)
 	 */
 	function findMatchingCode(columnName) {
-		if (!columnName || envCodes.length === 0) return null;
+		if (!columnName) return null;
+		
+		// 제외할 텍스트가 포함된 칼럼은 매칭 검사에서 제외
+		if (shouldExcludeFromMatching(columnName)) {
+			return 'excluded';
+		}
+		
+		if (envCodes.length === 0) return null;
 		
 		const normalizedColumn = normalizeString(columnName);
 		
@@ -144,13 +167,15 @@
 	}
 
 	/**
-	 * 매칭되지 않은 칼럼 수 계산
+	 * 매칭되지 않은 칼럼 수 계산 (제외된 칼럼은 제외)
 	 */
 	const unmatchedColumnsCount = $derived.by(() => {
 		if (headers.length === 0) return 0;
 		return headers.filter(header => {
 			if (!header) return true;
-			return !findMatchingCode(header);
+			const matchResult = findMatchingCode(header);
+			// 'excluded'는 제외하고, null인 경우만 카운트
+			return matchResult === null;
 		}).length;
 	});
 
@@ -485,7 +510,7 @@
 												{#if index < frozenColumns}
 													<div class="frozen-th-cell-content {index === (frozenColumns - 1) ? `th-frozen` : ''}">
 														{header || `컬럼 ${index + 1}`}
-														{#if header}
+														{#if header && matchingCode !== 'excluded'}
 															{#if matchingCode}
 																<span class="code-match">({matchingCode.code})</span>
 															{:else}
@@ -496,7 +521,7 @@
 												{:else}
 													<div class="th-cell-content">
 														{header || `컬럼 ${index + 1}`}
-														{#if header}
+														{#if header && matchingCode !== 'excluded'}
 															{#if matchingCode}
 																<span class="code-match">({matchingCode.code})</span>
 															{:else}
