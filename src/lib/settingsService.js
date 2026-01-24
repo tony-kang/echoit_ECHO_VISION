@@ -19,15 +19,21 @@ import { logAction, ACTION_TYPES, ACTION_CATEGORIES } from './logService';
  * @param {Object} [options] - 조회 옵션
  * @param {boolean} [options.orderByOrder] - 표시 순서로 정렬
  * @param {string|null} [options.parentCode] - 부모 코드로 필터링 (null이면 최상위만)
+ * @param {string} [options.category] - 카테고리로 필터링 (없으면 필터링 안함)
  * @returns {Promise<{data: Array<SettingData>|null, error: Error|null}>}
  */
 export async function getSettings(options = {}) {
 	try {
-		const { orderByOrder = true, parentCode } = options;
+		const { orderByOrder = true, parentCode, category } = options;
 
 		let query = supabase
 			.from('env_code')
 			.select('*');
+		
+		// 카테고리 필터링 (옵션)
+		if (category) {
+			query = query.eq('category', category);
+		}
 
 		// 상위 코드 필터링
 		if (parentCode !== undefined) {
@@ -115,6 +121,7 @@ export async function getSetting(code) {
 			.from('env_code')
 			.select('*')
 			.eq('code', code)
+			.eq('category', 'organization')
 			.single();
 
 		if (error) throw error;
@@ -163,7 +170,8 @@ export async function createSetting(settingData) {
 			code,
 			order: order || 0,
 			value,
-			title
+			title,
+			category: 'organization'
 		};
 
 		if (parent_code !== undefined) {
@@ -208,7 +216,7 @@ export async function createSetting(settingData) {
  */
 export async function updateSetting(code, updateData) {
 	try {
-		const { parent_code, order, value, title, comment } = updateData;
+		const { parent_code, order, value, title, comment, category } = updateData;
 
 		// 유효성 검사
 		if (value !== undefined && value < 1) {
@@ -234,6 +242,7 @@ export async function updateSetting(code, updateData) {
 		if (value !== undefined) updateFields.value = value;
 		if (title !== undefined) updateFields.title = title;
 		if (comment !== undefined) updateFields.comment = comment || null;
+		if (category !== undefined) updateFields.category = category || 'organization';
 
 		if (Object.keys(updateFields).length === 0) {
 			throw new Error('수정할 데이터가 없습니다.');
@@ -243,6 +252,7 @@ export async function updateSetting(code, updateData) {
 			.from('env_code')
 			.update(updateFields)
 			.eq('code', code)
+			.eq('category', 'organization')
 			.select()
 			.single();
 
@@ -272,7 +282,8 @@ export async function deleteSetting(code) {
 		const { error } = await supabase
 			.from('env_code')
 			.delete()
-			.eq('code', code);
+			.eq('code', code)
+			.eq('category', 'organization');
 
 		if (error) throw error;
 
@@ -319,7 +330,8 @@ export async function getSettingValues(codes) {
 		const { data, error } = await supabase
 			.from('env_code')
 			.select('code, value')
-			.in('code', codes);
+			.in('code', codes)
+			.eq('category', 'organization');
 
 		if (error) throw error;
 
@@ -351,11 +363,13 @@ export async function getChildSettings(parentCode) {
 
 /**
  * 최상위 환경설정 조회 (부모가 없는 항목)
+ * @param {Object} [options] - 조회 옵션
+ * @param {string} [options.category] - 카테고리로 필터링
  * @returns {Promise<{data: Array<SettingData>|null, error: Error|null}>}
  */
-export async function getRootSettings() {
+export async function getRootSettings(options = {}) {
 	try {
-		return await getSettings({ parentCode: null, orderByOrder: true });
+		return await getSettings({ parentCode: null, orderByOrder: true, ...options });
 	} catch (error) {
 		console.error('최상위 환경설정 조회 실패:', error);
 		return { data: [], error };
@@ -374,7 +388,8 @@ export async function searchSettingsByTitle(options = {}) {
 		
 		let query = supabase
 			.from('env_code')
-			.select('*');
+			.select('*')
+			.eq('category', 'organization');
 		
 		// 검색어가 있으면 title에 LIKE 검색 적용
 		if (search && search.trim()) {

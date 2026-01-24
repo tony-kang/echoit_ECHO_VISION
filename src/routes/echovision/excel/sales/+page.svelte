@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
+	import ExcelLoader from '$src/lib/components/excel/notUse_ExcelLoader.svelte';
 	import { authStore } from '$lib/stores/authStore';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
@@ -11,14 +12,50 @@
 	let isSidebarOpen = $state(false);
 
 	/**
-	 * 카테고리 목록
-	 * @type {Array<{code: string, label: string}>}
+	 * ExcelLoader에 전달할 작업 옵션
+	 * @type {Object}
 	 */
-	const categories = [
-		{ code: 'organization', label: '조직' },
-		{ code: 'sales', label: '매출' },
-		{ code: 'cost', label: '비용' }
-	];
+	const workOption = {
+		workList: [],
+		requiredColumns: {},
+		columnWidths: {
+			'코드': '120px',
+			'연도': '100px',
+			'월': '80px',
+			'목표 매출액': '150px',
+			'매출액': '150px',
+			'매출 원가': '150px',
+			'매출 총손실': '150px',
+			'판매 관리비': '150px',
+			'영업 손실': '150px',
+			'영업외 수익': '150px',
+			'영업외 비용': '150px',
+			'법인세 비용 차감전 순손실': '180px',
+			'법인세 비용': '150px',
+			'당기 순손실': '150px',
+			'메모': '200px'
+		},
+		ignoreColumns: [],
+		fixedColumns: 0,
+		excelColumns: [
+			{ caption: '코드', required: true },
+			{ caption: '연도', required: true },
+			{ caption: '월', required: false },
+			{ caption: '목표 매출액', required: false },
+			{ caption: '매출액', required: false },
+			{ caption: '매출 원가', required: false },
+			{ caption: '매출 총손실', required: false },
+			{ caption: '판매 관리비', required: false },
+			{ caption: '영업 손실', required: false },
+			{ caption: '영업외 수익', required: false },
+			{ caption: '영업외 비용', required: false },
+			{ caption: '법인세 비용 차감전 순손실', required: false },
+			{ caption: '법인세 비용', required: false },
+			{ caption: '당기 순손실', required: false },
+			{ caption: '메모', required: false }
+		],
+		sheetIndex: 1
+	};
 
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
@@ -34,15 +71,6 @@
 			unsubscribe();
 		};
 	});
-
-	/**
-	 * 카테고리 클릭 핸들러
-	 * @param {string} categoryCode - 카테고리 코드
-	 * @returns {void}
-	 */
-	function handleCategoryClick(categoryCode) {
-		goto(`/echovision/settings/code/${categoryCode}`);
-	}
 </script>
 
 <div class="main-content-page">
@@ -81,27 +109,16 @@
 										/>
 									</svg>
 								</button>
-								<h1 class="text-3xl font-bold text-gray-800">환경설정 코드 관리</h1>
+								<h1 class="text-2xl font-bold text-gray-900">매출 엑셀 업로드</h1>
 							</div>
-							<p class="text-gray-600">카테고리를 선택하여 코드를 관리합니다</p>
+							<p class="text-sm text-gray-600">
+								엑셀 파일을 업로드하여 매출 데이터를 확인할 수 있습니다.
+							</p>
 						</div>
 
-						<!-- 카테고리 목록 -->
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-							{#each categories as category}
-								<button
-									onclick={() => handleCategoryClick(category.code)}
-									class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
-								>
-									<div class="flex items-center justify-between mb-2">
-										<h2 class="text-xl font-semibold text-gray-800">{category.label}</h2>
-										<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-										</svg>
-									</div>
-									<p class="text-sm text-gray-600">카테고리: {category.code}</p>
-								</button>
-							{/each}
+						<!-- 엑셀 로더 컴포넌트 -->
+						<div class="bg-white rounded-lg shadow-md p-6">
+							<ExcelLoader {workOption} />
 						</div>
 					</div>
 				{/if}

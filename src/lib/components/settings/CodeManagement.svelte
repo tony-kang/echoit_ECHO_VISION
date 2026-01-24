@@ -1,0 +1,959 @@
+<script>
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import DataTable from '$lib/components/admin/DataTable.svelte';
+	import {
+		getSettings,
+		getRootSettings,
+		getChildSettings,
+		createSetting,
+		updateSetting,
+		deleteSetting
+	} from '$lib/settingsService';
+	import { authStore } from '$lib/stores/authStore';
+	import { isAdmin } from '$lib/userService';
+
+	/**
+	 * 컴포넌트 Props
+	 * @type {{ category: string }}
+	 */
+	let { category = '' } = $props();
+
+	/** @type {import('@supabase/supabase-js').User | null} */
+	let user = $state(null);
+	let authLoading = $state(true);
+	/** @type {Object | null} */
+	let userProfile = $state(null);
+	/** @type {Array<any>} 전체 환경설정 코드 목록 (부모 이름 조회용) */
+	let allSettings = $state([]);
+	/** @type {Array<any>} 현재 표시할 환경설정 코드 목록 (필터링 전) */
+	let displayedSettings = $state([]);
+	/** @type {string} 코드 검색어 */
+	let codeSearchQuery = $state('');
+	/** @type {string} 제목 검색어 */
+	let titleSearchQuery = $state('');
+	let isLoading = $state(false);
+	let showFormModal = $state(false);
+	/** @type {any} 수정 중인 항목 */
+	let editingSetting = $state(null);
+	/** @type {Array<any>} 상위 코드 목록 (최상위 항목) */
+	let parentOptions = $state([]);
+	/** @type {string|null|undefined} 현재 선택된 상위 코드 (undefined = 아직 초기화 안됨) */
+	let currentParentCode = $state(undefined);
+
+	/**
+	 * 사용자가 접근 가능한 최상위 코드 목록
+	 * @type {string[]|null}
+	 */
+	const accessibleTopLevelCodes = $derived.by(() => {
+		if (!userProfile) return null;
+		/** @type {any} */
+		const profile = userProfile;
+		// 관리자/마스터는 모든 코드 접근 가능
+		if (profile?.role && isAdmin(profile.role)) {
+			return null; // null이면 모든 코드 접근 가능
+		}
+		// 일반 사용자는 top_level_codes 배열 사용
+		return profile?.top_level_codes || [];
+	});
+
+	// 폼 상태
+	/** @type {string} */
+	let formCode = $state('');
+	/** @type {string|null} */
+	let formParentCode = $state(null);
+	/** @type {number} */
+	let formOrder = $state(0);
+	/** @type {number} */
+	let formValue = $state(1);
+	/** @type {string} */
+	let formTitle = $state('');
+	/** @type {string} */
+	let formComment = $state('');
+	/** @type {string} */
+	let formCategory = $state('');
+
+	/**
+	 * URL 쿼리 파라미터에서 sCode 읽기
+	 * @type {string|null}
+	 */
+	const sCodeParam = $derived(page.url.searchParams.get('sCode'));
+
+	/**
+	 * 현재 선택된 상위 코드 결정 (sCode가 없으면 null = 최상위)
+	 * @type {string|null}
+	 */
+	const selectedCode = $derived(sCodeParam || null);
+
+	onMount(() => {
+		const unsubscribe = authStore.subscribe((state) => {
+			user = state.user;
+			authLoading = state.loading;
+			userProfile = state.userProfile;
+
+			if (!state.loading && !state.user) {
+				goto('/login');
+			} else if (state.user) {
+				loadParentOptions();
+			}
+		});
+
+		return () => {
+			unsubscribe();
+		};
+	});
+
+	/**
+	 * 카테고리 변경 시 폼 초기화 및 재로드
+	 */
+	$effect(() => {
+		if (category) {
+			formCategory = category;
+			resetForm();
+			if (user && !authLoading) {
+				loadSettings();
+			}
+		}
+	});
+
+	/**
+	 * 사용자 인증 후 초기 로드 및 sCode 변경 시 설정 로드
+	 */
+	$effect(() => {
+		if (user && !authLoading && category) {
+			// sCode가 없으면 null (최상위)로 설정
+			const codeToUse = selectedCode || null;
+			// 초기화되지 않았거나 값이 변경된 경우에만 로드
+			if (currentParentCode === undefined || currentParentCode !== codeToUse) {
+				currentParentCode = codeToUse;
+				loadSettings();
+			}
+		}
+	});
+
+	/**
+	 * 환경설정 코드 목록 로드
+	 * @returns {Promise<void>}
+	 */
+	async function loadSettings() {
+		if (!user || !category) return;
+
+		isLoading = true;
+		
+		// 전체 설정 로드 (부모 이름 조회용) - 카테고리 필터링
+		const { data: allData } = await getSettings({
+			orderByOrder: true,
+			category
+		});
+		if (allData) {
+			// 접근 제한 적용
+			const accessibleCodes = accessibleTopLevelCodes;
+			if (accessibleCodes !== null && accessibleCodes.length > 0) {
+				// 접근 가능한 최상위 코드와 그 하위 코드만 필터링
+				const filtered = allData.filter((/** @type {any} */ setting) => {
+					// 최상위 코드인 경우
+					if (!setting.parent_code) {
+						return accessibleCodes.includes(setting.code);
+					}
+					// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
+					return isCodeAccessible(setting.code, accessibleCodes, allData);
+				});
+				allSettings = filtered;
+			} else {
+				allSettings = allData;
+			}
+		}
+		
+		// currentParentCode가 undefined이면 null로 처리 (최상위)
+		const parentCodeToLoad = currentParentCode === undefined ? null : currentParentCode;
+		
+		// sCode가 있으면 해당 부모의 자식만, 없으면 최상위만 조회
+		const { data, error } = await getSettings({
+			orderByOrder: true,
+			parentCode: parentCodeToLoad,
+			category
+		});
+
+		if (error) {
+			console.error('환경설정 코드 로드 실패:', error);
+			displayedSettings = [];
+		} else {
+			// 접근 제한 적용
+			const accessibleCodes = accessibleTopLevelCodes;
+			if (accessibleCodes !== null && accessibleCodes.length > 0) {
+				displayedSettings = (data || []).filter((/** @type {any} */ setting) => {
+					// 최상위 코드인 경우
+					if (!setting.parent_code) {
+						return accessibleCodes.includes(setting.code);
+					}
+					// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
+					return isCodeAccessible(setting.code, accessibleCodes, allSettings);
+				});
+			} else {
+				displayedSettings = data || [];
+			}
+			
+			// 검색어가 있으면 필터링 적용
+			if (codeSearchQuery || titleSearchQuery) {
+				// filteredSettings가 자동으로 업데이트되므로 별도 처리 불필요
+			}
+		}
+
+		isLoading = false;
+	}
+
+	/**
+	 * 코드가 접근 가능한지 확인 (재귀적으로 상위 코드 확인)
+	 * @param {string} code - 확인할 코드
+	 * @param {string[]} accessibleCodes - 접근 가능한 최상위 코드 목록
+	 * @param {Array<any>} allSettings - 전체 설정 목록
+	 * @returns {boolean}
+	 */
+	function isCodeAccessible(code, accessibleCodes, allSettings) {
+		const setting = allSettings.find((/** @type {any} */ s) => s.code === code);
+		if (!setting) return false;
+		
+		// 최상위 코드인 경우
+		if (!setting.parent_code) {
+			return accessibleCodes.includes(code);
+		}
+		
+		// 하위 코드인 경우, 부모 코드가 접근 가능한지 재귀적으로 확인
+		return isCodeAccessible(setting.parent_code, accessibleCodes, allSettings);
+	}
+
+	/**
+	 * 상위 코드 옵션 로드
+	 * @returns {Promise<void>}
+	 */
+	async function loadParentOptions() {
+		if (!category) return;
+		
+		const { data, error } = await getRootSettings({ category });
+		if (!error && data) {
+			// 접근 제한 적용
+			const accessibleCodes = accessibleTopLevelCodes;
+			if (accessibleCodes !== null && accessibleCodes.length > 0) {
+				parentOptions = (data || []).filter((/** @type {any} */ option) =>
+					accessibleCodes.includes(option.code)
+				);
+			} else {
+				parentOptions = data || [];
+			}
+		}
+	}
+
+	/**
+	 * 부모 코드로 이동 (URL 업데이트)
+	 * @param {string|null} code - 상위 코드 (null이면 최상위)
+	 * @returns {Promise<void>}
+	 */
+	async function navigateToCode(code) {
+		const url = new URL(page.url);
+		if (code) {
+			url.searchParams.set('sCode', code);
+		} else {
+			url.searchParams.delete('sCode');
+		}
+		await goto(url.pathname + url.search, { replaceState: true, noScroll: true });
+		// URL 변경 후 currentParentCode 업데이트 및 로드
+		currentParentCode = code || null;
+		await loadSettings();
+	}
+
+	/**
+	 * 상위 코드 이름 가져오기
+	 * @param {string|null} parentCode - 상위 코드
+	 * @returns {string}
+	 */
+	function getParentName(parentCode) {
+		if (!parentCode) return '-';
+		const parent = allSettings.find((/** @type {any} */ s) => s.code === parentCode);
+		return parent ? parent.title : parentCode;
+	}
+
+	/**
+	 * 현재 부모 코드의 제목 가져오기
+	 * @returns {string}
+	 */
+	function getCurrentParentTitle() {
+		if (!currentParentCode) return '';
+		return getParentName(currentParentCode);
+	}
+
+	/**
+	 * 코드에 자식이 있는지 확인
+	 * @param {string} code - 확인할 코드
+	 * @returns {boolean}
+	 */
+	function hasChildren(code) {
+		return allSettings.some((/** @type {any} */ s) => s.parent_code === code);
+	}
+
+	/**
+	 * 코드 추가 핸들러
+	 * @returns {void}
+	 */
+	function handleCreate() {
+		resetForm();
+		editingSetting = null;
+		showFormModal = true;
+	}
+
+	/**
+	 * 코드 수정 핸들러
+	 * @param {any} setting - 환경설정 데이터
+	 * @returns {void}
+	 */
+	function handleEdit(setting) {
+		editingSetting = setting;
+		formCode = setting.code || '';
+		formParentCode = setting.parent_code || null;
+		formOrder = setting.order || 0;
+		formValue = setting.value || 1;
+		formTitle = setting.title || '';
+		formComment = setting.comment || '';
+		formCategory = setting.category || category || '';
+		showFormModal = true;
+	}
+
+	/**
+	 * 폼 초기화
+	 * @returns {void}
+	 */
+	function resetForm() {
+		formCode = '';
+		formParentCode = null;
+		formOrder = 0;
+		formValue = 1;
+		formTitle = '';
+		formComment = '';
+		formCategory = category || '';
+	}
+
+	/**
+	 * 폼 제출 핸들러
+	 * @returns {Promise<void>}
+	 */
+	async function handleSubmit() {
+		if (!formCode || formCode.length > 16) {
+			alert('코드는 필수이며 최대 16자리까지 가능합니다.');
+			return;
+		}
+		if (formValue < 1) {
+			alert('값은 1 이상이어야 합니다.');
+			return;
+		}
+		if (!formTitle) {
+			alert('제목은 필수입니다.');
+			return;
+		}
+		if (!formCategory) {
+			alert('카테고리는 필수입니다.');
+			return;
+		}
+
+		const settingData = {
+			code: formCode,
+			parent_code: formParentCode || null,
+			order: formOrder,
+			value: formValue,
+			title: formTitle,
+			comment: formComment || null,
+			category: formCategory || category
+		};
+
+		let result;
+		if (editingSetting) {
+			result = await updateSetting(editingSetting.code, settingData);
+		} else {
+			result = await createSetting(settingData);
+		}
+
+		if (result.error) {
+			alert(`저장 실패: ${result.error.message || '알 수 없는 오류'}`);
+			return;
+		}
+
+		showFormModal = false;
+		resetForm();
+		await loadSettings();
+		await loadParentOptions();
+	}
+
+	/**
+	 * 폼 취소 핸들러
+	 * @returns {void}
+	 */
+	function handleCancel() {
+		showFormModal = false;
+		resetForm();
+		editingSetting = null;
+	}
+
+	/**
+	 * 환경설정 코드 삭제 핸들러
+	 * @param {any} setting - 환경설정 데이터
+	 * @returns {Promise<void>}
+	 */
+	async function handleDelete(setting) {
+		if (!confirm(`정말로 "${setting.title}" 코드를 삭제하시겠습니까?`)) {
+			return;
+		}
+
+		const { error } = await deleteSetting(setting.code);
+		if (error) {
+			alert(`삭제 실패: ${error.message || '알 수 없는 오류'}`);
+			return;
+		}
+
+		await loadSettings();
+		await loadParentOptions();
+	}
+
+	/**
+	 * 검색어로 필터링된 설정 목록
+	 * @type {Array<any>}
+	 */
+	const filteredSettings = $derived.by(() => {
+		if (!displayedSettings || displayedSettings.length === 0) {
+			return displayedSettings || [];
+		}
+		
+		let result = displayedSettings;
+		const codeQueryTrimmed = (codeSearchQuery || '').trim();
+		const titleQueryTrimmed = (titleSearchQuery || '').trim();
+		
+		// 검색어가 없으면 전체 반환
+		if (!codeQueryTrimmed && !titleQueryTrimmed) {
+			return result;
+		}
+		
+		// 코드 검색: 정확 일치 (EQ)
+		if (codeQueryTrimmed !== '') {
+			const codeQuery = codeQueryTrimmed.toLowerCase();
+			result = result.filter((/** @type {any} */ setting) => {
+				if (!setting || !setting.code) return false;
+				const settingCode = String(setting.code).toLowerCase();
+				return settingCode === codeQuery;
+			});
+		}
+		
+		// 제목 검색: 부분 일치 (LIKE)
+		if (titleQueryTrimmed !== '') {
+			const titleQuery = titleQueryTrimmed.toLowerCase();
+			result = result.filter((/** @type {any} */ setting) => {
+				if (!setting || !setting.title) return false;
+				const settingTitle = String(setting.title).toLowerCase();
+				return settingTitle.includes(titleQuery);
+			});
+		}
+		
+		return result;
+	});
+
+	/**
+	 * 카테고리 라벨 가져오기
+	 * @param {string} cat - 카테고리 코드
+	 * @returns {string}
+	 */
+	function getCategoryLabel(cat) {
+		const labels = {
+			organization: '조직',
+			sales: '매출',
+			cost: '비용'
+		};
+		return labels[cat] || cat;
+	}
+
+	/**
+	 * 검색어 초기화 핸들러
+	 * @returns {void}
+	 */
+	function handleSearchClear() {
+		codeSearchQuery = '';
+		titleSearchQuery = '';
+	}
+</script>
+
+<div class="admin-content-page">
+	<!-- 네비게이션 및 액션 -->
+	<div class="mb-4 flex items-center justify-between gap-4">
+		<!-- 왼쪽: 상위 코드 네비게이션 및 검색 -->
+		<div class="flex items-center gap-4 flex-1">
+			<!-- 상위 코드 네비게이션 -->
+			<div class="flex items-center gap-2">
+				{#if currentParentCode}
+					<button
+						onclick={() => navigateToCode(null)}
+						class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+						</svg>
+						최상위로
+					</button>
+					<span class="text-gray-400">/</span>
+					<span class="text-sm text-gray-700">{getCurrentParentTitle()}</span>
+				{/if}
+			</div>
+			
+			<!-- 검색 입력 필드들 -->
+			<div class="flex items-center gap-2 flex-1">
+				<!-- 코드 검색 -->
+				<div class="relative flex-1 max-w-xs">
+					<input
+						type="text"
+						bind:value={codeSearchQuery}
+						placeholder="코드 검색 (정확 일치)"
+						class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+					/>
+					<!-- 검색 아이콘 -->
+					<svg
+						class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+					</svg>
+					<!-- 검색어 초기화 버튼 -->
+					{#if codeSearchQuery}
+						<button
+							onclick={() => codeSearchQuery = ''}
+							class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+							aria-label="코드 검색 초기화"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</button>
+					{/if}
+				</div>
+				
+				<!-- 제목 검색 -->
+				<div class="relative flex-1 max-w-xs">
+					<input
+						type="text"
+						bind:value={titleSearchQuery}
+						placeholder="제목 검색 (부분 일치)"
+						class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+					/>
+					<!-- 검색 아이콘 -->
+					<svg
+						class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+					</svg>
+					<!-- 검색어 초기화 버튼 -->
+					{#if titleSearchQuery}
+						<button
+							onclick={() => titleSearchQuery = ''}
+							class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+							aria-label="제목 검색 초기화"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</button>
+					{/if}
+				</div>
+			</div>
+		</div>
+		
+		<!-- 오른쪽: 검색 초기화 및 코드 추가 버튼 -->
+		<div class="flex items-center gap-2">
+			<!-- 전체 검색 초기화 버튼 (아이콘) -->
+			{#if codeSearchQuery || titleSearchQuery}
+				<button
+					onclick={handleSearchClear}
+					class="p-2 text-red-600 hover:text-red-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+					aria-label="전체 검색 초기화"
+					title="검색 초기화"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			{/if}
+			
+			<!-- 코드 추가 버튼 -->
+			<button
+				onclick={handleCreate}
+				class="btn-primary flex items-center gap-2 whitespace-nowrap"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+				</svg>
+				코드 추가
+			</button>
+		</div>
+	</div>
+
+	{#if isLoading}
+		<div class="text-center py-12">
+			<p class="text-gray-500">환경설정 코드 목록을 불러오는 중...</p>
+		</div>
+	{:else if displayedSettings.length === 0}
+		<div class="text-center py-12">
+			<p class="text-gray-500">환경설정 코드가 등록되지 않았습니다.</p>
+		</div>
+	{:else if filteredSettings.length === 0}
+		<div class="text-center py-12">
+			<p class="text-gray-500">검색 결과가 없습니다.</p>
+			{#if codeSearchQuery || titleSearchQuery}
+				<button
+					onclick={handleSearchClear}
+					class="mt-2 text-sm text-blue-600 hover:text-blue-700"
+				>
+					검색 초기화
+				</button>
+			{/if}
+		</div>
+	{:else}
+		<!-- 환경설정 코드 목록 -->
+		<DataTable
+			headers={[
+				{ label: '코드', align: 'center' },
+				{ label: '제목' },
+				{ label: '표시 순서', align: 'center' },
+				{ label: '값', align: 'center' },
+				{ label: '상위 코드', align: 'center' },
+				{ label: '설명', align: 'center' },
+				{ label: '작업', align: 'center' }
+			]}
+			rowCount={filteredSettings.length}
+			emptyMessage="환경설정 코드가 없습니다."
+		>
+			{#each filteredSettings as setting}
+				<tr class="hover:bg-gray-50 cursor-pointer" onclick={() => navigateToCode(setting.code)}>
+					<td class="text-center font-mono text-sm font-medium">{setting.code}</td>
+					<td class="font-medium">
+						<div class="flex items-center gap-2">
+							{setting.title}
+							{#if hasChildren(setting.code)}
+								<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+								</svg>
+							{/if}
+						</div>
+					</td>
+					<td class="text-center">{setting.order || 0}</td>
+					<td class="text-center font-semibold">{setting.value}</td>
+					<td class="text-center">
+						{#if setting.parent_code}
+							<span class="badge badge-info">
+								{getParentName(setting.parent_code)}
+							</span>
+						{:else}
+							<span class="text-gray-400">-</span>
+						{/if}
+					</td>
+					<td class="text-center">
+						{setting.comment || '-'}
+					</td>
+					<td class="flex justify-center" onclick={(e) => e.stopPropagation()}>
+						<div class="action-buttons">
+							<button
+								onclick={() => handleEdit(setting)}
+								class="btn-small btn-secondary"
+							>
+								수정
+							</button>
+							<button
+								onclick={() => handleDelete(setting)}
+								class="btn-small btn-danger"
+							>
+								삭제
+							</button>
+						</div>
+					</td>
+				</tr>
+			{/each}
+		</DataTable>
+	{/if}
+</div>
+
+<!-- 환경설정 코드 생성/수정 모달 -->
+{#if showFormModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="modal-overlay" onclick={handleCancel}>
+		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+			<div class="modal-header">
+				<h2>{editingSetting ? '환경설정 코드 수정' : '환경설정 코드 추가'}</h2>
+				<button onclick={handleCancel} class="modal-close">×</button>
+			</div>
+			<div class="modal-body">
+				<div class="space-y-4">
+					<!-- 코드 -->
+					<div>
+						<label for="formCode" class="block text-sm font-medium text-gray-700 mb-1">
+							코드 <span class="text-red-500">*</span>
+						</label>
+						<input
+							type="text"
+							id="formCode"
+							bind:value={formCode}
+							maxlength="16"
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							placeholder="최대 16자리 코드 입력"
+							required
+							disabled={!!editingSetting}
+						/>
+						<p class="text-xs text-gray-500 mt-1">
+							코드는 수정할 수 없습니다.
+						</p>
+					</div>
+
+					<!-- 상위 코드 -->
+					<div>
+						<label for="formParentCode" class="block text-sm font-medium text-gray-700 mb-1">
+							상위 코드
+						</label>
+						<select
+							id="formParentCode"
+							bind:value={formParentCode}
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+						>
+							<option value={null}>없음 (최상위)</option>
+							{#each parentOptions as parent}
+								{#if !editingSetting || parent.code !== editingSetting.code}
+									<option value={parent.code}>
+										{parent.code} - {parent.title}
+									</option>
+								{/if}
+							{/each}
+						</select>
+						<p class="text-xs text-gray-500 mt-1">부모 코드를 선택하면 계층 구조가 생성됩니다.</p>
+					</div>
+
+					<!-- 표시 순서 -->
+					<div>
+						<label for="formOrder" class="block text-sm font-medium text-gray-700 mb-1">
+							표시 순서
+						</label>
+						<input
+							type="number"
+							id="formOrder"
+							bind:value={formOrder}
+							min="0"
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							placeholder="0"
+						/>
+					</div>
+
+					<!-- 값 -->
+					<div>
+						<label for="formValue" class="block text-sm font-medium text-gray-700 mb-1">
+							값 <span class="text-red-500">*</span>
+						</label>
+						<input
+							type="number"
+							id="formValue"
+							bind:value={formValue}
+							min="1"
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							placeholder="1 이상의 숫자"
+							required
+						/>
+						<p class="text-xs text-gray-500 mt-1">값은 1 이상이어야 합니다.</p>
+					</div>
+
+					<!-- 제목 -->
+					<div>
+						<label for="formTitle" class="block text-sm font-medium text-gray-700 mb-1">
+							제목 <span class="text-red-500">*</span>
+						</label>
+						<input
+							type="text"
+							id="formTitle"
+							bind:value={formTitle}
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							placeholder="제목을 입력하세요"
+							required
+						/>
+					</div>
+
+					<!-- 카테고리 -->
+					<div>
+						<label for="formCategory" class="block text-sm font-medium text-gray-700 mb-1">
+							카테고리 <span class="text-red-500">*</span>
+						</label>
+						<select
+							id="formCategory"
+							bind:value={formCategory}
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							required
+						>
+							<option value="">선택하세요</option>
+							<option value="organization">organization (조직)</option>
+							<option value="sales">sales (매출)</option>
+							<option value="cost">cost (비용)</option>
+						</select>
+						<p class="text-xs text-gray-500 mt-1">코드의 분류를 선택하세요.</p>
+					</div>
+
+					<!-- 설명 -->
+					<div>
+						<label for="formComment" class="block text-sm font-medium text-gray-700 mb-1">
+							설명
+						</label>
+						<textarea
+							id="formComment"
+							bind:value={formComment}
+							rows="3"
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							placeholder="설명을 입력하세요 (선택사항)"
+						></textarea>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button onclick={handleCancel} class="btn-secondary">취소</button>
+				<button onclick={handleSubmit} class="btn-primary">저장</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<style>
+	.admin-content-page {
+		width: 100%;
+	}
+
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.modal-content {
+		background: white;
+		border-radius: 8px;
+		width: 90%;
+		max-width: 600px;
+		max-height: 90vh;
+		overflow-y: auto;
+		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+	}
+
+	.modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1.5rem;
+		border-bottom: 1px solid #e5e7eb;
+	}
+
+	.modal-header h2 {
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #111827;
+	}
+
+	.modal-close {
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		color: #6b7280;
+		cursor: pointer;
+		padding: 0;
+		width: 2rem;
+		height: 2rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.25rem;
+	}
+
+	.modal-close:hover {
+		background-color: #f3f4f6;
+		color: #111827;
+	}
+
+	.modal-body {
+		padding: 1.5rem;
+	}
+
+	.modal-footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.75rem;
+		padding: 1.5rem;
+		border-top: 1px solid #e5e7eb;
+	}
+
+	.btn-primary {
+		background-color: #3b82f6;
+		color: white;
+		padding: 0.5rem 1rem;
+		border-radius: 0.5rem;
+		border: none;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.2s;
+	}
+
+	.btn-primary:hover {
+		background-color: #2563eb;
+	}
+
+	.btn-secondary {
+		background-color: #6b7280;
+		color: white;
+		padding: 0.5rem 1rem;
+		border-radius: 0.5rem;
+		border: none;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.2s;
+	}
+
+	.btn-secondary:hover {
+		background-color: #4b5563;
+	}
+
+	.btn-small {
+		padding: 0.25rem 0.75rem;
+		font-size: 0.875rem;
+	}
+
+	.btn-danger {
+		background-color: #ef4444;
+		color: white;
+	}
+
+	.btn-danger:hover {
+		background-color: #dc2626;
+	}
+
+	.badge {
+		display: inline-block;
+		padding: 0.25rem 0.75rem;
+		border-radius: 9999px;
+		font-size: 0.875rem;
+		font-weight: 500;
+	}
+
+	.badge-info {
+		background-color: #dbeafe;
+		color: #1e40af;
+	}
+
+	.action-buttons {
+		display: flex;
+		gap: 0.5rem;
+	}
+</style>

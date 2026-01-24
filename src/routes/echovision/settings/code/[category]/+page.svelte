@@ -1,7 +1,9 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
+	import CodeManagement from '$lib/components/settings/CodeManagement.svelte';
 	import { authStore } from '$lib/stores/authStore';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
@@ -11,14 +13,31 @@
 	let isSidebarOpen = $state(false);
 
 	/**
-	 * 카테고리 목록
-	 * @type {Array<{code: string, label: string}>}
+	 * URL 파라미터에서 카테고리 가져오기
+	 * @type {string}
 	 */
-	const categories = [
-		{ code: 'organization', label: '조직' },
-		{ code: 'sales', label: '매출' },
-		{ code: 'cost', label: '비용' }
-	];
+	const category = $derived(page.params.category || '');
+
+	/**
+	 * 카테고리 라벨 가져오기
+	 * @type {string}
+	 */
+	const categoryLabel = $derived.by(() => {
+		const labels = {
+			organization: '조직',
+			sales: '매출',
+			cost: '비용'
+		};
+		return labels[category] || category;
+	});
+
+	/**
+	 * 유효한 카테고리인지 확인
+	 * @type {boolean}
+	 */
+	const isValidCategory = $derived.by(() => {
+		return ['organization', 'sales', 'cost'].includes(category);
+	});
 
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
@@ -27,6 +46,9 @@
 
 			if (!state.loading && !state.user) {
 				goto('/login');
+			} else if (state.user && !isValidCategory) {
+				// 유효하지 않은 카테고리면 메인 페이지로 리다이렉트
+				goto('/echovision/settings/code');
 			}
 		});
 
@@ -34,15 +56,6 @@
 			unsubscribe();
 		};
 	});
-
-	/**
-	 * 카테고리 클릭 핸들러
-	 * @param {string} categoryCode - 카테고리 코드
-	 * @returns {void}
-	 */
-	function handleCategoryClick(categoryCode) {
-		goto(`/echovision/settings/code/${categoryCode}`);
-	}
 </script>
 
 <div class="main-content-page">
@@ -60,6 +73,10 @@
 				{:else if !user}
 					<div class="flex items-center justify-center h-full">
 						<div class="text-gray-500">로그인이 필요합니다.</div>
+					</div>
+				{:else if !isValidCategory}
+					<div class="flex items-center justify-center h-full">
+						<div class="text-gray-500">유효하지 않은 카테고리입니다.</div>
 					</div>
 				{:else}
 					<div class="admin-content-page">
@@ -81,28 +98,25 @@
 										/>
 									</svg>
 								</button>
-								<h1 class="text-3xl font-bold text-gray-800">환경설정 코드 관리</h1>
+								<div class="flex items-center gap-3">
+									<!-- <button
+										onclick={() => goto('/echovision/settings/code')}
+										class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+									>
+										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+										</svg>
+										카테고리 목록
+									</button>
+									<span class="text-gray-400">/</span> -->
+									<h1 class="text-3xl font-bold text-gray-800">{categoryLabel} 코드 관리</h1>
+								</div>
 							</div>
-							<p class="text-gray-600">카테고리를 선택하여 코드를 관리합니다</p>
+							<!-- <p class="text-gray-600">카테고리: {category}</p> -->
 						</div>
 
-						<!-- 카테고리 목록 -->
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-							{#each categories as category}
-								<button
-									onclick={() => handleCategoryClick(category.code)}
-									class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
-								>
-									<div class="flex items-center justify-between mb-2">
-										<h2 class="text-xl font-semibold text-gray-800">{category.label}</h2>
-										<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-										</svg>
-									</div>
-									<p class="text-sm text-gray-600">카테고리: {category.code}</p>
-								</button>
-							{/each}
-						</div>
+						<!-- 코드 관리 컴포넌트 -->
+						<CodeManagement category={category} />
 					</div>
 				{/if}
 			</div>
