@@ -8,6 +8,7 @@
 		getSettings,
 		getRootSettings,
 		getChildSettings,
+		getSetting,
 		createSetting,
 		updateSetting,
 		deleteSetting,
@@ -266,7 +267,7 @@
 		
 		try {
 			const { data, error } = await getRootSettings({ 
-				category: category === 'all' ? 'all' : category 
+				category: category === 'all' ? '' : category 
 			});
 			if (error) {
 				console.error('상위 코드 옵션 로드 실패:', error);
@@ -339,11 +340,49 @@
 
 	/**
 	 * 코드 추가 핸들러
-	 * @returns {void}
+	 * @returns {Promise<void>}
 	 */
-	function handleCreate() {
+	async function handleCreate() {
 		resetForm();
 		editingSetting = null;
+		
+		// 상위 코드 옵션이 로드되지 않았으면 먼저 로드
+		if (parentOptions.length === 0) {
+			await loadParentOptions();
+		}
+		
+		// URL의 topCode 파라미터가 있으면 상위코드에 자동 설정
+		if (topCodeParam) {
+			// parentOptions에 topCodeParam이 있는지 확인
+			const parentExists = parentOptions.some((/** @type {any} */ opt) => opt.code === topCodeParam);
+			if (!parentExists) {
+				// allSettings에서 부모 코드 찾기
+				const parentInAllSettings = allSettings.find((/** @type {any} */ s) => s.code === topCodeParam);
+				if (parentInAllSettings) {
+					// 접근 제한 확인
+					const accessibleCodes = accessibleTopLevelCodes;
+					if (accessibleCodes === null || accessibleCodes.length === 0 || 
+						itopCodeAccessible(parentInAllSettings.code, accessibleCodes, allSettings)) {
+						parentOptions = [...parentOptions, parentInAllSettings];
+					}
+				} else {
+					// allSettings에 없으면 직접 조회
+					const { data: parentData, error: parentError } = await getSetting(
+						topCodeParam,
+						category === 'all' ? undefined : category
+					);
+					if (!parentError && parentData) {
+						// 접근 제한 확인
+						const accessibleCodes = accessibleTopLevelCodes;
+						if (accessibleCodes === null || accessibleCodes.length === 0 || 
+							itopCodeAccessible(parentData.code, accessibleCodes, allSettings)) {
+							parentOptions = [...parentOptions, parentData];
+						}
+					}
+				}
+			}
+			formParentCode = topCodeParam;
+		}
 		showFormModal = true;
 	}
 
@@ -355,12 +394,50 @@
 	/**
 	 * 환경설정 코드 수정 핸들러
 	 * @param {any} setting - 환경설정 데이터
-	 * @returns {void}
+	 * @returns {Promise<void>}
 	 */
-	function handleEdit(setting) {
+	async function handleEdit(setting) {
+		// 상위 코드 옵션이 로드되지 않았으면 먼저 로드
+		if (parentOptions.length === 0) {
+			await loadParentOptions();
+		}
+
+		// setting.parent_code가 있고 parentOptions에 없으면 추가
+		if (setting.parent_code) {
+			const parentExists = parentOptions.some((/** @type {any} */ opt) => opt.code === setting.parent_code);
+			if (!parentExists) {
+				// allSettings에서 부모 코드 찾기 (이미 로드된 데이터 활용)
+				const parentInAllSettings = allSettings.find((/** @type {any} */ s) => s.code === setting.parent_code);
+				if (parentInAllSettings) {
+					// 접근 제한 확인
+					const accessibleCodes = accessibleTopLevelCodes;
+					if (accessibleCodes === null || accessibleCodes.length === 0 || 
+						itopCodeAccessible(parentInAllSettings.code, accessibleCodes, allSettings)) {
+						parentOptions = [...parentOptions, parentInAllSettings];
+					}
+				} else {
+					// allSettings에 없으면 직접 조회
+					const parentCategory = setting.category || category || '';
+					const { data: parentData, error: parentError } = await getSetting(
+						setting.parent_code,
+						parentCategory === 'all' ? undefined : parentCategory
+					);
+					if (!parentError && parentData) {
+						// 접근 제한 확인
+						const accessibleCodes = accessibleTopLevelCodes;
+						if (accessibleCodes === null || accessibleCodes.length === 0 || 
+							itopCodeAccessible(parentData.code, accessibleCodes, allSettings)) {
+							parentOptions = [...parentOptions, parentData];
+						}
+					}
+				}
+			}
+		}
+		
 		editingSetting = setting;
 		formCode = setting.code || '';
-		formParentCode = setting.parent_code || null;
+		// parent_code가 null이면 빈 문자열로 변환 (select의 value와 매칭되도록)
+		formParentCode = setting.parent_code || '';
 		formOrder = setting.order || 0;
 		formValue = setting.value || 1;
 		formTitle = setting.title || '';
@@ -381,7 +458,7 @@
 	 */
 	function resetForm() {
 		formCode = '';
-		formParentCode = null;
+		formParentCode = '';
 		formOrder = 0;
 		formValue = 1;
 		formTitle = '';
@@ -418,15 +495,20 @@
 		isSaving = true;
 		
 		try {
+			// formParam이 배열인지 확인하고, 빈 배열이 아닌 경우만 전달
+			const paramValue = Array.isArray(formParam) && formParam.length > 0 
+				? formParam.filter(p => p && p.trim() !== '') // 빈 문자열 제거
+				: null;
+
 			const settingData = {
 				code: formCode,
-				parent_code: formParentCode || null,
+				parent_code: formParentCode && formParentCode.trim() !== '' ? formParentCode : null,
 				order: formOrder,
 				value: formValue,
 				title: formTitle,
 				comment: formComment || null,
 				category: formCategory || category,
-				param: formParam.length > 0 ? formParam : null
+				param: paramValue
 			};
 
 			let result;
@@ -900,7 +982,7 @@
 							bind:value={formParentCode}
 							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 						>
-							<option value={null}>없음 (최상위)</option>
+							<option value="">없음 (최상위)</option>
 							{#each parentOptions as parent}
 								{#if !editingSetting || parent.code !== editingSetting.code}
 									<option value={parent.code}>

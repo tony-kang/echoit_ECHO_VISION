@@ -13,7 +13,8 @@ export const ACTION_CATEGORIES = {
 	BOARD: 'board',
 	SCHEDULE: 'schedule',
 	INQUIRY: 'inquiry',
-	LOGISTICS: 'logistics'
+	LOGISTICS: 'logistics',
+	SETTINGS: 'settings'
 };
 
 /**
@@ -75,6 +76,11 @@ export const ACTION_TYPES = {
 	TRACKING_CREATE: 'tracking_create',
 	TRACKING_UPDATE: 'tracking_update',
 	TRACKING_DELETE: 'tracking_delete',
+	
+	// 환경설정 관련
+	SETTINGS_CREATE: 'settings_create',
+	SETTINGS_UPDATE: 'settings_update',
+	SETTINGS_DELETE: 'settings_delete',
 	
 	// 기타
 	FILE_UPLOAD: 'file_upload',

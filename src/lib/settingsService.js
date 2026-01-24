@@ -211,9 +211,14 @@ export async function createSetting(settingData) {
 
 		// 로그 기록
 		await logAction({
-			type: ACTION_TYPES.CREATE,
-			category: ACTION_CATEGORIES.SETTINGS,
-			description: `환경설정 생성: ${code} - ${title}${parent_code ? ` (부모: ${parent_code})` : ''}`
+			actionType: ACTION_TYPES.SETTINGS_CREATE,
+			actionCategory: ACTION_CATEGORIES.SETTINGS,
+			actionDetails: {
+				code,
+				title,
+				parent_code: parent_code || null,
+				description: `환경설정 생성: ${code} - ${title}${parent_code ? ` (부모: ${parent_code})` : ''}`
+			}
 		});
 
 		return { data, error: null };
@@ -288,9 +293,12 @@ export async function updateSetting(code, updateData) {
 
 		// 로그 기록
 		await logAction({
-			type: ACTION_TYPES.UPDATE,
-			category: ACTION_CATEGORIES.SETTINGS,
-			description: `환경설정 수정: ${code}`
+			actionType: ACTION_TYPES.SETTINGS_UPDATE,
+			actionCategory: ACTION_CATEGORIES.SETTINGS,
+			actionDetails: {
+				code,
+				description: `환경설정 수정: ${code}`
+			}
 		});
 
 		return { data, error: null };
@@ -329,9 +337,12 @@ export async function deleteSetting(code, category) {
 
 		// 로그 기록
 		await logAction({
-			type: ACTION_TYPES.DELETE,
-			category: ACTION_CATEGORIES.SETTINGS,
-			description: `환경설정 삭제: ${code}`
+			actionType: ACTION_TYPES.SETTINGS_DELETE,
+			actionCategory: ACTION_CATEGORIES.SETTINGS,
+			actionDetails: {
+				code,
+				description: `환경설정 삭제: ${code}`
+			}
 		});
 
 		return { data: true, error: null };
