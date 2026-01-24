@@ -320,12 +320,18 @@
 									<tr>
 										{#each headers as header, index}
 											<th
-												class:frozen={true}
+												class:frozen={index < frozenColumns}
 												style={index < frozenColumns ? `left: ${index * 150}px;` : ''}
 											>
-												<div class="frozen-th-cell-content {index === (frozenColumns - 1) ? `th-frozen` : ''}">
-													{header || `컬럼 ${index + 1}`}
-												</div>
+												{#if index < frozenColumns}
+													<div class="frozen-th-cell-content {index === (frozenColumns - 1) ? `th-frozen` : ''}">
+														{header || `컬럼 ${index + 1}`}
+													</div>
+												{:else}
+													<div class="th-cell-content">
+														{header || `컬럼 ${index + 1}`}
+													</div>
+												{/if}
 											</th>
 										{/each}
 									</tr>
@@ -614,19 +620,34 @@
 	}
 
 	.excel-table th {
-		padding: 0.75rem;
+		padding: 0;
 		text-align: left;
 		font-weight: 600;
 		color: #374151;
 		border-right: 1px solid #e5e7eb;
 		white-space: nowrap;
 		background: #f9fafb;
+		position: relative;
+		z-index: 1;
+	}
+
+	.excel-table th .th-cell-content {
+		padding: 0.75rem;
+		height: 100%;
+		width: 100%;
+		box-sizing: border-box;
+		background: #f9fafb;
+		display: flex;
+		align-items: center;
+		border-bottom: 2px solid #0a0a0a;
+		position: relative;
+		z-index: 2;
 	}
 
 	.excel-table th.frozen {
 		position: sticky;
 		left: 0;
-		z-index: 11;
+		z-index: 20;
 		background: transparent;
 		padding: 0;
 		height: 100%;
@@ -642,7 +663,7 @@
 		align-items: center;
 		border-bottom: 2px solid #0a0a0a;
 		position: relative;
-		z-index: 12;
+		z-index: 21;
 	}
 
 	.th-frozen {
