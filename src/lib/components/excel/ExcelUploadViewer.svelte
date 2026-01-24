@@ -323,7 +323,7 @@
 												class:frozen={true}
 												style={index < frozenColumns ? `left: ${index * 150}px;` : ''}
 											>
-												<div class="frozen-th-cell-content">
+												<div class="frozen-th-cell-content {index === (frozenColumns - 1) ? `th-frozen` : ''}">
 													{header || `컬럼 ${index + 1}`}
 												</div>
 											</th>
@@ -643,6 +643,10 @@
 		border-bottom: 2px solid #0a0a0a;
 		position: relative;
 		z-index: 12;
+	}
+
+	.th-frozen {
+		border-right: 2px solid #0a0a0a;
 	}
 
 	.excel-table td.frozen .frozen-td-cell-content {
