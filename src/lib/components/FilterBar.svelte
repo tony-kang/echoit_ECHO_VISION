@@ -45,6 +45,17 @@
 	}
 
 	/**
+	 * 엔터키 입력 핸들러
+	 * @param {KeyboardEvent} event - 키보드 이벤트
+	 */
+	function handleKeyDown(event) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			handleApply();
+		}
+	}
+
+	/**
 	 * 옵션 배열 변환 (Record<string, string> 형태를 배열로 변환)
 	 * @param {Array<{value: string, label: string}> | Record<string, string> | undefined} options
 	 * @returns {Array<{value: string, label: string}>}
@@ -73,6 +84,7 @@
 						bind:value={filters[field.key]}
 						placeholder={field.placeholder || ''}
 						class="filter-input"
+						onkeydown={handleKeyDown}
 					/>
 				{:else if field.type === 'date'}
 					<input
@@ -103,10 +115,8 @@
 				title="필터 초기화"
 				aria-label="필터 초기화"
 			>
-				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M3 6h18"></path>
-					<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-					<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 				</svg>
 			</button>
 		{/if}

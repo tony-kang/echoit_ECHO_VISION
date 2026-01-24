@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
+	import FilterBar from '$lib/components/FilterBar.svelte';
 	import {
 		getSettings,
 		getRootSettings,
@@ -30,10 +31,8 @@
 	let allSettings = $state([]);
 	/** @type {Array<any>} 현재 표시할 환경설정 코드 목록 (필터링 전) */
 	let displayedSettings = $state([]);
-	/** @type {string} 코드 검색어 */
-	let codeSearchQuery = $state('');
-	/** @type {string} 제목 검색어 */
-	let titleSearchQuery = $state('');
+	/** @type {Record<string, any>} 필터 객체 */
+	let filters = $state({ code: '', title: '' });
 	/** @type {boolean} DB 검색 모드 여부 */
 	let isSearchMode = $state(false);
 	/** @type {Array<any>} DB 검색 결과 */
@@ -200,7 +199,7 @@
 			}
 			
 			// 검색어가 있으면 필터링 적용
-			if (codeSearchQuery || titleSearchQuery) {
+			if (filters.code || filters.title) {
 				// filteredSettings가 자동으로 업데이트되므로 별도 처리 불필요
 			}
 		}
@@ -421,8 +420,8 @@
 	 * 검색어 변경 감지 및 검색 모드 자동 해제
 	 */
 	$effect(() => {
-		const codeQueryTrimmed = (codeSearchQuery || '').trim();
-		const titleQueryTrimmed = (titleSearchQuery || '').trim();
+		const codeQueryTrimmed = (filters.code || '').trim();
+		const titleQueryTrimmed = (filters.title || '').trim();
 		
 		// 검색어가 모두 비어있으면 검색 모드 해제
 		if (!codeQueryTrimmed && !titleQueryTrimmed && isSearchMode) {
@@ -448,8 +447,8 @@
 		}
 		
 		let result = displayedSettings;
-		const codeQueryTrimmed = (codeSearchQuery || '').trim();
-		const titleQueryTrimmed = (titleSearchQuery || '').trim();
+		const codeQueryTrimmed = (filters.code || '').trim();
+		const titleQueryTrimmed = (filters.title || '').trim();
 		
 		// 검색어가 없으면 전체 반환
 		if (!codeQueryTrimmed && !titleQueryTrimmed) {
@@ -500,8 +499,8 @@
 	async function performDBSearch() {
 		if (!user || !category) return;
 		
-		const codeQueryTrimmed = (codeSearchQuery || '').trim();
-		const titleQueryTrimmed = (titleSearchQuery || '').trim();
+		const codeQueryTrimmed = (filters.code || '').trim();
+		const titleQueryTrimmed = (filters.title || '').trim();
 		
 		// 검색어가 없으면 검색 모드 해제
 		if (!codeQueryTrimmed && !titleQueryTrimmed) {
@@ -543,147 +542,73 @@
 	}
 
 	/**
-	 * 엔터키 입력 핸들러
-	 * @param {KeyboardEvent} event - 키보드 이벤트
-	 * @returns {void}
-	 */
-	function handleKeyDown(event) {
-		if (event.key === 'Enter') {
-			event.preventDefault();
-			performDBSearch();
-		}
-	}
-
-	/**
 	 * 검색어 초기화 핸들러
 	 * @returns {void}
 	 */
 	function handleSearchClear() {
-		codeSearchQuery = '';
-		titleSearchQuery = '';
+		filters.code = '';
+		filters.title = '';
 		isSearchMode = false;
 		searchResults = [];
 	}
+
+	/**
+	 * FilterBar 필드 정의
+	 * @type {Array<{key: string, type: string, placeholder: string}>}
+	 */
+	const filterFields = [
+		{
+			key: 'code',
+			type: 'input',
+			placeholder: '코드 검색 (정확 일치, Enter: DB 검색)'
+		},
+		{
+			key: 'title',
+			type: 'input',
+			placeholder: '제목 검색 (부분 일치, Enter: DB 검색)'
+		}
+	];
+
+	/**
+	 * FilterBar 액션 버튼 정의
+	 * @type {Array<{label: string, onClick: Function, variant: string, icon: string}>}
+	 */
+	const actionButtons = [
+		{
+			label: '코드 추가',
+			onClick: handleCreate,
+			variant: 'primary',
+			icon: '+'
+		}
+	];
 </script>
 
 <div class="admin-content-page">
-	<!-- 네비게이션 및 액션 -->
-	<div class="mb-4 flex items-center justify-between gap-4">
-		<!-- 왼쪽: 상위 코드 네비게이션 및 검색 -->
-		<div class="flex items-center gap-4 flex-1">
-			<!-- 상위 코드 네비게이션 -->
-			<div class="flex items-center gap-2">
-				{#if currentParentCode}
-					<button
-						onclick={() => navigateToCode(null)}
-						class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-					>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-						</svg>
-						최상위로
-					</button>
-					<span class="text-gray-400">/</span>
-					<span class="text-sm text-gray-700">{getCurrentParentTitle()}</span>
-				{/if}
-			</div>
-			
-			<!-- 검색 입력 필드들 -->
-			<div class="flex items-center gap-2 flex-1">
-				<!-- 코드 검색 -->
-				<div class="relative flex-1 max-w-xs">
-					<input
-						type="text"
-						bind:value={codeSearchQuery}
-						onkeydown={handleKeyDown}
-						placeholder="코드 검색 (정확 일치, Enter: DB 검색)"
-						class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-					/>
-					<!-- 검색 아이콘 -->
-					<svg
-						class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-					</svg>
-					<!-- 검색어 초기화 버튼 -->
-					{#if codeSearchQuery}
-						<button
-							onclick={() => codeSearchQuery = ''}
-							class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-							aria-label="코드 검색 초기화"
-						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-					{/if}
-				</div>
-				
-				<!-- 제목 검색 -->
-				<div class="relative flex-1 max-w-xs">
-					<input
-						type="text"
-						bind:value={titleSearchQuery}
-						onkeydown={handleKeyDown}
-						placeholder="제목 검색 (부분 일치, Enter: DB 검색)"
-						class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-					/>
-					<!-- 검색 아이콘 -->
-					<svg
-						class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-					</svg>
-					<!-- 검색어 초기화 버튼 -->
-					{#if titleSearchQuery}
-						<button
-							onclick={() => titleSearchQuery = ''}
-							class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-							aria-label="제목 검색 초기화"
-						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-					{/if}
-				</div>
-			</div>
-		</div>
-		
-		<!-- 오른쪽: 검색 초기화 및 코드 추가 버튼 -->
-		<div class="flex items-center gap-2">
-			<!-- 전체 검색 초기화 버튼 (아이콘) -->
-			{#if codeSearchQuery || titleSearchQuery}
-				<button
-					onclick={handleSearchClear}
-					class="p-2 text-red-600 hover:text-red-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-					aria-label="전체 검색 초기화"
-					title="검색 초기화"
-				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-					</svg>
-				</button>
-			{/if}
-			
-			<!-- 코드 추가 버튼 -->
+	<!-- 네비게이션 -->
+	<div class="mb-4 flex items-center gap-2">
+		{#if currentParentCode}
 			<button
-				onclick={handleCreate}
-				class="btn-primary flex items-center gap-2 whitespace-nowrap"
+				onclick={() => navigateToCode(null)}
+				class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
 				</svg>
-				코드 추가
+				최상위로
 			</button>
-		</div>
+			<span class="text-gray-400">/</span>
+			<span class="text-sm text-gray-700">{getCurrentParentTitle()}</span>
+		{/if}
 	</div>
+
+	<!-- FilterBar -->
+	<FilterBar
+		bind:filters={filters}
+		fields={filterFields}
+		onApply={performDBSearch}
+		onReset={handleSearchClear}
+		actions={actionButtons}
+	/>
 
 	{#if isLoading}
 		<div class="text-center py-12">
@@ -700,7 +625,7 @@
 			<p class="text-gray-500">
 				{isSearchMode ? 'DB 검색 결과가 없습니다.' : '검색 결과가 없습니다.'}
 			</p>
-			{#if codeSearchQuery || titleSearchQuery}
+			{#if filters.code || filters.title}
 				<button
 					onclick={handleSearchClear}
 					class="mt-2 text-sm text-blue-600 hover:text-blue-700"
@@ -715,11 +640,11 @@
 			<div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
 				<p class="text-sm text-blue-700">
 					<strong>DB 검색 모드</strong> - 전체 데이터에서 검색한 결과입니다.
-					{#if codeSearchQuery}
-						<span class="ml-2">코드: "{codeSearchQuery}"</span>
+					{#if filters.code}
+						<span class="ml-2">코드: "{filters.code}"</span>
 					{/if}
-					{#if titleSearchQuery}
-						<span class="ml-2">제목: "{titleSearchQuery}"</span>
+					{#if filters.title}
+						<span class="ml-2">제목: "{filters.title}"</span>
 					{/if}
 				</p>
 			</div>
