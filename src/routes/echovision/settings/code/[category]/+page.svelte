@@ -24,6 +24,7 @@
 	 */
 	const categoryLabel = $derived.by(() => {
 		const labels = {
+			all: '전체',
 			organization: '조직',
 			sales: '매출',
 			cost: '비용'
@@ -36,7 +37,7 @@
 	 * @type {boolean}
 	 */
 	const isValidCategory = $derived.by(() => {
-		return ['organization', 'sales', 'cost'].includes(category);
+		return ['all', 'organization', 'sales', 'cost'].includes(category);
 	});
 
 	onMount(() => {

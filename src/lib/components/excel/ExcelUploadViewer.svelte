@@ -153,14 +153,20 @@
 	 * @returns {Promise<void>}
 	 */
 	async function loadEnvCodes() {
-		// 이미 로딩 중이면 기존 Promise 반환
-		if (loadingPromise) {
-			return loadingPromise;
-		}
-
 		// envCodes가 이미 있으면 로드하지 않음
 		if (envCodes.length > 0) {
 			return Promise.resolve();
+		}
+
+		// 이미 로딩 중이면 기존 Promise 반환
+		if (loadingPromise) {
+			try {
+				await loadingPromise;
+				return;
+			} catch (err) {
+				// 이전 로드가 실패했으면 다시 시도
+				loadingPromise = null;
+			}
 		}
 
 		isLoadingEnvCodes = true;
@@ -168,7 +174,8 @@
 
 		const categories = getCategoryFromExcelType(excelType);
 		
-		loadingPromise = Promise.allSettled(
+		// 실제 로드 Promise
+		const loadPromise = Promise.allSettled(
 			categories.map(category => getSettings({ category }))
 		).then(results => {
 			const allCodes = [];
@@ -185,23 +192,14 @@
 			console.log(`env_code 로드 완료: ${allCodes.length}개 (${(endTime - startTime).toFixed(2)}ms)`);
 		}).catch(err => {
 			console.error('env_code 로드 실패:', err);
+			throw err;
 		}).finally(() => {
 			isLoadingEnvCodes = false;
 			loadingPromise = null;
 		});
 
-		// 타임아웃 설정 (30초)
-		const timeoutPromise = new Promise((_, reject) => {
-			setTimeout(() => {
-				reject(new Error('env_code 로드 타임아웃'));
-			}, 30000);
-		});
-
-		return Promise.race([loadingPromise, timeoutPromise]).catch(err => {
-			console.error('env_code 로드 타임아웃 또는 오류:', err);
-			isLoadingEnvCodes = false;
-			loadingPromise = null;
-		});
+		loadingPromise = loadPromise;
+		return loadPromise;
 	}
 
 	/**
@@ -326,13 +324,13 @@
 		}
 
 		try {
-			// envCodes가 비어있으면 다시 로드 시도
+			// envCodes가 비어있으면 로드 시도 (이미 로딩 중이면 대기)
 			if (envCodes.length === 0) {
-				console.log('시트 로드 전 envCodes가 비어있어서 다시 로드합니다.');
 				try {
 					await loadEnvCodes();
 				} catch (err) {
 					console.error('env_code 로드 실패:', err);
+					// 로드 실패해도 시트는 계속 로드
 				}
 			}
 
@@ -412,6 +410,10 @@
 	 * 파일 초기화 핸들러
 	 * @returns {void}
 	 */
+	/**
+	 * 파일 초기화 핸들러
+	 * @returns {void}
+	 */
 	function handleClear() {
 		selectedFile = null;
 		fileName = '';
@@ -425,8 +427,8 @@
 		isUploading = false;
 		uploadedFileId = null;
 		uploadedFileName = null;
-		envCodes = [];
-		loadingPromise = null;
+		// envCodes는 초기화하지 않음 (재사용을 위해 유지)
+		// loadingPromise도 초기화하지 않음 (이미 로드된 경우 재로딩 방지)
 		
 		// 파일 입력 요소 초기화
 		const fileInput = document.getElementById('file-input');

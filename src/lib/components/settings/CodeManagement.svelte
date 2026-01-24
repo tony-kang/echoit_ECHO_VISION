@@ -38,6 +38,8 @@
 	/** @type {Array<any>} DB 검색 결과 */
 	let searchResults = $state([]);
 	let isLoading = $state(false);
+	/** @type {boolean} 폼 저장 중 여부 */
+	let isSaving = $state(false);
 	let showFormModal = $state(false);
 	/** @type {any} 수정 중인 항목 */
 	let editingSetting = $state(null);
@@ -77,6 +79,10 @@
 	let formComment = $state('');
 	/** @type {string} */
 	let formCategory = $state('');
+	/** @type {string[]} 파라미터 배열 */
+	let formParam = $state([]);
+	/** @type {string} 새 파라미터 입력값 */
+	let newParamValue = $state('');
 
 	/**
 	 * URL 쿼리 파라미터에서 sCode 읽기
@@ -113,7 +119,8 @@
 	 */
 	$effect(() => {
 		if (category) {
-			formCategory = category;
+			// 'all' 카테고리는 폼 카테고리를 빈 문자열로 설정
+			formCategory = category === 'all' ? '' : category;
 			resetForm();
 			if (user && !authLoading) {
 				loadSettings();
@@ -131,8 +138,14 @@
 			// 초기화되지 않았거나 값이 변경된 경우에만 로드
 			if (currentParentCode === undefined || currentParentCode !== codeToUse) {
 				currentParentCode = codeToUse;
-				loadSettings();
+				loadSettings().catch((error) => {
+					console.error('loadSettings 실행 중 오류:', error);
+					isLoading = false;
+				});
 			}
+		} else if (!authLoading && (!user || !category)) {
+			// 인증이 완료되었지만 user나 category가 없으면 로딩 상태 해제
+			isLoading = false;
 		}
 	});
 
@@ -141,70 +154,83 @@
 	 * @returns {Promise<void>}
 	 */
 	async function loadSettings() {
-		if (!user || !category) return;
+		// 조건 확인: user나 category가 없으면 로딩 상태를 false로 설정하고 종료
+		if (!user || !category) {
+			isLoading = false;
+			displayedSettings = [];
+			allSettings = [];
+			return;
+		}
 
 		isLoading = true;
 		
-		// 전체 설정 로드 (부모 이름 조회용) - 카테고리 필터링
-		const { data: allData } = await getSettings({
-			orderByOrder: true,
-			category
-		});
-		if (allData) {
-			// 접근 제한 적용
-			const accessibleCodes = accessibleTopLevelCodes;
-			if (accessibleCodes !== null && accessibleCodes.length > 0) {
-				// 접근 가능한 최상위 코드와 그 하위 코드만 필터링
-				const filtered = allData.filter((/** @type {any} */ setting) => {
-					// 최상위 코드인 경우
-					if (!setting.parent_code) {
-						return accessibleCodes.includes(setting.code);
-					}
-					// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
-					return isCodeAccessible(setting.code, accessibleCodes, allData);
-				});
-				allSettings = filtered;
+		try {
+			// 전체 설정 로드 (부모 이름 조회용) - 'all'인 경우 카테고리 필터링 안함
+			const { data: allData, error: allError } = await getSettings({
+				orderByOrder: true,
+				category: category === 'all' ? 'all' : category
+			});
+			
+			if (allError) {
+				console.error('전체 설정 로드 실패:', allError);
+				allSettings = [];
+			} else if (allData) {
+				// 접근 제한 적용
+				const accessibleCodes = accessibleTopLevelCodes;
+				if (accessibleCodes !== null && accessibleCodes.length > 0) {
+					// 접근 가능한 최상위 코드와 그 하위 코드만 필터링
+					const filtered = allData.filter((/** @type {any} */ setting) => {
+						// 최상위 코드인 경우
+						if (!setting.parent_code) {
+							return accessibleCodes.includes(setting.code);
+						}
+						// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
+						return isCodeAccessible(setting.code, accessibleCodes, allData);
+					});
+					allSettings = filtered;
+				} else {
+					allSettings = allData;
+				}
 			} else {
-				allSettings = allData;
-			}
-		}
-		
-		// currentParentCode가 undefined이면 null로 처리 (최상위)
-		const parentCodeToLoad = currentParentCode === undefined ? null : currentParentCode;
-		
-		// sCode가 있으면 해당 부모의 자식만, 없으면 최상위만 조회
-		const { data, error } = await getSettings({
-			orderByOrder: true,
-			parentCode: parentCodeToLoad,
-			category
-		});
-
-		if (error) {
-			console.error('환경설정 코드 로드 실패:', error);
-			displayedSettings = [];
-		} else {
-			// 접근 제한 적용
-			const accessibleCodes = accessibleTopLevelCodes;
-			if (accessibleCodes !== null && accessibleCodes.length > 0) {
-				displayedSettings = (data || []).filter((/** @type {any} */ setting) => {
-					// 최상위 코드인 경우
-					if (!setting.parent_code) {
-						return accessibleCodes.includes(setting.code);
-					}
-					// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
-					return isCodeAccessible(setting.code, accessibleCodes, allSettings);
-				});
-			} else {
-				displayedSettings = data || [];
+				allSettings = [];
 			}
 			
-			// 검색어가 있으면 필터링 적용
-			if (filters.code || filters.title) {
-				// filteredSettings가 자동으로 업데이트되므로 별도 처리 불필요
-			}
-		}
+			// currentParentCode가 undefined이면 null로 처리 (최상위)
+			const parentCodeToLoad = currentParentCode === undefined ? null : currentParentCode;
+			
+			// sCode가 있으면 해당 부모의 자식만, 없으면 최상위만 조회
+			const { data, error } = await getSettings({
+				orderByOrder: true,
+				parentCode: parentCodeToLoad,
+				category: category === 'all' ? 'all' : category
+			});
 
-		isLoading = false;
+			if (error) {
+				console.error('환경설정 코드 로드 실패:', error);
+				displayedSettings = [];
+			} else {
+				// 접근 제한 적용
+				const accessibleCodes = accessibleTopLevelCodes;
+				if (accessibleCodes !== null && accessibleCodes.length > 0) {
+					displayedSettings = (data || []).filter((/** @type {any} */ setting) => {
+						// 최상위 코드인 경우
+						if (!setting.parent_code) {
+							return accessibleCodes.includes(setting.code);
+						}
+						// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
+						return isCodeAccessible(setting.code, accessibleCodes, allSettings);
+					});
+				} else {
+					displayedSettings = data || [];
+				}
+			}
+		} catch (error) {
+			console.error('환경설정 코드 로드 중 예외 발생:', error);
+			displayedSettings = [];
+			allSettings = [];
+		} finally {
+			isLoading = false;
+		}
 	}
 
 	/**
@@ -231,20 +257,36 @@
 	 * 상위 코드 옵션 로드
 	 * @returns {Promise<void>}
 	 */
+	/**
+	 * 상위 코드 옵션 로드
+	 * @returns {Promise<void>}
+	 */
 	async function loadParentOptions() {
 		if (!category) return;
 		
-		const { data, error } = await getRootSettings({ category });
-		if (!error && data) {
-			// 접근 제한 적용
-			const accessibleCodes = accessibleTopLevelCodes;
-			if (accessibleCodes !== null && accessibleCodes.length > 0) {
-				parentOptions = (data || []).filter((/** @type {any} */ option) =>
-					accessibleCodes.includes(option.code)
-				);
+		try {
+			const { data, error } = await getRootSettings({ 
+				category: category === 'all' ? 'all' : category 
+			});
+			if (error) {
+				console.error('상위 코드 옵션 로드 실패:', error);
+				parentOptions = [];
+			} else if (data) {
+				// 접근 제한 적용
+				const accessibleCodes = accessibleTopLevelCodes;
+				if (accessibleCodes !== null && accessibleCodes.length > 0) {
+					parentOptions = (data || []).filter((/** @type {any} */ option) =>
+						accessibleCodes.includes(option.code)
+					);
+				} else {
+					parentOptions = data || [];
+				}
 			} else {
-				parentOptions = data || [];
+				parentOptions = [];
 			}
+		} catch (error) {
+			console.error('상위 코드 옵션 로드 중 예외 발생:', error);
+			parentOptions = [];
 		}
 	}
 
@@ -310,6 +352,11 @@
 	 * @param {any} setting - 환경설정 데이터
 	 * @returns {void}
 	 */
+	/**
+	 * 환경설정 코드 수정 핸들러
+	 * @param {any} setting - 환경설정 데이터
+	 * @returns {void}
+	 */
 	function handleEdit(setting) {
 		editingSetting = setting;
 		formCode = setting.code || '';
@@ -319,9 +366,15 @@
 		formTitle = setting.title || '';
 		formComment = setting.comment || '';
 		formCategory = setting.category || category || '';
+		formParam = setting.param && Array.isArray(setting.param) ? [...setting.param] : [];
+		newParamValue = '';
 		showFormModal = true;
 	}
 
+	/**
+	 * 폼 초기화
+	 * @returns {void}
+	 */
 	/**
 	 * 폼 초기화
 	 * @returns {void}
@@ -334,6 +387,8 @@
 		formTitle = '';
 		formComment = '';
 		formCategory = category || '';
+		formParam = [];
+		newParamValue = '';
 	}
 
 	/**
@@ -341,6 +396,8 @@
 	 * @returns {Promise<void>}
 	 */
 	async function handleSubmit() {
+		if (isSaving) return; // 이미 저장 중이면 중복 실행 방지
+		
 		if (!formCode || formCode.length > 16) {
 			alert('코드는 필수이며 최대 16자리까지 가능합니다.');
 			return;
@@ -358,32 +415,44 @@
 			return;
 		}
 
-		const settingData = {
-			code: formCode,
-			parent_code: formParentCode || null,
-			order: formOrder,
-			value: formValue,
-			title: formTitle,
-			comment: formComment || null,
-			category: formCategory || category
-		};
+		isSaving = true;
+		
+		try {
+			const settingData = {
+				code: formCode,
+				parent_code: formParentCode || null,
+				order: formOrder,
+				value: formValue,
+				title: formTitle,
+				comment: formComment || null,
+				category: formCategory || category,
+				param: formParam.length > 0 ? formParam : null
+			};
 
-		let result;
-		if (editingSetting) {
-			result = await updateSetting(editingSetting.code, settingData);
-		} else {
-			result = await createSetting(settingData);
+			let result;
+			if (editingSetting) {
+				result = await updateSetting(editingSetting.code, settingData);
+			} else {
+				result = await createSetting(settingData);
+			}
+
+			if (result.error) {
+				alert(`저장 실패: ${result.error.message || '알 수 없는 오류'}`);
+				console.error('저장 오류:', result.error);
+				return;
+			}
+
+			showFormModal = false;
+			resetForm();
+			editingSetting = null;
+			await loadSettings();
+			await loadParentOptions();
+		} catch (error) {
+			console.error('저장 중 예외 발생:', error);
+			alert(`저장 실패: ${error.message || '알 수 없는 오류가 발생했습니다.'}`);
+		} finally {
+			isSaving = false;
 		}
-
-		if (result.error) {
-			alert(`저장 실패: ${result.error.message || '알 수 없는 오류'}`);
-			return;
-		}
-
-		showFormModal = false;
-		resetForm();
-		await loadSettings();
-		await loadParentOptions();
 	}
 
 	/**
@@ -397,23 +466,66 @@
 	}
 
 	/**
+	 * 파라미터 추가 핸들러
+	 * @returns {void}
+	 */
+	function handleAddParam() {
+		const trimmed = newParamValue.trim();
+		if (trimmed && !formParam.includes(trimmed)) {
+			formParam = [...formParam, trimmed];
+			newParamValue = '';
+		}
+	}
+
+	/**
+	 * 파라미터 삭제 핸들러
+	 * @param {number} index - 삭제할 인덱스
+	 * @returns {void}
+	 */
+	function handleRemoveParam(index) {
+		formParam = formParam.filter((_, i) => i !== index);
+	}
+
+	/**
 	 * 환경설정 코드 삭제 핸들러
 	 * @param {any} setting - 환경설정 데이터
 	 * @returns {Promise<void>}
 	 */
+	/**
+	 * 코드 삭제 핸들러
+	 * @param {any} setting - 환경설정 데이터
+	 * @returns {Promise<void>}
+	 */
 	async function handleDelete(setting) {
+		// 자식 코드가 있는지 확인
+		if (hasChildren(setting.code)) {
+			alert('하위 코드가 있는 코드는 삭제할 수 없습니다. 먼저 하위 코드를 삭제해주세요.');
+			return;
+		}
+
 		if (!confirm(`정말로 "${setting.title}" 코드를 삭제하시겠습니까?`)) {
 			return;
 		}
 
-		const { error } = await deleteSetting(setting.code);
-		if (error) {
-			alert(`삭제 실패: ${error.message || '알 수 없는 오류'}`);
-			return;
-		}
+		try {
+			const { error } = await deleteSetting(
+				setting.code,
+				category === 'all' ? 'all' : category
+			);
+			
+			if (error) {
+				console.error('삭제 실패:', error);
+				alert(`삭제 실패: ${error.message || '알 수 없는 오류'}`);
+				return;
+			}
 
-		await loadSettings();
-		await loadParentOptions();
+			// 삭제 성공 후 목록 새로고침
+			await loadSettings();
+			await loadParentOptions();
+		} catch (error) {
+			console.error('삭제 중 예외 발생:', error);
+			alert(`삭제 실패: ${error.message || '알 수 없는 오류'}`);
+		}
 	}
 
 	/**
@@ -506,39 +618,45 @@
 		if (!codeQueryTrimmed && !titleQueryTrimmed) {
 			isSearchMode = false;
 			searchResults = [];
+			isLoading = false;
 			return;
 		}
 		
 		isLoading = true;
 		isSearchMode = true;
 		
-		const { data, error } = await searchSettings({
-			code: codeQueryTrimmed || undefined,
-			title: titleQueryTrimmed || undefined,
-			category
-		});
-		
-		if (error) {
-			console.error('DB 검색 실패:', error);
-			searchResults = [];
-		} else {
-			// 접근 제한 적용
-			const accessibleCodes = accessibleTopLevelCodes;
-			if (accessibleCodes !== null && accessibleCodes.length > 0) {
-				searchResults = (data || []).filter((/** @type {any} */ setting) => {
-					// 최상위 코드인 경우
-					if (!setting.parent_code) {
-						return accessibleCodes.includes(setting.code);
-					}
-					// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
-					return isCodeAccessible(setting.code, accessibleCodes, allSettings);
-				});
+		try {
+			const { data, error } = await searchSettings({
+				code: codeQueryTrimmed || undefined,
+				title: titleQueryTrimmed || undefined,
+				category: category === 'all' ? 'all' : category
+			});
+			
+			if (error) {
+				console.error('DB 검색 실패:', error);
+				searchResults = [];
 			} else {
-				searchResults = data || [];
+				// 접근 제한 적용
+				const accessibleCodes = accessibleTopLevelCodes;
+				if (accessibleCodes !== null && accessibleCodes.length > 0) {
+					searchResults = (data || []).filter((/** @type {any} */ setting) => {
+						// 최상위 코드인 경우
+						if (!setting.parent_code) {
+							return accessibleCodes.includes(setting.code);
+						}
+						// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
+						return isCodeAccessible(setting.code, accessibleCodes, allSettings);
+					});
+				} else {
+					searchResults = data || [];
+				}
 			}
+		} catch (error) {
+			console.error('DB 검색 중 예외 발생:', error);
+			searchResults = [];
+		} finally {
+			isLoading = false;
 		}
-		
-		isLoading = false;
 	}
 
 	/**
@@ -655,6 +773,7 @@
 			headers={[
 				{ label: '코드', align: 'center' },
 				{ label: '제목' },
+				{ label: '카테고리', align: 'center' },
 				{ label: '표시 순서', align: 'center' },
 				{ label: '값', align: 'center' },
 				{ label: '상위 코드', align: 'center' },
@@ -680,6 +799,15 @@
 								</svg>
 							{/if}
 						</div>
+					</td>
+					<td class="text-center">
+						{#if setting.category}
+							<span class="badge badge-info">
+								{getCategoryLabel(setting.category)}
+							</span>
+						{:else}
+							<span class="text-gray-400">-</span>
+						{/if}
 					</td>
 					<td class="text-center">{setting.order || 0}</td>
 					<td class="text-center font-semibold">{setting.value}</td>
@@ -850,6 +978,56 @@
 						<p class="text-xs text-gray-500 mt-1">코드의 분류를 선택하세요.</p>
 					</div>
 
+					<!-- 파라미터 -->
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1">
+							파라미터 (엑셀 칼럼 매칭용)
+						</label>
+						<div class="space-y-2">
+							<div class="flex gap-2">
+								<input
+									type="text"
+									bind:value={newParamValue}
+									onkeydown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											handleAddParam();
+										}
+									}}
+									class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+									placeholder="파라미터 입력 후 Enter 또는 추가 버튼 클릭"
+								/>
+								<button
+									type="button"
+									onclick={handleAddParam}
+									class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+								>
+									추가
+								</button>
+							</div>
+							{#if formParam.length > 0}
+								<div class="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-lg min-h-[3rem]">
+									{#each formParam as paramItem, index}
+										<span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+											{paramItem}
+											<button
+												type="button"
+												onclick={() => handleRemoveParam(index)}
+												class="ml-1 text-blue-600 hover:text-blue-800 font-bold"
+												aria-label="삭제"
+											>
+												×
+											</button>
+										</span>
+									{/each}
+								</div>
+							{:else}
+								<p class="text-xs text-gray-500">파라미터가 없습니다. 엑셀 칼럼 매칭을 위해 파라미터를 추가하세요.</p>
+							{/if}
+						</div>
+						<p class="text-xs text-gray-500 mt-1">엑셀 파일의 칼럼명과 매칭하기 위한 파라미터 목록입니다.</p>
+					</div>
+
 					<!-- 설명 -->
 					<div>
 						<label for="formComment" class="block text-sm font-medium text-gray-700 mb-1">
@@ -866,8 +1044,10 @@
 				</div>
 			</div>
 			<div class="modal-footer">
-				<button onclick={handleCancel} class="btn-secondary">취소</button>
-				<button onclick={handleSubmit} class="btn-primary">저장</button>
+				<button onclick={handleCancel} class="btn-secondary" disabled={isSaving}>취소</button>
+				<button onclick={handleSubmit} class="btn-primary" disabled={isSaving}>
+					{isSaving ? '저장 중...' : '저장'}
+				</button>
 			</div>
 		</div>
 	</div>
@@ -958,8 +1138,14 @@
 		transition: background-color 0.2s;
 	}
 
-	.btn-primary:hover {
+	.btn-primary:hover:not(:disabled) {
 		background-color: #2563eb;
+	}
+
+	.btn-primary:disabled,
+	.btn-secondary:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	.btn-secondary {

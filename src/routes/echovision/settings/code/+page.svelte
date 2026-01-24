@@ -15,9 +15,10 @@
 	 * @type {Array<{code: string, label: string}>}
 	 */
 	const categories = [
-		{ code: 'organization', label: '조직' },
-		{ code: 'sales', label: '매출' },
-		{ code: 'cost', label: '비용' }
+		{ code: 'all', label: '전체' , bgColor: 'bg-gray-100'},
+		{ code: 'organization', label: '조직' , bgColor: 'bg-blue-100'},
+		{ code: 'sales', label: '매출' , bgColor: 'bg-green-100'},
+		{ code: 'cost', label: '비용' , bgColor: 'bg-red-100'}
 	];
 
 	onMount(() => {
@@ -91,7 +92,7 @@
 							{#each categories as category}
 								<button
 									onclick={() => handleCategoryClick(category.code)}
-									class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
+									class="{category.bgColor} rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
 								>
 									<div class="flex items-center justify-between mb-2">
 										<h2 class="text-xl font-semibold text-gray-800">{category.label}</h2>

@@ -30,8 +30,8 @@ export async function getSettings(options = {}) {
 			.from('env_code')
 			.select('*');
 		
-		// 카테고리 필터링 (옵션)
-		if (category) {
+		// 카테고리 필터링 (옵션, 'all'인 경우 필터링하지 않음)
+		if (category && category !== 'all') {
 			query = query.eq('category', category);
 		}
 
@@ -53,6 +53,12 @@ export async function getSettings(options = {}) {
 		}
 
 		const { data, error } = await query;
+		
+		if (error) {
+			console.error('[getSettings] 쿼리 실행 실패:', { category, parentCode, error });
+		} else {
+			console.log(`[getSettings] 쿼리 성공: ${data?.length || 0}개 조회`, { category, parentCode });
+		}
 
 		if (error) {
 			// 테이블이 없는 경우 또는 스키마 캐시 문제
@@ -113,16 +119,22 @@ export async function getSettings(options = {}) {
 /**
  * 환경설정 상세 조회
  * @param {string} code - 환경설정 코드
+ * @param {string} [category] - 카테고리 (선택사항, 없으면 모든 카테고리에서 검색)
  * @returns {Promise<{data: SettingData|null, error: Error|null}>}
  */
-export async function getSetting(code) {
+export async function getSetting(code, category) {
 	try {
-		const { data, error } = await supabase
+		let query = supabase
 			.from('env_code')
 			.select('*')
-			.eq('code', code)
-			.eq('category', 'organization')
-			.single();
+			.eq('code', code);
+		
+		// 카테고리가 지정된 경우에만 필터링
+		if (category) {
+			query = query.eq('category', category);
+		}
+		
+		const { data, error } = await query.single();
 
 		if (error) throw error;
 
@@ -145,7 +157,7 @@ export async function getSetting(code) {
  */
 export async function createSetting(settingData) {
 	try {
-		const { code, parent_code, order, value, title, comment } = settingData;
+		const { code, parent_code, order, value, title, comment, category, param } = settingData;
 
 		// 유효성 검사
 		if (!code || code.length > 16) {
@@ -160,7 +172,7 @@ export async function createSetting(settingData) {
 
 		// 부모 코드가 있는 경우 존재 여부 확인
 		if (parent_code) {
-			const { data: parentExists } = await getSetting(parent_code);
+			const { data: parentExists } = await getSetting(parent_code, category);
 			if (!parentExists) {
 				throw new Error('부모 코드가 존재하지 않습니다.');
 			}
@@ -171,7 +183,7 @@ export async function createSetting(settingData) {
 			order: order || 0,
 			value,
 			title,
-			category: 'organization'
+			category: category || 'organization'
 		};
 
 		if (parent_code !== undefined) {
@@ -180,6 +192,13 @@ export async function createSetting(settingData) {
 		
 		if (comment !== undefined) {
 			insertData.comment = comment || null;
+		}
+
+		if (param !== undefined) {
+			insertData.param = param && Array.isArray(param) && param.length > 0 ? param : null;
+		} else {
+			// param이 없으면 title을 기본값으로 설정
+			insertData.param = [title];
 		}
 
 		const { data, error } = await supabase
@@ -216,7 +235,7 @@ export async function createSetting(settingData) {
  */
 export async function updateSetting(code, updateData) {
 	try {
-		const { parent_code, order, value, title, comment, category } = updateData;
+		const { parent_code, order, value, title, comment, category, param } = updateData;
 
 		// 유효성 검사
 		if (value !== undefined && value < 1) {
@@ -230,7 +249,7 @@ export async function updateSetting(code, updateData) {
 
 		// 부모 코드가 있는 경우 존재 여부 확인
 		if (parent_code !== undefined && parent_code !== null) {
-			const { data: parentExists } = await getSetting(parent_code);
+			const { data: parentExists } = await getSetting(parent_code, category);
 			if (!parentExists) {
 				throw new Error('부모 코드가 존재하지 않습니다.');
 			}
@@ -243,16 +262,25 @@ export async function updateSetting(code, updateData) {
 		if (title !== undefined) updateFields.title = title;
 		if (comment !== undefined) updateFields.comment = comment || null;
 		if (category !== undefined) updateFields.category = category || 'organization';
+		if (param !== undefined) {
+			updateFields.param = param && Array.isArray(param) && param.length > 0 ? param : null;
+		}
 
 		if (Object.keys(updateFields).length === 0) {
 			throw new Error('수정할 데이터가 없습니다.');
 		}
 
-		const { data, error } = await supabase
+		// 카테고리 필터는 선택사항으로 처리 (카테고리가 지정된 경우에만 필터링)
+		let query = supabase
 			.from('env_code')
 			.update(updateFields)
-			.eq('code', code)
-			.eq('category', 'organization')
+			.eq('code', code);
+		
+		// 카테고리가 지정된 경우에만 필터링 (기존 코드와의 호환성을 위해)
+		const targetCategory = category || 'organization';
+		query = query.eq('category', targetCategory);
+		
+		const { data, error } = await query
 			.select()
 			.single();
 
@@ -277,13 +305,25 @@ export async function updateSetting(code, updateData) {
  * @param {string} code - 환경설정 코드
  * @returns {Promise<{data: boolean, error: Error|null}>}
  */
-export async function deleteSetting(code) {
+/**
+ * 환경설정 코드 삭제
+ * @param {string} code - 삭제할 코드
+ * @param {string} [category] - 카테고리 (선택사항, 없으면 모든 카테고리에서 삭제)
+ * @returns {Promise<{data: boolean, error: Error|null}>}
+ */
+export async function deleteSetting(code, category) {
 	try {
-		const { error } = await supabase
+		let query = supabase
 			.from('env_code')
 			.delete()
-			.eq('code', code)
-			.eq('category', 'organization');
+			.eq('code', code);
+		
+		// 카테고리 필터링 (옵션, 'all'인 경우 필터링하지 않음)
+		if (category && category !== 'all') {
+			query = query.eq('category', category);
+		}
+
+		const { error } = await query;
 
 		if (error) throw error;
 
@@ -429,8 +469,8 @@ export async function searchSettings(options = {}) {
 			.from('env_code')
 			.select('*');
 		
-		// 카테고리 필터링
-		if (category) {
+		// 카테고리 필터링 ('all'인 경우 필터링하지 않음)
+		if (category && category !== 'all') {
 			query = query.eq('category', category);
 		}
 		
@@ -449,13 +489,14 @@ export async function searchSettings(options = {}) {
 		const { data, error } = await query;
 		
 		if (error) {
-			console.error('환경설정 코드 검색 실패:', error);
+			console.error('[searchSettings] 쿼리 실행 실패:', { code, title, category, error });
 			return { data: [], error };
 		}
 		
+		console.log(`[searchSettings] 쿼리 성공: ${data?.length || 0}개 조회`, { code, title, category });
 		return { data: data || [], error: null };
 	} catch (error) {
-		console.error('환경설정 코드 검색 실패:', error);
+		console.error('[searchSettings] 예외 발생:', error);
 		return { data: [], error };
 	}
 }
