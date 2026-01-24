@@ -395,3 +395,54 @@ ON CONFLICT (code) DO UPDATE SET
   value = EXCLUDED.value,
   title = EXCLUDED.title,
   param = EXCLUDED.param;
+
+-- COST_0500 하위 코드 추가 (2026-01-24)
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('6120003', 'cost', 'COST_0500', 37, 6120003, '여비교통비-해외', ARRAY['여비교통비-해외'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('6160000', 'cost', 'COST_0500', 38, 6160000, '전력비', ARRAY['전력비'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('6190099', 'cost', 'COST_0500', 39, 6190099, '지급임차료-기타', ARRAY['지급임차료-기타'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('6310001', 'cost', 'COST_0500', 40, 6310001, '지급수수료-은행수수료', ARRAY['지급수수료-은행수수료'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('6310002', 'cost', 'COST_0500', 41, 6310002, '지급수수료-부동산중개', ARRAY['지급수수료-부동산중개'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;

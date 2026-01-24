@@ -35,7 +35,10 @@ export async function uploadExcelFile(file, excelType) {
 		const randomStr = Math.random().toString(36).substring(2, 15);
 		const fileExt = file.name.split('.').pop();
 		const fileName = `${excelType}/${timestamp}_${randomStr}.${fileExt}`;
-		const filePath = `excel-files/${fileName}`;
+		// Storage의 upload는 버킷 내의 상대 경로만 받음 (버킷 이름 제외)
+		const filePath = fileName;
+
+		console.log('[uploadExcelFile] 업로드 경로:', { filePath, excelType, fileName });
 
 		// 타임아웃 설정 (60초)
 		let timeoutId;
@@ -71,8 +74,11 @@ export async function uploadExcelFile(file, excelType) {
 
 		if (error) {
 			console.error('엑셀 파일 업로드 실패:', error);
+			console.error('업로드 경로:', filePath);
 			return { data: null, error };
 		}
+
+		console.log('[uploadExcelFile] 업로드 성공:', { filePath, data });
 
 		return {
 			data: {
@@ -98,9 +104,14 @@ export async function getExcelFileUrl(filePath) {
 			return { data: null, error: new Error('파일 경로가 필요합니다.') };
 		}
 
+		// filePath에 버킷 이름이 포함되어 있으면 제거
+		const cleanPath = filePath.startsWith('excel-files/') 
+			? filePath.replace('excel-files/', '') 
+			: filePath;
+
 		const { data, error } = await supabase.storage
 			.from('excel-files')
-			.createSignedUrl(filePath, 3600); // 1시간 유효한 URL
+			.createSignedUrl(cleanPath, 3600); // 1시간 유효한 URL
 
 		if (error) {
 			console.error('엑셀 파일 URL 생성 실패:', error);
@@ -125,9 +136,14 @@ export async function deleteExcelFile(filePath) {
 			return { data: false, error: new Error('파일 경로가 필요합니다.') };
 		}
 
+		// filePath에 버킷 이름이 포함되어 있으면 제거
+		const cleanPath = filePath.startsWith('excel-files/') 
+			? filePath.replace('excel-files/', '') 
+			: filePath;
+
 		const { data, error } = await supabase.storage
 			.from('excel-files')
-			.remove([filePath]);
+			.remove([cleanPath]);
 
 		if (error) {
 			console.error('엑셀 파일 삭제 실패:', error);
@@ -146,26 +162,60 @@ export async function deleteExcelFile(filePath) {
  * @param {string} excelType - 엑셀 타입 ('sales' 또는 'cost')
  * @returns {Promise<{data: Array<{name: string, id: string, created_at: string, updated_at: string, metadata: any}> | null, error: Error | null}>}
  */
+/**
+ * 재귀적으로 모든 파일 찾기
+ * @param {string} path - 현재 경로
+ * @param {string} excelType - 엑셀 타입 필터
+ * @returns {Promise<Array<any>>}
+ */
+async function listAllFilesRecursive(path = '', excelType = '') {
+	const { data, error } = await supabase.storage
+		.from('excel-files')
+		.list(path, { limit: 1000 });
+
+	if (error) {
+		console.error(`[listAllFilesRecursive] 경로 "${path}" 조회 실패:`, error);
+		return [];
+	}
+
+	let allFiles = [];
+
+	for (const item of data || []) {
+		const fullPath = path ? `${path}/${item.name}` : item.name;
+		
+		if (item.id === null) {
+			// 폴더인 경우 재귀적으로 탐색
+			const subFiles = await listAllFilesRecursive(fullPath, excelType);
+			allFiles = allFiles.concat(subFiles);
+		} else {
+			// 파일인 경우
+			// excelType이 지정된 경우 경로에 excelType이 포함되어야 함
+			if (!excelType || fullPath.startsWith(`${excelType}/`)) {
+				allFiles.push({
+					...item,
+					name: item.name, // 파일명만 (경로 제외)
+					fullPath: fullPath // 전체 경로
+				});
+			}
+		}
+	}
+
+	return allFiles;
+}
+
 export async function listExcelFiles(excelType) {
 	try {
-		const folderPath = excelType ? `${excelType}/` : '';
+		// 재귀적으로 모든 파일 찾기
+		const allFiles = await listAllFilesRecursive('', excelType);
 		
-		const { data, error } = await supabase.storage
-			.from('excel-files')
-			.list(folderPath, {
-				limit: 1000,
-				sortBy: { column: 'created_at', order: 'desc' }
-			});
+		// created_at 기준으로 정렬
+		allFiles.sort((a, b) => {
+			const dateA = new Date(a.created_at || 0);
+			const dateB = new Date(b.created_at || 0);
+			return dateB - dateA; // 내림차순
+		});
 
-		if (error) {
-			console.error('엑셀 파일 목록 조회 실패:', error);
-			return { data: [], error };
-		}
-
-		// 파일만 필터링 (폴더 제외)
-		const files = (data || []).filter(item => item.id !== null);
-		
-		return { data: files, error: null };
+		return { data: allFiles, error: null };
 	} catch (error) {
 		console.error('엑셀 파일 목록 조회 중 오류:', error);
 		return { data: [], error };

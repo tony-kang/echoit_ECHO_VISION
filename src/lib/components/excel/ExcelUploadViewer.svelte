@@ -465,7 +465,14 @@
 <div class="excel-upload-viewer">
 	<!-- 헤더 -->
 	<div class="viewer-header">
-		<h2 class="viewer-title">엑셀 파일 업로드 및 미리보기</h2>
+		<h2 class="viewer-title">
+			엑셀 파일 업로드 및 미리보기
+			{#if excelType === 'sales'}
+				<span class="excel-type-badge">매출</span>
+			{:else if excelType === 'cost'}
+				<span class="excel-type-badge">비용</span>
+			{/if}
+		</h2>
 		<button onclick={handleClose} class="close-button" aria-label="닫기">
 			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -675,6 +682,18 @@
 		font-weight: 600;
 		color: #111827;
 		margin: 0;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.excel-type-badge {
+		font-size: 0.875rem;
+		font-weight: 500;
+		padding: 0.25rem 0.75rem;
+		border-radius: 0.5rem;
+		background-color: #3b82f6;
+		color: #ffffff;
 	}
 
 	.close-button {

@@ -171,8 +171,9 @@
 			return;
 		}
 
-		const filePath = excelTypeParam ? `${excelTypeParam}/${file.name}` : file.name;
-		const { error: deleteError } = await deleteExcelFile(`excel-files/${filePath}`);
+		// fullPath가 있으면 사용, 없으면 기존 방식
+		const filePath = file.fullPath || (excelTypeParam ? `${excelTypeParam}/${file.name}` : file.name);
+		const { error: deleteError } = await deleteExcelFile(filePath);
 
 		if (deleteError) {
 			alert(`파일 삭제 실패: ${deleteError.message}`);
@@ -189,8 +190,9 @@
 	 * @returns {Promise<void>}
 	 */
 	async function handleDownloadFile(file) {
-		const filePath = excelTypeParam ? `${excelTypeParam}/${file.name}` : file.name;
-		const { data: url, error: urlError } = await getExcelFileUrl(`excel-files/${filePath}`);
+		// fullPath가 있으면 사용, 없으면 기존 방식
+		const filePath = file.fullPath || (excelTypeParam ? `${excelTypeParam}/${file.name}` : file.name);
+		const { data: url, error: urlError } = await getExcelFileUrl(filePath);
 
 		if (urlError || !url) {
 			alert('파일 다운로드 URL 생성에 실패했습니다.');
