@@ -8,6 +8,7 @@
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import ExcelUploadViewer from '$lib/components/excel/ExcelUploadViewer.svelte';
+	import ExcelDataTable from '$lib/components/excel/ExcelDataTable.svelte';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
@@ -23,6 +24,10 @@
 	let isLoadingFiles = $state(false);
 	/** @type {boolean} 업로드 뷰어 표시 여부 */
 	let showUploadViewer = $state(false);
+	/** @type {boolean} 데이터 테이블 표시 여부 */
+	let showDataTable = $state(false);
+	/** @type {any | null} 데이터 테이블에 표시할 파일 */
+	let selectedFileForView = $state(null);
 
 	/**
 	 * URL 파라미터에서 excelType 읽기
@@ -185,6 +190,36 @@
 	}
 
 	/**
+	 * 파일에서 추출한 데이터 삭제 핸들러
+	 * @param {any} file - 삭제할 데이터의 파일 정보
+	 * @returns {Promise<void>}
+	 */
+	async function handleDeleteData(file) {
+		if (!confirm(`정말로 "${file.name}" 파일에서 추출한 데이터를 삭제하시겠습니까?`)) {
+			return;
+		}
+	}
+
+	/**
+	 * 파일에서 추출한 데이터 보기 핸들러
+	 * @param {any} file - 보여줄 데이터의 파일 정보
+	 * @returns {Promise<void>}
+	 */
+	function handleDataView(file) {
+		selectedFileForView = file;
+		showDataTable = true;
+	}
+
+	/**
+	 * 데이터 테이블 닫기 핸들러
+	 * @returns {void}
+	 */
+	function handleCloseDataTable() {
+		showDataTable = false;
+		selectedFileForView = null;
+	}
+
+	/**
 	 * 파일 다운로드 핸들러
 	 * @param {any} file - 다운로드할 파일 정보
 	 * @returns {Promise<void>}
@@ -199,18 +234,52 @@
 			return;
 		}
 
-		window.open(url, '_blank');
+		try {
+			// 원본 파일명 가져오기
+			const originalFileName = getOriginalFileName(file);
+			const downloadFileName = `download_${originalFileName}`;
+
+			// 파일을 fetch로 가져와서 Blob으로 변환 후 다운로드
+			const response = await fetch(url);
+			if (!response.ok) {
+				throw new Error('파일 다운로드에 실패했습니다.');
+			}
+
+			const blob = await response.blob();
+			const blobUrl = window.URL.createObjectURL(blob);
+
+			// 동적으로 a 태그 생성하여 다운로드 처리
+			const link = document.createElement('a');
+			link.href = blobUrl;
+			link.download = downloadFileName;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+
+			// Blob URL 정리
+			window.URL.revokeObjectURL(blobUrl);
+		} catch (error) {
+			console.error('파일 다운로드 중 오류:', error);
+			alert('파일 다운로드에 실패했습니다.');
+		}
 	}
 
 	/**
 	 * 파일명에서 원본 파일명 추출
-	 * @param {string} fileName - Storage 파일명
+	 * @param {any} file - 파일 객체 (metadata 포함)
 	 * @returns {string}
 	 */
-	function getOriginalFileName(fileName) {
-		// 파일명 형식: timestamp_random.ext
-		// 원본 파일명은 메타데이터에 저장되어 있지 않으므로 파일명 그대로 반환
-		return fileName;
+	function getOriginalFileName(file) {
+		// originalFileName 속성이 있으면 사용
+		if (file.originalFileName) {
+			return file.originalFileName;
+		}
+		// 메타데이터에서 원본 파일명 가져오기
+		if (file.metadata?.originalFileName) {
+			return file.metadata.originalFileName;
+		}
+		// 메타데이터가 없으면 저장된 파일명 반환
+		return file.name;
 	}
 
 	/**
@@ -317,7 +386,7 @@
 							>
 								{#each filteredFiles as file}
 									<tr class="hover:bg-gray-50">
-										<td class="font-medium">{getOriginalFileName(file.name)}</td>
+										<td class="font-medium">{getOriginalFileName(file)}</td>
 										<td class="text-center text-sm text-gray-600">{formatDate(file.created_at)}</td>
 										<td class="flex justify-center gap-2">
 											<button
@@ -330,7 +399,19 @@
 												onclick={() => handleDeleteFile(file)}
 												class="btn-small btn-danger"
 											>
-												삭제
+												파일삭제
+											</button>
+											<button
+												onclick={() => handleDeleteData(file)}
+												class="btn-small btn-delete-data"
+											>
+												데이터삭제
+											</button>
+											<button
+												onclick={() => handleDataView(file)}
+												class="btn-small btn-data-view"
+											>
+												데이터보기
 											</button>
 										</td>
 									</tr>
@@ -346,6 +427,15 @@
 								onUploadSuccess={handleUploadSuccess}
 							/>
 						{/if}
+
+						<!-- 데이터 테이블 (전체 화면) -->
+						{#if showDataTable && selectedFileForView}
+							<ExcelDataTable
+								file={selectedFileForView}
+								excelType={excelTypeParam}
+								onClose={handleCloseDataTable}
+							/>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -356,5 +446,57 @@
 <style>
 	.admin-content-page {
 		width: 100%;
+	}
+
+	.btn-small {
+		padding: 0.25rem 0.75rem;
+		font-size: 0.875rem;
+		border-radius: 0.5rem;
+		border: none;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s;
+		white-space: nowrap;
+	}
+
+	.btn-small.btn-secondary {
+		background-color: #6b7280;
+		color: white;
+	}
+
+	.btn-small.btn-secondary:hover:not(:disabled) {
+		background-color: #4b5563;
+	}
+
+	.btn-small.btn-danger {
+		background-color: #ef4444;
+		color: white;
+	}
+
+	.btn-small.btn-danger:hover:not(:disabled) {
+		background-color: #dc2626;
+	}
+
+	.btn-small.btn-data-view {
+		background-color: #22c55e;
+		color: white;
+	}
+
+	.btn-small.btn-data-view:hover:not(:disabled) {
+		background-color: #16a34a;
+	}
+
+	.btn-small.btn-delete-data {
+		background-color: #f97316;
+		color: white;
+	}
+
+	.btn-small.btn-delete-data:hover:not(:disabled) {
+		background-color: #ea580c;
+	}
+
+	.btn-small:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 </style>

@@ -2,6 +2,7 @@
 	import * as XLSX from 'xlsx';
 	import { uploadExcelFile } from '$lib/excelUploadService';
 	import { getSettings } from '$lib/settingsService';
+	import ExcelDataTable from './ExcelDataTable.svelte';
 
 	/**
 	 * 컴포넌트 Props
@@ -407,6 +408,7 @@
 		}
 
 		if (data) {
+			console.log('handleUpload data', data);
 			uploadedFileId = data.fileId;
 			uploadedFileName = data.fileName;
 			if (onUploadSuccess) {
@@ -535,117 +537,13 @@
 		<!-- 파일 정보 및 데이터 미리보기 -->
 		{#if fileName && workbook}
 			<div class="preview-section">
-				<div class="file-info-section">
-					<div class="file-info-left">
-						<div class="file-info">
-							<strong>파일명:</strong> {fileName}
-						</div>
-						
-						{#if headers.length > 0}
-							<div class="data-info">
-								컬럼: {headers.length}개 | 행: {rows.length}개
-								{#if unmatchedColumnsCount > 0}
-									<span class="unmatched-badge">매칭 안됨: {unmatchedColumnsCount}개 - 환경설정 - 코드관리 - 조직 에서 코드를 매칭시켜 주세요. </span>
-								{/if}
-								{#if unmatchedColumnNames.length > 0}
-									<div class="unmatched-names">
-										매칭 안된 칼럼: {unmatchedColumnNames.join(', ')}
-									</div>
-								{/if}
-							</div>
-						{/if}
-						
-						{#if sheetNames.length > 1}
-							<div class="sheet-selector">
-								<label for="sheet-select">시트 선택:</label>
-								<select id="sheet-select" value={selectedSheet} onchange={handleSheetChange}>
-									{#each sheetNames as sheet, index}
-										<option value={sheet}>{index + 1}. {sheet}</option>
-									{/each}
-								</select>
-							</div>
-						{/if}
-					</div>
-				</div>
-
-				{#if isLoading}
-					<div class="loading-message">
-						<div class="spinner"></div>
-						<p>엑셀 파일을 읽는 중...</p>
-					</div>
-				{:else if headers.length > 0}
-					<div class="table-section">
-						<div class="table-container">
-							<table class="excel-table">
-								<thead>
-									<tr>
-										{#each headers as header, index}
-											{@const matchingCode = findMatchingCode(header)}
-											<th
-												class:frozen={index < frozenColumns}
-												style={index < frozenColumns ? `left: ${index * 150}px;` : ''}
-											>
-												{#if index < frozenColumns}
-													<div class="frozen-th-cell-content {index === (frozenColumns - 1) ? `th-frozen` : ''}">
-														{header || `컬럼 ${index + 1}`}
-														{#if header && matchingCode !== 'excluded'}
-															{#if matchingCode}
-																<span class="code-match">({matchingCode.code})</span>
-															{:else}
-																<span class="code-unmatched">(없음)</span>
-															{/if}
-														{/if}
-													</div>
-												{:else}
-													<div class="th-cell-content">
-														{header || `컬럼 ${index + 1}`}
-														{#if header && matchingCode !== 'excluded'}
-															{#if matchingCode}
-																<span class="code-match">({matchingCode.code})</span>
-															{:else}
-																<span class="code-unmatched">(없음)</span>
-															{/if}
-														{/if}
-													</div>
-												{/if}
-											</th>
-										{/each}
-									</tr>
-								</thead>
-								<tbody>
-									{#each rows as row, rowIndex}
-										<tr>
-											{#each headers as header, colIndex}
-												{@const cellValue = row[colIndex] ?? ''}
-												{@const isFirstColumn = colIndex === 0}
-												{@const matchingCode = isFirstColumn ? findMatchingCodeForFirstColumn(cellValue) : null}
-												<td
-													class:frozen={colIndex < frozenColumns}
-													style={colIndex < frozenColumns ? `left: ${colIndex * 150}px;` : ''}
-												>
-													<div class="frozen-td-cell-content">
-														{cellValue}
-														{#if isFirstColumn && cellValue && matchingCode !== 'excluded'}
-															{#if matchingCode}
-																<span class="code-match">({matchingCode.code})</span>
-															{:else}
-																<span class="code-unmatched">(없음)</span>
-															{/if}
-														{/if}
-													</div>
-												</td>
-											{/each}
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				{:else if fileName && !isLoading}
-					<div class="empty-message">
-						<p>엑셀 파일에 데이터가 없습니다.</p>
-					</div>
-				{/if}
+				<ExcelDataTable
+					workbook={workbook}
+					fileName={fileName}
+					excelType={excelType}
+					frozenColumns={frozenColumns}
+					inline={true}
+				/>
 			</div>
 		{/if}
 	</div>
@@ -845,221 +743,6 @@
 
 	.preview-section {
 		background: white;
-	}
-
-	.file-info-section {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		padding-left: 10px;
-		margin-bottom: 1rem;
-	}
-
-	.file-info-left {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		flex-wrap: wrap;
-	}
-
-	.file-info {
-		font-size: 0.95rem;
-		color: #374151;
-	}
-
-	.sheet-selector {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-
-	.sheet-selector label {
-		font-weight: 500;
-		color: #374151;
-	}
-
-	.sheet-selector select {
-		padding: 0.5rem 1rem;
-		border: 1px solid #d1d5db;
-		border-radius: 0.5rem;
-		background: white;
-		color: #374151;
-		font-size: 0.9rem;
-	}
-
-	.data-info {
-		font-size: 0.9rem;
-		color: #6b7280;
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-
-	.unmatched-badge {
-		background-color: #dc2626;
-		color: white;
-		padding: 0.25rem 0.5rem;
-		border-radius: 0.25rem;
-		font-size: 0.85rem;
-		font-weight: 600;
-	}
-
-	.unmatched-names {
-		margin-top: 0.5rem;
-		padding: 0.5rem;
-		background-color: #fef2f2;
-		border: 1px solid #fecaca;
-		border-radius: 0.25rem;
-		font-size: 0.85rem;
-		color: #991b1b;
-		word-break: break-word;
-	}
-
-	.code-match {
-		color: #2563eb;
-		font-weight: 600;
-		margin-left: 0.5rem;
-	}
-
-	.code-unmatched {
-		color: #dc2626;
-		font-weight: 600;
-		margin-left: 0.5rem;
-	}
-
-	.table-section {
-		width: 100%;
-	}
-
-	.table-container {
-		width: 100%;
-		overflow-x: auto;
-		max-height: calc(100vh - 400px);
-		border: 1px solid #e5e7eb;
-		border-radius: 0.5rem;
-	}
-
-	.excel-table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.875rem;
-	}
-
-	.excel-table thead {
-		position: sticky;
-		top: 0;
-		background: #f9fafb;
-		z-index: 10;
-	}
-
-	.excel-table thead tr {
-		position: sticky;
-		top: 0;
-		z-index: 10;
-	}
-
-	.excel-table th {
-		padding: 0;
-		text-align: left;
-		font-weight: 600;
-		color: #374151;
-		border-right: 1px solid #e5e7eb;
-		white-space: nowrap;
-		background: #f9fafb;
-		position: relative;
-		z-index: 1;
-	}
-
-	.excel-table th .th-cell-content {
-		padding: 0.75rem;
-		height: 100%;
-		width: 100%;
-		box-sizing: border-box;
-		background: #f9fafb;
-		display: flex;
-		align-items: center;
-		border-bottom: 2px solid #0a0a0a;
-		position: relative;
-		z-index: 2;
-	}
-
-	.excel-table th.frozen {
-		position: sticky;
-		left: 0;
-		z-index: 20;
-		background: transparent;
-		padding: 0;
-		height: 100%;
-	}
-
-	.excel-table th.frozen div.frozen-th-cell-content {
-		padding: 0.75rem;
-		height: 100%;
-		width: 100%;
-		box-sizing: border-box;
-		background: #f9fafb;
-		display: flex;
-		align-items: center;
-		border-bottom: 2px solid #0a0a0a;
-		position: relative;
-		z-index: 21;
-	}
-
-	.th-frozen {
-		border-right: 2px solid #0a0a0a;
-	}
-
-	.excel-table td.frozen .frozen-td-cell-content {
-		padding: 0.75rem;
-		height: 100%;
-		width: 100%;
-		box-sizing: border-box;
-		border-right: 2px solid #0a0a0a;
-		background: white;
-		display: flex;
-		align-items: center;
-		position: relative;
-		z-index: 2;
-	}
-
-
-	.excel-table tbody tr:hover td.frozen .frozen-td-cell-content {
-		background: #f9fafb;
-	}
-
-	.excel-table th:last-child {
-		border-right: none;
-	}
-
-	.excel-table td {
-		padding: 0.75rem;
-		border-bottom: 1px solid #e5e7eb;
-		border-right: 1px solid #e5e7eb;
-		color: #374151;
-		white-space: nowrap;
-	}
-
-	.excel-table td.frozen {
-		position: sticky;
-		left: 0;
-		z-index: 1;
-		background: transparent;
-		padding: 0;
-		height: 100%;
-	}
-
-	.excel-table td:last-child {
-		border-right: none;
-	}
-
-	.excel-table tbody tr:hover {
-		background-color: #f9fafb;
-	}
-
-	.empty-message {
-		text-align: center;
-		padding: 3rem;
-		color: #6b7280;
 	}
 
 	@media (max-width: 768px) {
