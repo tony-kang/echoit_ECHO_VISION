@@ -1,4 +1,7 @@
 <script>
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+
 	/**
 	 * @typedef {Object} FilterField
 	 * @property {string} key - 필터 키
@@ -39,6 +42,11 @@
 	 * 필터 초기화 핸들러
 	 */
 	function handleReset() {
+		// URL 쿼리 파라미터 제거
+		const currentPath = page.url.pathname;
+		goto(currentPath, { replaceState: true, noScroll: true });
+
+		// 필터 초기화 콜백 호출
 		if (onReset) {
 			onReset();
 		}

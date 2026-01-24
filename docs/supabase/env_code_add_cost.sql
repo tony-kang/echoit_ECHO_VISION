@@ -80,6 +80,40 @@ ON CONFLICT (code) DO UPDATE SET
   title = EXCLUDED.title,
   param = EXCLUDED.param;
 
+-- 직원급여
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('COST_0206', 'cost', 'COST_0200', 7, 7, '직원급여', ARRAY['직원급여'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+-- 상여금-임원
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('COST_0207', 'cost', 'COST_0200', 7, 7, '상여금-임원', ARRAY['상여금-임원'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+-- 상여금-임원
+INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
+VALUES ('COST_0208', 'cost', 'COST_0200', 7, 7, '상여금-직원', ARRAY['상여금-직원'])
+ON CONFLICT (code) DO UPDATE SET
+  category = EXCLUDED.category,
+  parent_code = EXCLUDED.parent_code,
+  "order" = EXCLUDED."order",
+  value = EXCLUDED.value,
+  title = EXCLUDED.title,
+  param = EXCLUDED.param;
+
+
 -- 외주비 (최상위)
 INSERT INTO public.env_code (code, category, parent_code, "order", value, title, param)
 VALUES ('COST_0300', 'cost', NULL, 8, 8, '외주비', ARRAY['외주비'])

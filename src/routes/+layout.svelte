@@ -27,8 +27,9 @@
 		return result;
 	});
 
-	onMount(() => {
-		authStore.initialize();
+	onMount(async () => {
+		// 초기화를 완료할 때까지 기다림
+		await authStore.initialize();
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
 		});

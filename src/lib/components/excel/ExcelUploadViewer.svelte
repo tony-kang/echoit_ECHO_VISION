@@ -72,14 +72,24 @@
 
 	/**
 	 * 문자열 정규화 (trim, 공백 제거, 소문자 변환)
-	 * [xxxx] 패턴 제거 후 정규화
+	 * [xxxx] 패턴, 로마 숫자 패턴 제거 후 정규화
 	 * @param {string} str - 정규화할 문자열
 	 * @returns {string} 정규화된 문자열
 	 */
 	function normalizeString(str) {
 		if (!str || typeof str !== 'string') return '';
+		let normalized = str;
+		
 		// [xxxx] 패턴 제거 (예: [4120001] SAP/SI → SAP/SI)
-		let normalized = str.replace(/^\[[^\]]+\]\s*/g, '');
+		normalized = normalized.replace(/^\[[^\]]+\]\s*/g, '');
+		
+		// 로마 숫자 패턴 제거 (전각: Ⅰ-Ⅻ, 반각: I-XII) + 점 + 공백
+		// 예: "Ⅰ. 원 재 료 비" → "원 재 료 비", "II.노 무 비" → "노 무 비"
+		// 전각 로마 숫자: Ⅰ, Ⅱ, Ⅲ, Ⅳ, Ⅴ, Ⅵ, Ⅶ, Ⅷ, Ⅸ, Ⅹ, Ⅺ, Ⅻ
+		// 반각 로마 숫자: I, II, III, IV, V, VI, VII, VIII, IX, X, XI, XII
+		normalized = normalized.replace(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫI-VX]+\.\s*/gi, '');
+		
+		// 공백 제거 및 소문자 변환
 		return normalized.trim().replace(/\s+/g, '').toLowerCase();
 	}
 
@@ -103,7 +113,8 @@
 		for (const code of envCodes) {
 			if (code.param && Array.isArray(code.param)) {
 				for (const param of code.param) {
-					if (normalizeString(param) === normalizedColumn) {
+					const normalizedParam = normalizeString(param);
+					if (normalizedParam === normalizedColumn) {
 						return code;
 					}
 				}
@@ -243,7 +254,9 @@
 	function handleFileSelect(event) {
 		error = '';
 		isLoading = false;
-		const file = event.target.files?.[0];
+		
+		const target = event.currentTarget || event.target;
+		const file = target?.files?.[0];
 		
 		if (!file) {
 			return;

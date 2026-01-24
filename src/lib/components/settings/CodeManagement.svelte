@@ -85,16 +85,16 @@
 	let newParamValue = $state('');
 
 	/**
-	 * URL 쿼리 파라미터에서 sCode 읽기
+	 * URL 쿼리 파라미터에서 topCode 읽기
 	 * @type {string|null}
 	 */
-	const sCodeParam = $derived(page.url.searchParams.get('sCode'));
+	const topCodeParam = $derived(page.url.searchParams.get('topCode'));
 
 	/**
-	 * 현재 선택된 상위 코드 결정 (sCode가 없으면 null = 최상위)
+	 * 현재 선택된 상위 코드 결정 (topCode가 없으면 null = 최상위)
 	 * @type {string|null}
 	 */
-	const selectedCode = $derived(sCodeParam || null);
+	const selectedTopCode = $derived(topCodeParam || null);
 
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
@@ -129,12 +129,12 @@
 	});
 
 	/**
-	 * 사용자 인증 후 초기 로드 및 sCode 변경 시 설정 로드
+	 * 사용자 인증 후 초기 로드 및 topCode 변경 시 설정 로드
 	 */
 	$effect(() => {
 		if (user && !authLoading && category) {
-			// sCode가 없으면 null (최상위)로 설정
-			const codeToUse = selectedCode || null;
+			// topCode가 없으면 null (최상위)로 설정
+			const codeToUse = selectedTopCode || null;
 			// 초기화되지 않았거나 값이 변경된 경우에만 로드
 			if (currentParentCode === undefined || currentParentCode !== codeToUse) {
 				currentParentCode = codeToUse;
@@ -185,7 +185,7 @@
 							return accessibleCodes.includes(setting.code);
 						}
 						// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
-						return isCodeAccessible(setting.code, accessibleCodes, allData);
+						return itopCodeAccessible(setting.code, accessibleCodes, allData);
 					});
 					allSettings = filtered;
 				} else {
@@ -198,7 +198,7 @@
 			// currentParentCode가 undefined이면 null로 처리 (최상위)
 			const parentCodeToLoad = currentParentCode === undefined ? null : currentParentCode;
 			
-			// sCode가 있으면 해당 부모의 자식만, 없으면 최상위만 조회
+			// topCode가 있으면 해당 부모의 자식만, 없으면 최상위만 조회
 			const { data, error } = await getSettings({
 				orderByOrder: true,
 				parentCode: parentCodeToLoad,
@@ -218,7 +218,7 @@
 							return accessibleCodes.includes(setting.code);
 						}
 						// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
-						return isCodeAccessible(setting.code, accessibleCodes, allSettings);
+						return itopCodeAccessible(setting.code, accessibleCodes, allSettings);
 					});
 				} else {
 					displayedSettings = data || [];
@@ -240,7 +240,7 @@
 	 * @param {Array<any>} allSettings - 전체 설정 목록
 	 * @returns {boolean}
 	 */
-	function isCodeAccessible(code, accessibleCodes, allSettings) {
+	function itopCodeAccessible(code, accessibleCodes, allSettings) {
 		const setting = allSettings.find((/** @type {any} */ s) => s.code === code);
 		if (!setting) return false;
 		
@@ -250,7 +250,7 @@
 		}
 		
 		// 하위 코드인 경우, 부모 코드가 접근 가능한지 재귀적으로 확인
-		return isCodeAccessible(setting.parent_code, accessibleCodes, allSettings);
+		return itopCodeAccessible(setting.parent_code, accessibleCodes, allSettings);
 	}
 
 	/**
@@ -298,9 +298,9 @@
 	async function navigateToCode(code) {
 		const url = new URL(page.url);
 		if (code) {
-			url.searchParams.set('sCode', code);
+			url.searchParams.set('topCode', code);
 		} else {
-			url.searchParams.delete('sCode');
+			url.searchParams.delete('topCode');
 		}
 		await goto(url.pathname + url.search, { replaceState: true, noScroll: true });
 		// URL 변경 후 currentParentCode 업데이트 및 로드
@@ -645,7 +645,7 @@
 							return accessibleCodes.includes(setting.code);
 						}
 						// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
-						return isCodeAccessible(setting.code, accessibleCodes, allSettings);
+						return itopCodeAccessible(setting.code, accessibleCodes, allSettings);
 					});
 				} else {
 					searchResults = data || [];

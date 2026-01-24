@@ -22,9 +22,29 @@
 	];
 
 	onMount(() => {
+		// 타임아웃 설정: 10초 후에도 로딩이 끝나지 않으면 에러 처리 (네트워크 지연 고려)
+		let timeoutId = null;
+		
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
 			authLoading = state.loading;
+
+			// 로딩이 완료되면 타임아웃 클리어
+			if (!state.loading) {
+				if (timeoutId) {
+					clearTimeout(timeoutId);
+					timeoutId = null;
+				}
+			} else if (!timeoutId) {
+				// 로딩 중이고 타임아웃이 설정되지 않았으면 설정
+				timeoutId = setTimeout(() => {
+					if (authLoading) {
+						console.error('[code/+page] 인증 로딩 타임아웃 (10초) - 네트워크 문제 가능성');
+						authLoading = false;
+					}
+					timeoutId = null;
+				}, 10000);
+			}
 
 			if (!state.loading && !state.user) {
 				goto('/login');
@@ -32,6 +52,9 @@
 		});
 
 		return () => {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
 			unsubscribe();
 		};
 	});
