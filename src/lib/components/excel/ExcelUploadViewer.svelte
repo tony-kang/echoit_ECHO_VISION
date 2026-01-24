@@ -111,6 +111,41 @@
 	}
 
 	/**
+	 * 데이터 행의 첫 번째 칼럼 값과 매칭되는 환경 코드 찾기 (sales 또는 cost 카테고리만)
+	 * @param {string} cellValue - 첫 번째 칼럼의 셀 값
+	 * @returns {any | null | 'excluded'} 매칭되는 코드, null, 또는 'excluded' (제외된 칼럼)
+	 */
+	function findMatchingCodeForFirstColumn(cellValue) {
+		if (!cellValue) return null;
+		
+		// 제외할 텍스트가 포함된 경우 매칭 검사에서 제외
+		if (shouldExcludeFromMatching(cellValue)) {
+			return 'excluded';
+		}
+		
+		if (envCodes.length === 0) return null;
+		
+		// excelType에 따라 검색할 카테고리 결정
+		const targetCategory = excelType === 'sales' ? 'sales' : excelType === 'cost' ? 'cost' : null;
+		if (!targetCategory) return null;
+		
+		const normalizedValue = normalizeString(cellValue);
+		
+		// 해당 카테고리의 코드만 검색
+		for (const code of envCodes) {
+			if (code.category === targetCategory && code.param && Array.isArray(code.param)) {
+				for (const param of code.param) {
+					if (normalizeString(param) === normalizedValue) {
+						return code;
+					}
+				}
+			}
+		}
+		
+		return null;
+	}
+
+	/**
 	 * 환경 코드 로드
 	 * @returns {Promise<void>}
 	 */
@@ -177,6 +212,19 @@
 			// 'excluded'는 제외하고, null인 경우만 카운트
 			return matchResult === null;
 		}).length;
+	});
+
+	/**
+	 * 매칭되지 않은 칼럼명 목록 (제외된 칼럼은 제외)
+	 */
+	const unmatchedColumnNames = $derived.by(() => {
+		if (headers.length === 0) return [];
+		return headers.filter(header => {
+			if (!header) return true;
+			const matchResult = findMatchingCode(header);
+			// 'excluded'는 제외하고, null인 경우만 포함
+			return matchResult === null;
+		}).filter(header => header); // 빈 문자열 제거
 	});
 
 	/**
@@ -474,6 +522,11 @@
 								{#if unmatchedColumnsCount > 0}
 									<span class="unmatched-badge">매칭 안됨: {unmatchedColumnsCount}개 - 환경설정 - 코드관리 - 조직 에서 코드를 매칭시켜 주세요. </span>
 								{/if}
+								{#if unmatchedColumnNames.length > 0}
+									<div class="unmatched-names">
+										매칭 안된 칼럼: {unmatchedColumnNames.join(', ')}
+									</div>
+								{/if}
 							</div>
 						{/if}
 						
@@ -538,12 +591,22 @@
 									{#each rows as row, rowIndex}
 										<tr>
 											{#each headers as header, colIndex}
+												{@const cellValue = row[colIndex] ?? ''}
+												{@const isFirstColumn = colIndex === 0}
+												{@const matchingCode = isFirstColumn ? findMatchingCodeForFirstColumn(cellValue) : null}
 												<td
 													class:frozen={colIndex < frozenColumns}
 													style={colIndex < frozenColumns ? `left: ${colIndex * 150}px;` : ''}
 												>
 													<div class="frozen-td-cell-content">
-														{row[colIndex] ?? ''}
+														{cellValue}
+														{#if isFirstColumn && cellValue && matchingCode !== 'excluded'}
+															{#if matchingCode}
+																<span class="code-match">({matchingCode.code})</span>
+															{:else}
+																<span class="code-unmatched">(없음)</span>
+															{/if}
+														{/if}
 													</div>
 												</td>
 											{/each}
@@ -802,6 +865,17 @@
 		border-radius: 0.25rem;
 		font-size: 0.85rem;
 		font-weight: 600;
+	}
+
+	.unmatched-names {
+		margin-top: 0.5rem;
+		padding: 0.5rem;
+		background-color: #fef2f2;
+		border: 1px solid #fecaca;
+		border-radius: 0.25rem;
+		font-size: 0.85rem;
+		color: #991b1b;
+		word-break: break-word;
 	}
 
 	.code-match {
