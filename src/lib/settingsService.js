@@ -414,6 +414,53 @@ export async function searchSettingsByTitle(options = {}) {
 }
 
 /**
+ * DB에서 환경설정 코드 검색 (코드 정확 일치, 제목 부분 일치)
+ * @param {Object} [options] - 조회 옵션
+ * @param {string} [options.code] - 코드 검색어 (정확 일치)
+ * @param {string} [options.title] - 제목 검색어 (부분 일치)
+ * @param {string} [options.category] - 카테고리 필터링
+ * @returns {Promise<{data: Array<SettingData>|null, error: Error|null}>}
+ */
+export async function searchSettings(options = {}) {
+	try {
+		const { code, title, category } = options;
+		
+		let query = supabase
+			.from('env_code')
+			.select('*');
+		
+		// 카테고리 필터링
+		if (category) {
+			query = query.eq('category', category);
+		}
+		
+		// 코드 검색: 정확 일치
+		if (code && code.trim()) {
+			query = query.eq('code', code.trim());
+		}
+		
+		// 제목 검색: 부분 일치 (LIKE)
+		if (title && title.trim()) {
+			query = query.ilike('title', `%${title.trim()}%`);
+		}
+		
+		query = query.order('order', { ascending: true });
+		
+		const { data, error } = await query;
+		
+		if (error) {
+			console.error('환경설정 코드 검색 실패:', error);
+			return { data: [], error };
+		}
+		
+		return { data: data || [], error: null };
+	} catch (error) {
+		console.error('환경설정 코드 검색 실패:', error);
+		return { data: [], error };
+	}
+}
+
+/**
  * 계층 구조로 환경설정 조회 (부모-자식 관계 포함)
  * @returns {Promise<{data: Array<SettingData & {children?: SettingData[]}>|null, error: Error|null}>}
  */

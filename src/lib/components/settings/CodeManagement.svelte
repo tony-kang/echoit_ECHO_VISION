@@ -9,7 +9,8 @@
 		getChildSettings,
 		createSetting,
 		updateSetting,
-		deleteSetting
+		deleteSetting,
+		searchSettings
 	} from '$lib/settingsService';
 	import { authStore } from '$lib/stores/authStore';
 	import { isAdmin } from '$lib/userService';
@@ -33,6 +34,10 @@
 	let codeSearchQuery = $state('');
 	/** @type {string} 제목 검색어 */
 	let titleSearchQuery = $state('');
+	/** @type {boolean} DB 검색 모드 여부 */
+	let isSearchMode = $state(false);
+	/** @type {Array<any>} DB 검색 결과 */
+	let searchResults = $state([]);
 	let isLoading = $state(false);
 	let showFormModal = $state(false);
 	/** @type {any} 수정 중인 항목 */
@@ -413,10 +418,31 @@
 	}
 
 	/**
+	 * 검색어 변경 감지 및 검색 모드 자동 해제
+	 */
+	$effect(() => {
+		const codeQueryTrimmed = (codeSearchQuery || '').trim();
+		const titleQueryTrimmed = (titleSearchQuery || '').trim();
+		
+		// 검색어가 모두 비어있으면 검색 모드 해제
+		if (!codeQueryTrimmed && !titleQueryTrimmed && isSearchMode) {
+			isSearchMode = false;
+			searchResults = [];
+		}
+	});
+
+	/**
 	 * 검색어로 필터링된 설정 목록
+	 * DB 검색 모드일 때는 searchResults 반환, 일반 모드일 때는 클라이언트 필터링
 	 * @type {Array<any>}
 	 */
 	const filteredSettings = $derived.by(() => {
+		// DB 검색 모드일 때는 검색 결과 반환
+		if (isSearchMode) {
+			return searchResults || [];
+		}
+		
+		// 일반 모드: 클라이언트 사이드 필터링
 		if (!displayedSettings || displayedSettings.length === 0) {
 			return displayedSettings || [];
 		}
@@ -468,12 +494,75 @@
 	}
 
 	/**
+	 * DB에서 검색 실행
+	 * @returns {Promise<void>}
+	 */
+	async function performDBSearch() {
+		if (!user || !category) return;
+		
+		const codeQueryTrimmed = (codeSearchQuery || '').trim();
+		const titleQueryTrimmed = (titleSearchQuery || '').trim();
+		
+		// 검색어가 없으면 검색 모드 해제
+		if (!codeQueryTrimmed && !titleQueryTrimmed) {
+			isSearchMode = false;
+			searchResults = [];
+			return;
+		}
+		
+		isLoading = true;
+		isSearchMode = true;
+		
+		const { data, error } = await searchSettings({
+			code: codeQueryTrimmed || undefined,
+			title: titleQueryTrimmed || undefined,
+			category
+		});
+		
+		if (error) {
+			console.error('DB 검색 실패:', error);
+			searchResults = [];
+		} else {
+			// 접근 제한 적용
+			const accessibleCodes = accessibleTopLevelCodes;
+			if (accessibleCodes !== null && accessibleCodes.length > 0) {
+				searchResults = (data || []).filter((/** @type {any} */ setting) => {
+					// 최상위 코드인 경우
+					if (!setting.parent_code) {
+						return accessibleCodes.includes(setting.code);
+					}
+					// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
+					return isCodeAccessible(setting.code, accessibleCodes, allSettings);
+				});
+			} else {
+				searchResults = data || [];
+			}
+		}
+		
+		isLoading = false;
+	}
+
+	/**
+	 * 엔터키 입력 핸들러
+	 * @param {KeyboardEvent} event - 키보드 이벤트
+	 * @returns {void}
+	 */
+	function handleKeyDown(event) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			performDBSearch();
+		}
+	}
+
+	/**
 	 * 검색어 초기화 핸들러
 	 * @returns {void}
 	 */
 	function handleSearchClear() {
 		codeSearchQuery = '';
 		titleSearchQuery = '';
+		isSearchMode = false;
+		searchResults = [];
 	}
 </script>
 
@@ -506,7 +595,8 @@
 					<input
 						type="text"
 						bind:value={codeSearchQuery}
-						placeholder="코드 검색 (정확 일치)"
+						onkeydown={handleKeyDown}
+						placeholder="코드 검색 (정확 일치, Enter: DB 검색)"
 						class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
 					/>
 					<!-- 검색 아이콘 -->
@@ -537,7 +627,8 @@
 					<input
 						type="text"
 						bind:value={titleSearchQuery}
-						placeholder="제목 검색 (부분 일치)"
+						onkeydown={handleKeyDown}
+						placeholder="제목 검색 (부분 일치, Enter: DB 검색)"
 						class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
 					/>
 					<!-- 검색 아이콘 -->
@@ -596,15 +687,19 @@
 
 	{#if isLoading}
 		<div class="text-center py-12">
-			<p class="text-gray-500">환경설정 코드 목록을 불러오는 중...</p>
+			<p class="text-gray-500">
+				{isSearchMode ? 'DB에서 검색 중...' : '환경설정 코드 목록을 불러오는 중...'}
+			</p>
 		</div>
-	{:else if displayedSettings.length === 0}
+	{:else if !isSearchMode && displayedSettings.length === 0}
 		<div class="text-center py-12">
 			<p class="text-gray-500">환경설정 코드가 등록되지 않았습니다.</p>
 		</div>
 	{:else if filteredSettings.length === 0}
 		<div class="text-center py-12">
-			<p class="text-gray-500">검색 결과가 없습니다.</p>
+			<p class="text-gray-500">
+				{isSearchMode ? 'DB 검색 결과가 없습니다.' : '검색 결과가 없습니다.'}
+			</p>
 			{#if codeSearchQuery || titleSearchQuery}
 				<button
 					onclick={handleSearchClear}
@@ -615,6 +710,21 @@
 			{/if}
 		</div>
 	{:else}
+		<!-- 검색 모드 표시 -->
+		{#if isSearchMode}
+			<div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+				<p class="text-sm text-blue-700">
+					<strong>DB 검색 모드</strong> - 전체 데이터에서 검색한 결과입니다.
+					{#if codeSearchQuery}
+						<span class="ml-2">코드: "{codeSearchQuery}"</span>
+					{/if}
+					{#if titleSearchQuery}
+						<span class="ml-2">제목: "{titleSearchQuery}"</span>
+					{/if}
+				</p>
+			</div>
+		{/if}
+		
 		<!-- 환경설정 코드 목록 -->
 		<DataTable
 			headers={[
@@ -630,12 +740,15 @@
 			emptyMessage="환경설정 코드가 없습니다."
 		>
 			{#each filteredSettings as setting}
-				<tr class="hover:bg-gray-50 cursor-pointer" onclick={() => navigateToCode(setting.code)}>
+				<tr 
+					class="hover:bg-gray-50 {isSearchMode ? 'cursor-default' : 'cursor-pointer'}" 
+					onclick={isSearchMode ? undefined : () => navigateToCode(setting.code)}
+				>
 					<td class="text-center font-mono text-sm font-medium">{setting.code}</td>
 					<td class="font-medium">
 						<div class="flex items-center gap-2">
 							{setting.title}
-							{#if hasChildren(setting.code)}
+							{#if !isSearchMode && hasChildren(setting.code)}
 								<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 								</svg>
