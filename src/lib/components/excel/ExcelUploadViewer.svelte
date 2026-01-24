@@ -4,9 +4,9 @@
 
 	/**
 	 * 컴포넌트 Props
-	 * @type {{ excelType: string, onClose: Function, onUploadSuccess: Function }}
+	 * @type {{ excelType: string, onClose: Function, onUploadSuccess: Function, frozenColumns?: number }}
 	 */
-	let { excelType = '', onClose, onUploadSuccess } = $props();
+	let { excelType = '', onClose, onUploadSuccess, frozenColumns = 1 } = $props();
 
 	/** @type {File | null} 선택된 파일 */
 	let selectedFile = $state(null);
@@ -319,7 +319,12 @@
 								<thead>
 									<tr>
 										{#each headers as header, index}
-											<th>{header || `컬럼 ${index + 1}`}</th>
+											<th
+												class:frozen={index < frozenColumns}
+												style={index < frozenColumns ? `left: ${index * 150}px;` : ''}
+											>
+												{header || `컬럼 ${index + 1}`}
+											</th>
 										{/each}
 									</tr>
 								</thead>
@@ -327,7 +332,12 @@
 									{#each rows as row, rowIndex}
 										<tr>
 											{#each headers as header, colIndex}
-												<td>{row[colIndex] ?? ''}</td>
+												<td
+													class:frozen={colIndex < frozenColumns}
+													style={colIndex < frozenColumns ? `left: ${colIndex * 150}px;` : ''}
+												>
+													{row[colIndex] ?? ''}
+												</td>
 											{/each}
 										</tr>
 									{/each}
@@ -598,10 +608,19 @@
 		text-align: left;
 		font-weight: 600;
 		color: #374151;
-		border-bottom: 2px solid #e5e7eb;
+		border-bottom: 2px solid #0a0a0a;
 		border-right: 1px solid #e5e7eb;
 		white-space: nowrap;
 		background: #f9fafb;
+	}
+
+	.excel-table th.frozen {
+		position: sticky;
+		left: 0;
+		z-index: 11;
+		background: #f9fafb;
+		box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+		border-right: 2px solid #0a0a0a;
 	}
 
 	.excel-table th:last-child {
@@ -614,6 +633,15 @@
 		border-right: 1px solid #e5e7eb;
 		color: #374151;
 		white-space: nowrap;
+	}
+
+	.excel-table td.frozen {
+		position: sticky;
+		left: 0;
+		z-index: 1;
+		background: white;
+		box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+		border-right: 2px solid #0a0a0a;
 	}
 
 	.excel-table td:last-child {
