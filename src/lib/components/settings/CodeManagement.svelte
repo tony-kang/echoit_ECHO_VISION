@@ -658,6 +658,7 @@
 				{ label: '표시 순서', align: 'center' },
 				{ label: '값', align: 'center' },
 				{ label: '상위 코드', align: 'center' },
+				{ label: '파라미터', align: 'center' },
 				{ label: '설명', align: 'center' },
 				{ label: '작업', align: 'center' }
 			]}
@@ -687,6 +688,19 @@
 							<span class="badge badge-info">
 								{getParentName(setting.parent_code)}
 							</span>
+						{:else}
+							<span class="text-gray-400">-</span>
+						{/if}
+					</td>
+					<td class="text-center">
+						{#if setting.param && Array.isArray(setting.param) && setting.param.length > 0}
+							<div class="flex flex-wrap gap-1 justify-center">
+								{#each setting.param as paramItem}
+									<span class="badge badge-info text-xs">
+										{paramItem}
+									</span>
+								{/each}
+							</div>
 						{:else}
 							<span class="text-gray-400">-</span>
 						{/if}
