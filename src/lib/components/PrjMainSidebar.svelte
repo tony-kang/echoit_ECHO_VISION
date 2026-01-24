@@ -58,10 +58,7 @@
 			path: '/echovision/settings',
 			subMenus: [
 				{ label: '사용자 관리', path: '/echovision/settings/user' },
-				{ label: '코드 - 조직', path: '/echovision/settings/organization' },
-				{ label: '코드 - 매출', path: '/echovision/settings/organization' },
-				{ label: '코드 - 비용', path: '/echovision/settings/organization' },
-				{ label: '코드 - 일반', path: '/echovision/settings/code' },
+				{ label: '코드 관리', path: '/echovision/settings/code' },
 				{ label: '시스템', path: '/echovision/settings/system' }
 			]
 		},
