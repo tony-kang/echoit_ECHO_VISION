@@ -41,6 +41,7 @@
 	},
 	"dependencies": {
 		"@supabase/supabase-js": "^2.87.3",
+		"svelte-sonner": "^1.0.7",
 		"xlsx": "^0.18.5"
 	}
 }

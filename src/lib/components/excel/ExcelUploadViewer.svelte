@@ -3,6 +3,7 @@
 	import { uploadExcelFile } from '$lib/excelUploadService';
 	import { getSettings } from '$lib/settingsService';
 	import ExcelDataTable from './ExcelDataTable.svelte';
+	import { toast } from 'svelte-sonner';
 
 	/**
 	 * 컴포넌트 Props

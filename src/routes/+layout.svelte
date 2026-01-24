@@ -6,6 +6,7 @@
 	import Header from '$lib/components/Header.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import { authStore } from '$lib/stores/authStore';
+	import { Toaster } from 'svelte-sonner';
 
 	let { children } = $props();
 	/** @type {import('@supabase/supabase-js').User | null} */
