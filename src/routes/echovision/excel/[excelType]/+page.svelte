@@ -29,6 +29,8 @@
 	/** @type {any | null} 데이터 테이블에 표시할 파일 */
 	let selectedFileForView = $state(null);
 
+	let listLoaded = $state(false);
+
 	/**
 	 * URL 파라미터에서 excelType 읽기
 	 * @type {string}
@@ -44,7 +46,9 @@
 	 */
 	async function loadExcelFiles() {
 		if (!excelTypeParam) return;
-		
+
+		if (listLoaded || isLoadingFiles) return;	// 이미 로드되었거나 로딩 중이면 중복 로드 방지
+
 		isLoadingFiles = true;
 		// 검색어를 포함하여 파일 목록 조회
 		const searchQuery = filters.search || '';
@@ -58,6 +62,7 @@
 		
 		excelFiles = data || [];
 		isLoadingFiles = false;
+		listLoaded = true;
 	}
 
 	/**
@@ -135,15 +140,19 @@
 	});
 
 	onMount(() => {
+		console.log('(S)', new Date().toISOString());
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
 			authLoading = state.loading;
+			console.log('(A)',user === null, authLoading, new Date().toISOString());
 
 			if (!state.loading && !state.user) {
 				goto('/login');
-			} else if (state.user && !authLoading) {
-				loadExcelFiles();
-			}
+			} 
+			// else if (state.user && !authLoading) {
+			// 	console.log('---(1)----', excelTypeParam);
+			// 	loadExcelFiles();
+			// }
 		});
 
 		return () => {
@@ -306,6 +315,8 @@
 		};
 		return labels[type] || type;
 	}
+
+	console.log('(F)', new Date().toISOString());
 </script>
 
 <div class="main-content-page">
