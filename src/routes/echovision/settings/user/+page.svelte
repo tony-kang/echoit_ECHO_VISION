@@ -588,15 +588,24 @@
 														<td>
 															<div class="flex items-center gap-2">
 																<span class="text-sm">{getTopLevelCodesDisplay(usr)}</span>
-																{#if isAdminUser && usr.role !== USER_ROLES.MASTER && usr.id !== user?.id}
+																{#if isAdminUser && usr.role !== USER_ROLES.MASTER}
+																	{@const hasTopLevelCodes = Array.isArray(usr.top_level_codes) && usr.top_level_codes.length > 0}
 																	<button
 																		onclick={() => openTopLevelCodesModal(usr)}
 																		class="btn-icon-small"
-																		title="최상위 코드 설정"
+																		title={hasTopLevelCodes ? "최상위 코드 설정" : "최상위 코드 추가"}
 																	>
-																		<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-																		</svg>
+																		{#if hasTopLevelCodes}
+																			<!-- 편집 아이콘 -->
+																			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+																			</svg>
+																		{:else}
+																			<!-- 추가 아이콘 (최상위 코드가 없을 때) -->
+																			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+																			</svg>
+																		{/if}
 																	</button>
 																{/if}
 															</div>

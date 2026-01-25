@@ -46,8 +46,8 @@
 	const EXCLUDED_MATCHING_TEXTS = ['과목'];
 
 	/**
-	 * 칼럼명이 매칭 검사에서 제외되어야 하는지 확인
-	 * @param {string} columnName - 칼럼명
+	 * 컬럼명이 매칭 검사에서 제외되어야 하는지 확인
+	 * @param {string} columnName - 컬럼명
 	 * @returns {boolean} 제외 여부
 	 */
 	function shouldExcludeFromMatching(columnName) {
@@ -98,14 +98,14 @@
 	}
 
 	/**
-	 * 칼럼명과 매칭되는 환경 코드 찾기
-	 * @param {string} columnName - 칼럼명
-	 * @returns {any | null | 'excluded'} 매칭되는 코드, null, 또는 'excluded' (제외된 칼럼)
+	 * 컬럼명과 매칭되는 환경 코드 찾기
+	 * @param {string} columnName - 컬럼명
+	 * @returns {any | null | 'excluded'} 매칭되는 코드, null, 또는 'excluded' (제외된 컬럼)
 	 */
 	function findMatchingCode(columnName) {
 		if (!columnName) return null;
 		
-		// 제외할 텍스트가 포함된 칼럼은 매칭 검사에서 제외
+		// 제외할 텍스트가 포함된 컬럼은 매칭 검사에서 제외
 		if (shouldExcludeFromMatching(columnName)) {
 			return 'excluded';
 		}
@@ -129,9 +129,9 @@
 	}
 
 	/**
-	 * 데이터 행의 첫 번째 칼럼 값과 매칭되는 환경 코드 찾기 (sales 또는 cost 카테고리만)
-	 * @param {string} cellValue - 첫 번째 칼럼의 셀 값
-	 * @returns {any | null | 'excluded'} 매칭되는 코드, null, 또는 'excluded' (제외된 칼럼)
+	 * 데이터 행의 첫 번째 컬럼 값과 매칭되는 환경 코드 찾기 (sales 또는 cost 카테고리만)
+	 * @param {string} cellValue - 첫 번째 컬럼의 셀 값
+	 * @returns {any | null | 'excluded'} 매칭되는 코드, null, 또는 'excluded' (제외된 컬럼)
 	 */
 	function findMatchingCodeForFirstColumn(cellValue) {
 		if (!cellValue) return null;
@@ -218,7 +218,7 @@
 	}
 
 	/**
-	 * 매칭되지 않은 칼럼 수 계산 (제외된 칼럼은 제외)
+	 * 매칭되지 않은 컬럼 수 계산 (제외된 컬럼은 제외)
 	 */
 	const unmatchedColumnsCount = $derived.by(() => {
 		if (headers.length === 0) return 0;
@@ -231,7 +231,7 @@
 	});
 
 	/**
-	 * 매칭되지 않은 칼럼명 목록 (제외된 칼럼은 제외)
+	 * 매칭되지 않은 컬럼명 목록 (제외된 컬럼은 제외)
 	 */
 	const unmatchedColumnNames = $derived.by(() => {
 		if (headers.length === 0) return [];
@@ -355,7 +355,7 @@
 	});
 
 	/**
-	 * 업로드 가능 여부 (모든 칼럼이 매칭되어야 하고, 파일명에 년도와 월이 있어야 함)
+	 * 업로드 가능 여부 (모든 컬럼이 매칭되어야 하고, 파일명에 년도와 월이 있어야 함)
 	 */
 	const canUpload = $derived.by(() => {
 		return unmatchedColumnsCount === 0 && headers.length > 0 && hasYearAndMonth;

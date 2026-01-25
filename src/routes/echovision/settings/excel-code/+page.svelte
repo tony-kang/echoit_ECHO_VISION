@@ -3,12 +3,22 @@
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
 	import { authStore } from '$lib/stores/authStore';
+	import { getSettings } from '$lib/settingsService';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
 	let authLoading = $state(true);
 	/** @type {boolean} 모바일 사이드바 열림 상태 */
 	let isSidebarOpen = $state(false);
+	/** @type {Record<string, number>} 카테고리별 데이터 개수 */
+	let categoryCounts = $state({
+		all: 0,
+		organization: 0,
+		sales: 0,
+		cost: 0
+	});
+	/** @type {boolean} 데이터 개수 로딩 중 여부 */
+	let countsLoading = $state(false);
 
 	/**
 	 * 카테고리 목록
@@ -51,6 +61,11 @@
 			}
 		});
 
+		// 사용자가 로그인되어 있으면 데이터 개수 로드
+		if (user) {
+			loadCategoryCounts();
+		}
+
 		return () => {
 			if (timeoutId) {
 				clearTimeout(timeoutId);
@@ -58,6 +73,49 @@
 			unsubscribe();
 		};
 	});
+
+	// 사용자 변경 시 데이터 개수 다시 로드
+	$effect(() => {
+		if (user && !authLoading) {
+			loadCategoryCounts();
+		}
+	});
+
+	/**
+	 * 카테고리별 데이터 개수 로드
+	 * @returns {Promise<void>}
+	 */
+	async function loadCategoryCounts() {
+		if (!user) return;
+		
+		countsLoading = true;
+		try {
+			// 모든 카테고리의 데이터 개수를 병렬로 조회
+			const [allResult, orgResult, salesResult, costResult] = await Promise.all([
+				getSettings({ category: 'all' }),
+				getSettings({ category: 'organization' }),
+				getSettings({ category: 'sales' }),
+				getSettings({ category: 'cost' })
+			]);
+
+			categoryCounts = {
+				all: allResult.data?.length || 0,
+				organization: orgResult.data?.length || 0,
+				sales: salesResult.data?.length || 0,
+				cost: costResult.data?.length || 0
+			};
+		} catch (error) {
+			console.error('카테고리별 데이터 개수 로드 실패:', error);
+			categoryCounts = {
+				all: 0,
+				organization: 0,
+				sales: 0,
+				cost: 0
+			};
+		} finally {
+			countsLoading = false;
+		}
+	}
 
 	/**
 	 * 카테고리 클릭 핸들러
@@ -105,13 +163,13 @@
 										/>
 									</svg>
 								</button>
-								<h1 class="text-3xl font-bold text-gray-800">환경설정 코드 관리</h1>
+								<h1 class="text-3xl font-bold text-gray-800">환경설정 엑셀 컬럼 관리</h1>
 							</div>
-							<p class="text-gray-600">엑셀파일에서 사용하는 칼럼의 항목을 코드로 관리합니다.</p>
+							<p class="text-gray-600">엑셀파일에서 사용하는 컬럼의 항목을 코드로 관리합니다.</p>
 						</div>
 
 						<!-- 카테고리 목록 -->
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 							{#each categories as category}
 								<button
 									onclick={() => handleCategoryClick(category.code)}
@@ -123,7 +181,14 @@
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 										</svg>
 									</div>
-									<p class="text-sm text-gray-600">카테고리: {category.code}</p>
+									<div class="flex items-center justify-between">
+										<p class="text-sm text-gray-600">카테고리: {category.code}</p>
+										{#if countsLoading}
+											<span class="text-xs text-gray-500">로딩 중...</span>
+										{:else}
+											<span class="text-lg font-bold text-gray-800">{categoryCounts[category.code] || 0}개</span>
+										{/if}
+									</div>
 								</button>
 							{/each}
 						</div>

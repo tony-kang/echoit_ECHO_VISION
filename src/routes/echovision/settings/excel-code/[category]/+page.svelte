@@ -110,7 +110,7 @@
 										카테고리 목록
 									</button>
 									<span class="text-gray-400">/</span> -->
-									<h1 class="text-3xl font-bold text-gray-800">{categoryLabel} 코드 관리</h1>
+									<h1 class="text-3xl font-bold text-gray-800">{categoryLabel} 컬럼 관리</h1>
 								</div>
 							</div>
 							<!-- <p class="text-gray-600">카테고리: {category}</p> -->

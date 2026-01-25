@@ -21,9 +21,9 @@
 	let editingRowData = $state(null); // 편집 중인 행의 원본 데이터 (복원용)
 	let searchDebounceTimer = null; // 디바운싱 타이머
 	let tableElement = $state(null); // 테이블 DOM 요소 참조
-	let columnWidths = $state([]); // 실제 측정된 칼럼 너비 배열
+	let columnWidths = $state([]); // 실제 측정된 컬럼 너비 배열
 	
-	// 고정 칼럼의 left 위치 계산 함수 (실제 DOM 너비 사용)
+	// 고정 컬럼의 left 위치 계산 함수 (실제 DOM 너비 사용)
 	function getFixedColumnLeft(colIndex) {
 		if (!workOption.fixedColumns || workOption.fixedColumns === 0) return 0;
 		if (colIndex >= workOption.fixedColumns) return 0;
@@ -45,7 +45,7 @@
 			}
 		}
 		
-		// 이전 고정 칼럼들의 너비 합계 (실제 DOM 너비 사용)
+		// 이전 고정 컬럼들의 너비 합계 (실제 DOM 너비 사용)
 		for (let i = 0; i < colIndex; i++) {
 			const actualIndex = i + (isValidExcel ? 2 : 0);
 			if (tableElement && columnWidths.length > actualIndex) {
@@ -81,7 +81,7 @@
 		return 50; // 폴백
 	}
 	
-	// 칼럼 너비 측정 함수
+	// 컬럼 너비 측정 함수
 	function measureColumnWidths() {
 		if (!tableElement || headers.length === 0) return;
 		
@@ -92,7 +92,7 @@
 		columnWidths = thElements.map(th => th.offsetWidth);
 	}
 	
-	// 테이블이 업데이트될 때마다 칼럼 너비 재측정
+	// 테이블이 업데이트될 때마다 컬럼 너비 재측정
 	$effect(() => {
 		if (headers.length > 0 && rows.length > 0 && tableElement) {
 			// DOM이 렌더링된 후 측정 (여러 번 시도하여 정확한 너비 확보)
@@ -114,7 +114,7 @@
 			requiredColumns: {}, // 필수 컬럼 객체 { 컬럼명: 정렬(left/center/right) }
 			columnWidths: {}, // 헤더명: 폭(예: '150px', '20%')
 			ignoreColumns: [], // 화면에 출력하지 않을 컬럼명 배열
-			fixedColumns: 0 // 왼쪽에서 고정할 칼럼 개수 (0이면 고정 없음)
+			fixedColumns: 0 // 왼쪽에서 고정할 컬럼 개수 (0이면 고정 없음)
 		} 
 	} = $props();
 
@@ -1322,36 +1322,36 @@
 		background-color: #fafafa;
 	}
 	
-	/* 고정 칼럼 배경색 - 짝수 행 */
+	/* 고정 컬럼 배경색 - 짝수 행 */
 	.excel-table tbody tr.even-row .fixed-col,
 	.excel-table tbody tr:nth-child(even) .fixed-col {
 		background-color: #fafafa !important;
 	}
 	
-	/* 고정 칼럼 배경색 - 홀수 행 */
+	/* 고정 컬럼 배경색 - 홀수 행 */
 	.excel-table tbody tr.odd-row .fixed-col,
 	.excel-table tbody tr:nth-child(odd) .fixed-col {
 		background-color: white !important;
 	}
 	
-	/* 고정 칼럼 배경색 - hover */
+	/* 고정 컬럼 배경색 - hover */
 	.excel-table tbody tr:hover .fixed-col {
 		background-color: #f5f5f5 !important;
 	}
 	
-	/* 고정 칼럼 배경색 - 선택된 행 */
+	/* 고정 컬럼 배경색 - 선택된 행 */
 	.excel-table tbody tr.selected .fixed-col,
 	.excel-table tbody tr .fixed-col.selected {
 		background-color: #e3f2fd !important;
 	}
 	
-	/* 고정 칼럼 배경색 - 선택된 행 hover */
+	/* 고정 컬럼 배경색 - 선택된 행 hover */
 	.excel-table tbody tr.selected:hover .fixed-col,
 	.excel-table tbody tr:hover .fixed-col.selected {
 		background-color: #e3f2fd !important;
 	}
 	
-	/* 고정 칼럼 그림자 효과 */
+	/* 고정 컬럼 그림자 효과 */
 	.excel-table td.fixed-col,
 	.excel-table th.fixed-col {
 		box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);

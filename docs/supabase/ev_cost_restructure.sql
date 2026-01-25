@@ -1,10 +1,10 @@
 -- ============================================================================
 -- 원가 테이블 구조 변경 (ev_cost)
 -- ============================================================================
--- 목적: 엑셀 파일마다 칼럼이 다르므로 고정 칼럼 구조를 JSONB로 변경
+-- 목적: 엑셀 파일마다 컬럼이 다르므로 고정 컬럼 구조를 JSONB로 변경
 -- 변경 사항:
---   - 고정 칼럼만 유지: id, year, month, notes, created_at, updated_at, excel_file_id, cost_code
---   - 나머지 모든 칼럼 삭제
+--   - 고정 컬럼만 유지: id, year, month, notes, created_at, updated_at, excel_file_id, cost_code
+--   - 나머지 모든 컬럼 삭제
 --   - excel_file_data JSONB 추가 (cost_code별 엑셀 데이터 저장)
 -- ============================================================================
 
@@ -58,8 +58,8 @@ CREATE TABLE public.ev_cost (
     cost_code VARCHAR(16) NOT NULL,
     
     -- 엑셀 파일 데이터 (JSONB)
-    -- cost_code에 매칭된 엑셀의 모든 칼럼 데이터를 JSON 형태로 저장
-    -- 예: {"칼럼명1": "값1", "칼럼명2": "값2", ...}
+    -- cost_code에 매칭된 엑셀의 모든 컬럼 데이터를 JSON 형태로 저장
+    -- 예: {"컬럼명1": "값1", "컬럼명2": "값2", ...}
     excel_file_data JSONB DEFAULT '{}'::jsonb,
     
     -- 환경설정 코드 외래키 제약조건
@@ -139,4 +139,4 @@ COMMENT ON COLUMN public.ev_cost.created_at IS '생성일시';
 COMMENT ON COLUMN public.ev_cost.updated_at IS '수정일시';
 COMMENT ON COLUMN public.ev_cost.excel_file_id IS '엑셀 파일 ID (ev_excel_file 참조)';
 COMMENT ON COLUMN public.ev_cost.cost_code IS '원가 코드 (env_code.code 참조)';
-COMMENT ON COLUMN public.ev_cost.excel_file_data IS '엑셀 파일 데이터 (JSONB) - cost_code에 매칭된 모든 칼럼 데이터';
+COMMENT ON COLUMN public.ev_cost.excel_file_data IS '엑셀 파일 데이터 (JSONB) - cost_code에 매칭된 모든 컬럼 데이터';

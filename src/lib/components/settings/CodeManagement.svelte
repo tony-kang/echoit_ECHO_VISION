@@ -1076,7 +1076,7 @@
 					<!-- 파라미터 -->
 					<div>
 						<label class="block text-sm font-medium text-gray-700 mb-1">
-							파라미터 (엑셀 칼럼 매칭용)
+							파라미터 (엑셀 컬럼 매칭용)
 						</label>
 						<div class="space-y-2">
 							<div class="flex gap-2">
@@ -1117,10 +1117,10 @@
 									{/each}
 								</div>
 							{:else}
-								<p class="text-xs text-gray-500">파라미터가 없습니다. 엑셀 칼럼 매칭을 위해 파라미터를 추가하세요.</p>
+								<p class="text-xs text-gray-500">파라미터가 없습니다. 엑셀 컬럼 매칭을 위해 파라미터를 추가하세요.</p>
 							{/if}
 						</div>
-						<p class="text-xs text-gray-500 mt-1">엑셀 파일의 칼럼명과 매칭하기 위한 파라미터 목록입니다.</p>
+						<p class="text-xs text-gray-500 mt-1">엑셀 파일의 컬럼명과 매칭하기 위한 파라미터 목록입니다.</p>
 					</div>
 
 					<!-- 설명 -->

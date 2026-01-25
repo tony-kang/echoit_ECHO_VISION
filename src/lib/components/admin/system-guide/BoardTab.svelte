@@ -97,7 +97,7 @@
 					</div>
 					<div>
 						<p class="text-sm font-medium text-gray-800 mb-1">적합한 콘텐츠:</p>
-						<p class="text-sm text-gray-600">블로그 포스트, 신문 기사, 전문 칼럼, 기업 소식.</p>
+						<p class="text-sm text-gray-600">블로그 포스트, 신문 기사, 전문 컬럼, 기업 소식.</p>
 					</div>
 				</div>
 			</div>
@@ -194,7 +194,7 @@
 				<ul class="text-sm text-gray-600 space-y-1 list-disc list-inside">
 					<li>블로그 포스트 리스트</li>
 					<li>뉴스 사이트</li>
-					<li>전문 칼럼 게시판</li>
+					<li>전문 컬럼 게시판</li>
 				</ul>
 			</div>
 		</div>
