@@ -80,7 +80,11 @@
 		<div class="filter-grid">
 			{#each fields as field}
 				{#if field.type === 'select'}
-					<select bind:value={filters[field.key]} class="filter-input">
+					<select 
+						bind:value={filters[field.key]} 
+						onchange={handleApply}
+						class="filter-input"
+					>
 						<option value="">{field.label || '전체'}</option>
 						{#each normalizeOptions(field.options) as option}
 							<option value={option.value}>{option.label}</option>
