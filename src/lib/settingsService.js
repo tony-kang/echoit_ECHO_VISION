@@ -57,7 +57,7 @@ export async function getSettings(options = {}) {
 		// if (error) {
 		// 	console.error('[getSettings] 쿼리 실행 실패:', { category, parentCode, error });
 		// } else {
-		// 	console.log(`[getSettings] 쿼리 성공: ${data?.length || 0}개 조회`, { category, parentCode });
+		// 	console.log('[getSettings] 데이터 배열:', data);
 		// }
 
 		if (error) {
@@ -552,5 +552,210 @@ export async function getSettingsHierarchy() {
 	} catch (error) {
 		console.error('계층 구조 환경설정 조회 실패:', error);
 		return { data: [], error };
+	}
+}
+
+// ============================================================================
+// ev_code 서비스 함수
+// ============================================================================
+
+/**
+ * ev_code 목록 조회
+ * @param {Object} [options] - 조회 옵션
+ * @param {string} [options.category] - 카테고리로 필터링 ('sales' 또는 'cost')
+ * @returns {Promise<{data: Array<any>|null, error: Error|null}>}
+ */
+export async function getEvCodes(options = {}) {
+	try {
+		const { category } = options;
+
+		let query = supabase
+			.from('ev_code')
+			.select('*')
+			.order('created_at', { ascending: false });
+		
+		// 카테고리 필터링
+		if (category && category !== 'all') {
+			query = query.eq('category', category);
+		}
+
+		const { data, error } = await query;
+
+		if (error) throw error;
+
+		return { data: data || [], error: null };
+	} catch (error) {
+		console.error('ev_code 조회 실패:', error);
+		return { data: [], error };
+	}
+}
+
+/**
+ * ev_code 단일 조회
+ * @param {string} code - 코드
+ * @returns {Promise<{data: any|null, error: Error|null}>}
+ */
+export async function getEvCode(code) {
+	try {
+		const { data, error } = await supabase
+			.from('ev_code')
+			.select('*')
+			.eq('code', code)
+			.single();
+
+		if (error) throw error;
+
+		return { data, error: null };
+	} catch (error) {
+		console.error('ev_code 조회 실패:', error);
+		return { data: null, error };
+	}
+}
+
+/**
+ * ev_code 생성
+ * @param {Object} evCodeData - ev_code 데이터
+ * @param {string} evCodeData.code - 코드
+ * @param {string} evCodeData.category - 구분 ('sales' 또는 'cost')
+ * @param {string[]} [evCodeData.items] - 항목 배열 (env_code의 code 배열)
+ * @param {string} [evCodeData.title] - 제목
+ * @param {string} [evCodeData.comment] - 설명
+ * @returns {Promise<{data: any|null, error: Error|null}>}
+ */
+export async function createEvCode(evCodeData) {
+	try {
+		const { code, category, items = [], title, comment } = evCodeData;
+
+		// 유효성 검사
+		if (!code || code.trim() === '') {
+			throw new Error('코드는 필수입니다.');
+		}
+		if (!category || !['sales', 'cost'].includes(category)) {
+			throw new Error('구분은 sales 또는 cost여야 합니다.');
+		}
+
+		const insertData = {
+			code: code.trim(),
+			category,
+			items: Array.isArray(items) ? items.filter(item => item && item.trim() !== '') : [],
+			title: title || null,
+			comment: comment || null
+		};
+
+		const { data, error } = await supabase
+			.from('ev_code')
+			.insert(insertData)
+			.select()
+			.single();
+
+		if (error) throw error;
+
+		// 로그 기록
+		await logAction({
+			actionType: ACTION_TYPES.SETTINGS_CREATE,
+			actionCategory: ACTION_CATEGORIES.SETTINGS,
+			actionDetails: {
+				code,
+				category,
+				description: `ev_code 생성: ${code} - ${category}`
+			}
+		});
+
+		return { data, error: null };
+	} catch (error) {
+		console.error('ev_code 생성 실패:', error);
+		return { data: null, error };
+	}
+}
+
+/**
+ * ev_code 수정
+ * @param {string} code - 코드
+ * @param {Object} updateData - 수정할 데이터
+ * @param {string} [updateData.category] - 구분
+ * @param {string[]} [updateData.items] - 항목 배열
+ * @param {string} [updateData.title] - 제목
+ * @param {string} [updateData.comment] - 설명
+ * @returns {Promise<{data: any|null, error: Error|null}>}
+ */
+export async function updateEvCode(code, updateData) {
+	try {
+		const { category, items, title, comment } = updateData;
+
+		const updateFields = {};
+		if (category !== undefined) {
+			if (!['sales', 'cost'].includes(category)) {
+				throw new Error('구분은 sales 또는 cost여야 합니다.');
+			}
+			updateFields.category = category;
+		}
+		if (items !== undefined) {
+			updateFields.items = Array.isArray(items) ? items.filter(item => item && item.trim() !== '') : [];
+		}
+		if (title !== undefined) {
+			updateFields.title = title || null;
+		}
+		if (comment !== undefined) {
+			updateFields.comment = comment || null;
+		}
+
+		if (Object.keys(updateFields).length === 0) {
+			throw new Error('수정할 데이터가 없습니다.');
+		}
+
+		const { data, error } = await supabase
+			.from('ev_code')
+			.update(updateFields)
+			.eq('code', code)
+			.select()
+			.single();
+
+		if (error) throw error;
+
+		// 로그 기록
+		await logAction({
+			actionType: ACTION_TYPES.SETTINGS_UPDATE,
+			actionCategory: ACTION_CATEGORIES.SETTINGS,
+			actionDetails: {
+				code,
+				description: `ev_code 수정: ${code}`
+			}
+		});
+
+		return { data, error: null };
+	} catch (error) {
+		console.error('ev_code 수정 실패:', error);
+		return { data: null, error };
+	}
+}
+
+/**
+ * ev_code 삭제
+ * @param {string} code - 코드
+ * @returns {Promise<{data: boolean, error: Error|null}>}
+ */
+export async function deleteEvCode(code) {
+	try {
+		const { error } = await supabase
+			.from('ev_code')
+			.delete()
+			.eq('code', code);
+
+		if (error) throw error;
+
+		// 로그 기록
+		await logAction({
+			actionType: ACTION_TYPES.SETTINGS_DELETE,
+			actionCategory: ACTION_CATEGORIES.SETTINGS,
+			actionDetails: {
+				code,
+				description: `ev_code 삭제: ${code}`
+			}
+		});
+
+		return { data: true, error: null };
+	} catch (error) {
+		console.error('ev_code 삭제 실패:', error);
+		return { data: false, error };
 	}
 }

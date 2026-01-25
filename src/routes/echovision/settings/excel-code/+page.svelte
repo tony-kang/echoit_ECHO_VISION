@@ -65,7 +65,7 @@
 	 * @returns {void}
 	 */
 	function handleCategoryClick(categoryCode) {
-		goto(`/echovision/settings/code/${categoryCode}`);
+		goto(`/echovision/settings/excel-code/${categoryCode}`);
 	}
 </script>
 
@@ -107,7 +107,7 @@
 								</button>
 								<h1 class="text-3xl font-bold text-gray-800">환경설정 코드 관리</h1>
 							</div>
-							<p class="text-gray-600">카테고리를 선택하여 코드를 관리합니다</p>
+							<p class="text-gray-600">엑셀파일에서 사용하는 칼럼의 항목을 코드로 관리합니다.</p>
 						</div>
 
 						<!-- 카테고리 목록 -->

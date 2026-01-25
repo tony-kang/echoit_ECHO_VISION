@@ -604,6 +604,19 @@
 			// 삭제 성공 후 목록 새로고침
 			await loadSettings();
 			await loadParentOptions();
+			
+			// 검색 모드일 경우 검색 결과도 갱신
+			if (isSearchMode) {
+				const codeQueryTrimmed = (filters.code || '').trim();
+				const titleQueryTrimmed = (filters.title || '').trim();
+				if (codeQueryTrimmed || titleQueryTrimmed) {
+					await performDBSearch();
+				} else {
+					// 검색어가 없으면 검색 모드 해제
+					isSearchMode = false;
+					searchResults = [];
+				}
+			}
 		} catch (error) {
 			console.error('삭제 중 예외 발생:', error);
 			alert(`삭제 실패: ${error.message || '알 수 없는 오류'}`);
