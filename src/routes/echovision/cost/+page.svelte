@@ -165,6 +165,7 @@
 	/**
 	 * 원가 데이터를 ev_code별로 그룹화하고 월별 데이터를 구성
 	 * ev_code를 행으로, 1~12월을 열로 표시하기 위한 데이터 구조 생성
+	 * ev_code의 item_code와 rawData의 org_code가 일치하는 항목만 사용
 	 * @param {Array<any>} rawData - 원본 데이터
 	 * @returns {Array<any>} ev_code별로 그룹화된 데이터 (각 항목에 1~12월 데이터 포함)
 	 */
@@ -173,50 +174,12 @@
 			return [];
 		}
 
-		// year + month별로 그룹화하여 모든 org_code 데이터 합산
-		/** @type {Map<string, any>} */
-		const monthDataMap = new Map();
-
-		for (const item of rawData) {
-			const year = item.year;
-			const month = item.month;
-			
-			if (!year || !month) {
-				continue; // year나 month가 없으면 제외
-			}
-			
-			// year + month를 키로 사용
-			const key = `${year}_${month}`;
-
-			if (!monthDataMap.has(key)) {
-				monthDataMap.set(key, {
-					year: year,
-					month: month,
-					excel_file_data: {}
-				});
-			}
-
-			const dataItem = monthDataMap.get(key);
-			
-			// excel_file_data 합산 (같은 year + month의 모든 org_code 데이터 합산)
-			if (item.excel_file_data && typeof item.excel_file_data === 'object') {
-				for (const [key, value] of Object.entries(item.excel_file_data)) {
-					const numValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : Number(value);
-					if (!isNaN(numValue)) {
-						if (dataItem.excel_file_data[key] === undefined) {
-							dataItem.excel_file_data[key] = 0;
-						}
-						dataItem.excel_file_data[key] += numValue;
-					}
-				}
-			}
-		}
-
 		// ev_code별로 데이터 구성
 		/** @type {Map<string, any>} */
 		const evCodeDataMap = new Map();
 
 		// 각 ev_code에 대해 초기화
+		// evCodes는 ev_code 테이블에서 조회한 데이터
 		for (const evCode of evCodes) {
 			if (!evCode.item_code) continue;
 			
@@ -227,37 +190,45 @@
 			});
 		}
 
-		// 월별 데이터를 ev_code별로 매핑
-		for (const monthData of monthDataMap.values()) {
-			const month = monthData.month;
-			if (!month || month < 1 || month > 12) continue;
+		// rawData를 순회하면서 각 항목의 excel_file_data에서 ev_code.item_code를 키로 사용하여 금액 찾기
+		// rawData는 ev_cost 테이블에서 조회한 데이터 = 여러개의 엑셀로 입력한 비용 데이터
+		// rawData의 org_code는 "SUM_000" 등이고, excel_file_data에는 "COST_1400", "COST_1300" 등의 키로 금액이 저장됨
+		for (const item of rawData) {
+			const orgCode = item.org_code;
+			const year = item.year;
+			const month = item.month;
 
-			// 각 ev_code에 대해 해당 월의 값 계산
-			for (const evCode of evCodes) {
-				if (!evCode.item_code) continue;
-				
-				const evCodeItem = evCodeDataMap.get(evCode.item_code);
-				if (!evCodeItem) continue;
+			if (orgCode !== 'SUM_000') continue;
+			
+			if (!orgCode || !year || !month || month < 1 || month > 12) {
+				continue; // 필수 값이 없으면 제외
+			}
 
-				// ev_code의 items 배열에 해당하는 excel_file_data 값들의 합계 계산
-				let total = 0;
-				if (evCode.items && Array.isArray(evCode.items) && monthData.excel_file_data) {
-					for (const itemCode of evCode.items) {
-						const value = monthData.excel_file_data[itemCode];
-						if (value !== null && value !== undefined) {
-							const numValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : Number(value);
-							if (!isNaN(numValue)) {
-								total += numValue;
-							}
-						}
-					}
+			// excel_file_data가 없으면 제외
+			if (!item.excel_file_data || typeof item.excel_file_data !== 'object') {
+				continue;
+			}
+
+			// evCodeDataMap의 각 ev_code에 대해 처리
+			for (const [evCodeItemCode, evCodeItem] of evCodeDataMap.entries()) {
+				// ev_code.item_code를 excel_file_data의 키로 사용하여 금액 찾기
+				const value = item.excel_file_data[evCodeItemCode];
+				if (value === null || value === undefined) {
+					continue; // 해당 키의 값이 없으면 제외
 				}
 
-				evCodeItem.monthData[month] = total;
+				const numValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : Number(value);
+				if (isNaN(numValue)) {
+					continue; // 숫자가 아니면 제외
+				}
+
+				// 해당 월의 데이터에 합산 (같은 월에 여러 데이터가 있을 수 있으므로 합산)
+				if (evCodeItem.monthData[month] === undefined) {
+					evCodeItem.monthData[month] = 0;
+				}
+				evCodeItem.monthData[month] += numValue;
 			}
 		}
-
-		console.log('evCodeDataMap:', evCodeDataMap);
 
 		// 배열로 변환하여 반환
 		return Array.from(evCodeDataMap.values());

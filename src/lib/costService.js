@@ -68,8 +68,8 @@ export async function getCosts(options = {}) {
 			return { data: [], error };
 		}
 
-		console.log('원가 데이터 조회 결과:', data);
-		
+		// console.log('원가 데이터 조회 결과:', data);
+
 		return { data: data || [], error: null };
 	} catch (error) {
 		console.error('원가 데이터 조회 실패:', error);
