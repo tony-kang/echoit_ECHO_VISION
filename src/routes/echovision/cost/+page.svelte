@@ -26,6 +26,8 @@
 	
 	/** @type {Record<string, any>} 필터 객체 */
 	let filters = $state({ year: null });
+	/** @type {string | null} 이전 연도 값 (무한루프 방지) */
+	let previousYear = $state(null);
 
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
@@ -78,11 +80,18 @@
 	});
 
 	/**
-	 * 연도 변경 시 원가 데이터 로드
+	 * 연도 변경 시 원가 데이터 로드 (무한루프 방지)
 	 */
 	$effect(() => {
-		if (user && !authLoading && filters.year) {
+		const currentYear = filters.year;
+		
+		// 연도가 변경되었고, 사용자가 로그인했고, 로딩 중이 아닐 때만 호출
+		if (user && !authLoading && currentYear && currentYear !== previousYear && !isLoading) {
+			previousYear = currentYear;
 			loadCostData();
+		} else if (!currentYear) {
+			// 연도가 없으면 이전 연도도 초기화
+			previousYear = null;
 		}
 	});
 
@@ -112,12 +121,17 @@
 	}
 
 	/**
-	 * 원가 데이터 로드
+	 * 원가 데이터 로드 (중복 호출 방지)
 	 * @returns {Promise<void>}
 	 */
 	async function loadCostData() {
 		if (!filters.year) {
 			costData = [];
+			return;
+		}
+
+		// 이미 로딩 중이면 중복 호출 방지
+		if (isLoading) {
 			return;
 		}
 
@@ -242,6 +256,8 @@
 				evCodeItem.monthData[month] = total;
 			}
 		}
+
+		console.log('evCodeDataMap:', evCodeDataMap);
 
 		// 배열로 변환하여 반환
 		return Array.from(evCodeDataMap.values());
@@ -388,9 +404,6 @@
 								]
 							}
 						]}
-						onApply={() => {
-							loadCostData();
-						}}
 						onReset={() => {
 							filters = { year: null };
 							costData = [];
