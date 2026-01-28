@@ -55,6 +55,10 @@
 	let isLoadingParentOptions = $state(false);
 	/** @type {boolean} 데이터 저장 중 여부 */
 	let isSavingData = $state(false);
+	/** @type {boolean | null} 데이터 저장 여부 (null: 확인 중, true: 저장됨, false: 저장 안됨) */
+	let hasDataSaved = $state(null);
+	/** @type {boolean} 데이터 저장 여부 확인 중 */
+	let isCheckingData = $state(false);
 
 	/** @type {string[]} 매칭 검사에서 제외할 텍스트 목록 */
 	const EXCLUDED_MATCHING_TEXTS = ['과목'];
@@ -359,6 +363,7 @@
 
 		isLoading = true;
 		error = '';
+		hasDataSaved = null;
 		
 		try {
 			// 환경 코드 먼저 로드
@@ -368,6 +373,8 @@
 		}
 
 		try {
+			// 데이터 저장 여부 확인
+			await checkDataSaved();
 			// 파일 경로 가져오기
 			const filePath = file.fullPath || (excelType ? `${excelType}/${file.name}` : file.name);
 			const { data: url, error: urlError } = await getExcelFileUrl(filePath);
@@ -618,6 +625,55 @@
 	}
 
 	/**
+	 * 파일의 데이터 저장 여부 확인
+	 * @returns {Promise<void>}
+	 */
+	async function checkDataSaved() {
+		if (!file || !excelType) {
+			hasDataSaved = false;
+			return;
+		}
+
+		isCheckingData = true;
+		try {
+			// ev_excel_file에서 excel_file_id 조회
+			const filePath = file.fullPath || (excelType ? `${excelType}/${file.name}` : file.name);
+			const { data: excelFileData, error: excelFileError } = await supabase
+				.from('ev_excel_file')
+				.select('id')
+				.eq('storage_path', `excel-files/${filePath}`)
+				.single();
+
+			if (excelFileError || !excelFileData) {
+				hasDataSaved = false;
+				return;
+			}
+
+			const excelFileId = excelFileData.id;
+			const tableName = excelType === 'sales' ? 'ev_sales' : 'ev_cost';
+
+			// 해당 excel_file_id로 데이터 존재 여부 확인
+			const { count, error: countError } = await supabase
+				.from(tableName)
+				.select('*', { count: 'exact', head: true })
+				.eq('excel_file_id', excelFileId);
+
+			if (countError) {
+				console.error('[checkDataSaved] 데이터 확인 실패:', countError);
+				hasDataSaved = false;
+				return;
+			}
+
+			hasDataSaved = (count || 0) > 0;
+		} catch (err) {
+			console.error('[checkDataSaved] 오류:', err);
+			hasDataSaved = false;
+		} finally {
+			isCheckingData = false;
+		}
+	}
+
+	/**
 	 * 가로 칼럼 데이터를 ev_sales/ev_cost 테이블에 저장
 	 * 구조:
 	 *   - Row 1: 헤더 (col 1은 매출/비용 과목, col 2~N은 조직코드)
@@ -754,6 +810,16 @@
 
 			console.log('[handleSaveColumnData] 저장 완료');
 			toast.success(`${insertData.length}개의 조직코드 데이터가 성공적으로 저장되었습니다.`);
+			
+			// 저장 후 데이터 저장 여부 상태 업데이트
+			hasDataSaved = true;
+			
+			// 저장 성공 후 팝업 닫기 (부모 컴포넌트에서 페이지 새로고침 처리)
+			if (onClose) {
+				setTimeout(() => {
+					onClose();
+				}, 500); // 토스트 메시지를 보여주기 위해 약간의 지연
+			}
 		} catch (err) {
 			console.error('[handleSaveColumnData] 데이터 저장 실패:', err);
 			const errorMessage = err.message || '데이터 저장에 실패했습니다.';
@@ -854,15 +920,21 @@
 
 						<!-- 데이터 입력 -->
 						<div class="data-input-section">
-							<button
-								class="data-input-btn"
-								onclick={handleSaveColumnData}
-								disabled={isSavingData || headers.length === 0 || rows.length === 0 || unmatchedColumnsCount > 0}
-							>
-								{isSavingData ? '저장 중...' : '데이터 입력'}
-							</button>
-							{#if unmatchedColumnsCount > 0}
-								<span class="data-input-hint">매칭되지 않은 컬럼이 있어 저장할 수 없습니다.</span>
+							{#if isCheckingData}
+								<div class="data-status-message">데이터 확인 중...</div>
+							{:else if hasDataSaved}
+								<div class="data-status-message data-saved-message">데이터가 추가된 상태 입니다.</div>
+							{:else}
+								<button
+									class="data-input-btn"
+									onclick={handleSaveColumnData}
+									disabled={isSavingData || headers.length === 0 || rows.length === 0 || unmatchedColumnsCount > 0}
+								>
+									{isSavingData ? '저장 중...' : '데이터 입력'}
+								</button>
+								{#if unmatchedColumnsCount > 0}
+									<span class="data-input-hint">매칭되지 않은 컬럼이 있어 저장할 수 없습니다.</span>
+								{/if}
 							{/if}
 						</div>
 					</div>
@@ -1530,6 +1602,22 @@
 	.data-input-hint {
 		font-size: 0.875rem;
 		color: #dc2626;
+	}
+
+	.data-status-message {
+		padding: 2px 10px;
+		font-size: 1rem;
+		font-weight: 600;
+		border-radius: 0.5rem;
+		background-color: #f3f4f6;
+		color: #374151;
+		border: 1px solid #d1d5db;
+	}
+
+	.data-status-message.data-saved-message {
+		background-color: #d1fae5;
+		color: #065f46;
+		border-color: #10b981;
 	}
 
 	/* 레이어 팝업 스타일 */

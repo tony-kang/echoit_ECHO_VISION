@@ -90,6 +90,14 @@
 	async function loadExcelFiles() {
 		if (!excelTypeParam) return;
 
+		// excelTypeParam이 변경되었는지 확인
+		const currentExcelType = excelTypeParam;
+		if (previousExcelTypeParam !== null && previousExcelTypeParam !== currentExcelType) {
+			// excelType이 변경되었으면 리스트 리셋
+			listLoaded = false;
+			excelFiles = [];
+		}
+
 		if (listLoaded || isLoadingFiles) return;	// 이미 로드되었거나 로딩 중이면 중복 로드 방지
 
 		isLoadingFiles = true;
@@ -215,11 +223,21 @@
 		};
 	});
 
+	/** @type {string | null} 이전 excelTypeParam 값 추적 */
+	let previousExcelTypeParam = $state(null);
+
 	/**
-	 * excelType 또는 검색어 변경 시 파일 목록 다시 로드
+	 * excelType 변경 시 파일 목록 다시 로드
 	 */
 	$effect(() => {
 		if (user && !authLoading && excelTypeParam) {
+			// excelTypeParam이 변경되었으면 리스트 리셋 및 다시 로드
+			if (previousExcelTypeParam !== null && previousExcelTypeParam !== excelTypeParam) {
+				listLoaded = false;
+				excelFiles = [];
+				filters = { search: '' };
+			}
+			previousExcelTypeParam = excelTypeParam;
 			loadExcelFiles();
 		}
 	});
@@ -310,11 +328,15 @@
 
 	/**
 	 * 데이터 테이블 닫기 핸들러
-	 * @returns {void}
+	 * @returns {Promise<void>}
 	 */
-	function handleCloseDataTable() {
+	async function handleCloseDataTable() {
 		showDataTable = false;
 		selectedFileForView = null;
+		
+		// 파일 목록 갱신 (데이터 저장 여부 상태 업데이트)
+		listLoaded = false;
+		await loadExcelFiles();
 	}
 
 	/**
