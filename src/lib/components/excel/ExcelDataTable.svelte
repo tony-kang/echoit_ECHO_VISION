@@ -619,6 +619,11 @@
 
 	/**
 	 * 가로 칼럼 데이터를 ev_sales/ev_cost 테이블에 저장
+	 * 구조:
+	 *   - Row 1: 헤더 (col 1은 매출/비용 과목, col 2~N은 조직코드)
+	 *   - Row 2~N: 데이터 행
+	 *   - 각 조직코드(col 2~N)별로 레코드 생성
+	 *   - excel_file_data에 {과목코드: 값} 형태로 저장
 	 * @returns {Promise<void>}
 	 */
 	async function handleSaveColumnData() {
@@ -653,64 +658,78 @@
 
 			const excelFileId = excelFileData.id;
 			const tableName = excelType === 'sales' ? 'ev_sales' : 'ev_cost';
-			const codeField = excelType === 'sales' ? 'org_code' : 'org_code';
 
-			/** @type {Map<string, {year: number, month: number | null, excel_file_id: string, [key: string]: any}>} */
-			const codeDataMap = new Map();
+			/** @type {Map<string, {year: number, month: number | null, excel_file_id: string, org_code: string, excel_file_data: Record<string, any>}>} */
+			const orgCodeDataMap = new Map();
 
-			// 각 행을 순회하면서 데이터 수집
-			for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-				const row = rows[rowIndex];
-				if (!row || row.length === 0) continue;
+			// col 2~N (조직코드 컬럼)을 순회
+			for (let colIndex = 1; colIndex < headers.length; colIndex++) {
+				const orgHeader = headers[colIndex];
+				if (!orgHeader || orgHeader.trim() === '') continue;
 
-				// 첫 번째 컬럼에서 코드 찾기
-				const firstCellValue = row[0] ?? '';
-				const matchingCode = findMatchingCodeForFirstColumn(firstCellValue);
-
-				if (!matchingCode || matchingCode === 'excluded') {
-					continue; // 매칭되지 않거나 제외된 경우 건너뛰기
+				// 헤더에서 조직코드 찾기 (organization 카테고리)
+				const orgMatchingCode = findMatchingCode(orgHeader);
+				if (!orgMatchingCode || orgMatchingCode === 'excluded') {
+					console.warn(`[handleSaveColumnData] 조직코드 매칭 실패: ${orgHeader}`);
+					continue;
 				}
 
-				const code = matchingCode.code || matchingCode.value;
-				if (!code) continue;
+				const orgCode = orgMatchingCode.code || orgMatchingCode.value;
+				if (!orgCode) continue;
 
-				// 이미 존재하는 코드 데이터인지 확인
-				if (!codeDataMap.has(code)) {
-					codeDataMap.set(code, {
+				// 해당 조직코드의 데이터 객체 초기화
+				if (!orgCodeDataMap.has(orgCode)) {
+					orgCodeDataMap.set(orgCode, {
 						year: fileYear,
 						month: fileMonth || null,
 						excel_file_id: excelFileId,
-						[codeField]: code,
+						org_code: orgCode,
 						excel_file_data: {}
 					});
 				}
 
-				const codeData = codeDataMap.get(code);
-				if (!codeData) continue;
+				const orgData = orgCodeDataMap.get(orgCode);
+				if (!orgData) continue;
 
-				// 모든 컬럼 데이터를 excel_file_data에 저장
-				for (let colIndex = 0; colIndex < headers.length; colIndex++) {
-					const header = headers[colIndex];
+				// Row 2~N을 순회하면서 해당 조직코드 컬럼의 데이터 수집
+				for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+					const row = rows[rowIndex];
+					if (!row || row.length === 0) continue;
+
+					// 첫 번째 컬럼(col 1)에서 매출/비용 과목 코드 찾기
+					const firstCellValue = row[0] ?? '';
+					const subjectMatchingCode = findMatchingCodeForFirstColumn(firstCellValue);
+
+					if (!subjectMatchingCode || subjectMatchingCode === 'excluded') {
+						continue; // 매칭되지 않거나 제외된 경우 건너뛰기
+					}
+
+					const subjectCode = subjectMatchingCode.code || subjectMatchingCode.value;
+					if (!subjectCode) continue;
+
+					// 해당 조직코드 컬럼의 셀 값 가져오기
 					const cellValue = row[colIndex];
 
-					if (header && header.trim() !== '') {
-						// 숫자인 경우 콤마 제거 후 저장
-						let value = cellValue;
+					// 숫자인 경우 콤마 제거 후 저장
+					let value = cellValue;
+					if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
 						if (typeof cellValue === 'string' && cellValue.includes(',')) {
 							const numValue = parseFloat(cellValue.replace(/,/g, ''));
 							if (!isNaN(numValue) && isFinite(numValue)) {
 								value = numValue;
 							}
 						}
-						codeData.excel_file_data[header] = value;
 					}
+
+					// excel_file_data에 {과목코드: 값} 형태로 저장
+					orgData.excel_file_data[subjectCode] = value;
 				}
 			}
 
-			const insertData = Array.from(codeDataMap.values());
+			const insertData = Array.from(orgCodeDataMap.values());
 
 			if (insertData.length === 0) {
-				toast.error('저장할 데이터가 없습니다. 코드가 매칭되지 않았습니다.');
+				toast.error('저장할 데이터가 없습니다. 조직코드가 매칭되지 않았습니다.');
 				isSavingData = false;
 				return;
 			}
@@ -725,7 +744,7 @@
 			const { error: insertError } = await supabase
 				.from(tableName)
 				.upsert(insertData, { 
-					onConflict: `year,month,excel_file_id,${codeField}` 
+					onConflict: 'year,month,excel_file_id,org_code' 
 				});
 
 			if (insertError) {
@@ -734,7 +753,7 @@
 			}
 
 			console.log('[handleSaveColumnData] 저장 완료');
-			toast.success(`${insertData.length}개의 데이터가 성공적으로 저장되었습니다.`);
+			toast.success(`${insertData.length}개의 조직코드 데이터가 성공적으로 저장되었습니다.`);
 		} catch (err) {
 			console.error('[handleSaveColumnData] 데이터 저장 실패:', err);
 			const errorMessage = err.message || '데이터 저장에 실패했습니다.';
