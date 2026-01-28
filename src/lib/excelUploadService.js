@@ -5,9 +5,11 @@ import { supabase } from './supabaseClient';
  * 엑셀 파일을 Supabase Storage에 업로드
  * @param {File} file - 업로드할 엑셀 파일
  * @param {string} excelType - 엑셀 타입 ('sales' 또는 'cost')
+ * @param {number} [year] - 연도 (선택사항)
+ * @param {number} [month] - 월 (1-12, 선택사항)
  * @returns {Promise<{data: {fileId: string, fileName: string} | null, error: Error | null}>}
  */
-export async function uploadExcelFile(file, excelType) {
+export async function uploadExcelFile(file, excelType, year = null, month = null) {
 	try {
 		if (!file) {
 			return { data: null, error: new Error('파일이 선택되지 않았습니다.') };
@@ -101,18 +103,29 @@ export async function uploadExcelFile(file, excelType) {
 		const storedFileName = actualPath.split('/').pop();
 		const fileExtension = '.' + originalFileName.split('.').pop();
 		
+		// 업데이트할 데이터 객체 생성
+		const updateData = {
+			storage_path: fullStoragePath,
+			stored_file_name: storedFileName,
+			original_file_name: originalFileName,
+			excel_type: excelType,
+			file_size: file.size,
+			file_extension: fileExtension,
+			file_path: filePath + '/',
+			uploaded_by: user?.id || null
+		};
+
+		// year와 month가 제공된 경우에만 추가
+		if (year !== null && year !== undefined) {
+			updateData.year = year;
+		}
+		if (month !== null && month !== undefined && month >= 1 && month <= 12) {
+			updateData.month = month;
+		}
+
 		const { error: metadataError } = await supabase
 			.from('ev_excel_file')
-			.upsert({
-				storage_path: fullStoragePath,
-				stored_file_name: storedFileName,
-				original_file_name: originalFileName,
-				excel_type: excelType,
-				file_size: file.size,
-				file_extension: fileExtension,
-				file_path: filePath + '/',
-				uploaded_by: user?.id || null
-			}, {
+			.upsert(updateData, {
 				onConflict: 'storage_path'
 			});
 		
@@ -122,7 +135,9 @@ export async function uploadExcelFile(file, excelType) {
 		} else {
 			console.log('[uploadExcelFile] ev_excel_file 저장 성공:', {
 				storage_path: fullStoragePath,
-				original_file_name: originalFileName
+				original_file_name: originalFileName,
+				year: year,
+				month: month
 			});
 		}
 
@@ -264,6 +279,8 @@ export async function listExcelFiles(excelType, searchQuery = '') {
 				originalFileName: item.original_file_name,
 				created_at: item.created_at,
 				updated_at: item.updated_at,
+				year: item.year || null,
+				month: item.month || null,
 				// Storage API와 호환성을 위한 필드
 				metadata: {
 					originalFileName: item.original_file_name,

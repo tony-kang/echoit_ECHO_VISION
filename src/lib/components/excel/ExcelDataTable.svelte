@@ -1,7 +1,8 @@
 <script>
 	import * as XLSX from 'xlsx';
 	import { getExcelFileUrl } from '$lib/excelUploadService';
-	import { getSettings } from '$lib/settingsService';
+	import { getSettings, createSetting, getRootSettings } from '$lib/settingsService';
+	import { toast } from 'svelte-sonner';
 
 	/**
 	 * 컴포넌트 Props
@@ -31,6 +32,26 @@
 	let isLoadingEnvCodes = $state(false);
 	/** @type {Promise<any> | null} 로딩 중인 Promise (중복 로드 방지) */
 	let loadingPromise = $state(null);
+	/** @type {boolean} 코드 등록 팝업 표시 여부 */
+	let showCodeRegisterPopup = $state(false);
+	/** @type {string | null} 등록할 컬럼명 또는 셀 값 */
+	let registerTargetValue = $state(null);
+	/** @type {string} 등록할 코드 */
+	let registerCode = $state('');
+	/** @type {string} 등록할 제목 */
+	let registerTitle = $state('');
+	/** @type {string} 등록할 설명 */
+	let registerComment = $state('');
+	/** @type {boolean} 코드 등록 중 여부 */
+	let isRegisteringCode = $state(false);
+	/** @type {string | null} 등록할 카테고리 (null이면 excelType에 따라 결정) */
+	let registerCategory = $state(null);
+	/** @type {string} 등록할 상위코드 */
+	let registerParentCode = $state('');
+	/** @type {Array<any>} 상위코드 옵션 목록 */
+	let parentCodeOptions = $state([]);
+	/** @type {boolean} 상위코드 옵션 로딩 중 여부 */
+	let isLoadingParentOptions = $state(false);
 
 	/** @type {string[]} 매칭 검사에서 제외할 텍스트 목록 */
 	const EXCLUDED_MATCHING_TEXTS = ['과목'];
@@ -235,6 +256,52 @@
 	});
 
 	/**
+	 * 셀 값을 천단위 콤마로 포맷팅
+	 * @param {any} value - 포맷팅할 값
+	 * @returns {string} 포맷팅된 문자열
+	 */
+	function formatCellValue(value) {
+		if (value === null || value === undefined || value === '') {
+			return '';
+		}
+
+		// 문자열인 경우 앞뒤 공백 제거
+		const trimmedValue = typeof value === 'string' ? value.trim() : value;
+		if (trimmedValue === '') {
+			return '';
+		}
+
+		// 숫자인지 확인 (문자열 숫자 포함)
+		// 숫자 타입이거나 숫자로 변환 가능한 문자열인지 확인
+		let numValue;
+		if (typeof trimmedValue === 'number') {
+			numValue = trimmedValue;
+		} else {
+			// 문자열에서 숫자 부분만 추출 (콤마 제거 후 파싱)
+			const cleanedValue = String(trimmedValue).replace(/,/g, '');
+			numValue = parseFloat(cleanedValue);
+		}
+		
+		// 숫자이고 유한한 값인 경우 포맷팅
+		if (!isNaN(numValue) && isFinite(numValue)) {
+			// 원본 값이 정수인지 확인 (소수점이 없는 경우)
+			const isInteger = Number.isInteger(numValue);
+			if (isInteger) {
+				return numValue.toLocaleString('ko-KR');
+			} else {
+				// 소수점이 있는 경우
+				return numValue.toLocaleString('ko-KR', { 
+					minimumFractionDigits: 0,
+					maximumFractionDigits: 10
+				});
+			}
+		}
+
+		// 숫자가 아니면 원본 반환
+		return String(trimmedValue);
+	}
+
+	/**
 	 * 매칭되지 않은 컬럼명 목록 (제외된 컬럼은 제외)
 	 */
 	const unmatchedColumnNames = $derived.by(() => {
@@ -370,6 +437,157 @@
 		await loadSheet(sheetName);
 	}
 
+	/**
+	 * 상위코드 옵션 로드
+	 * @param {string} category - 카테고리
+	 * @returns {Promise<void>}
+	 */
+	async function loadParentCodeOptions(category) {
+		if (!category) {
+			parentCodeOptions = [];
+			return;
+		}
+
+		isLoadingParentOptions = true;
+		try {
+			const { data, error } = await getRootSettings({ 
+				category: category === 'all' ? '' : category 
+			});
+			if (error) {
+				console.error('상위 코드 옵션 로드 실패:', error);
+				parentCodeOptions = [];
+			} else {
+				parentCodeOptions = data || [];
+			}
+		} catch (err) {
+			console.error('상위 코드 옵션 로드 중 예외 발생:', err);
+			parentCodeOptions = [];
+		} finally {
+			isLoadingParentOptions = false;
+		}
+	}
+
+	/**
+	 * 코드 등록 팝업 열기
+	 * @param {string} targetValue - 등록할 컬럼명 또는 셀 값
+	 * @param {string} [category] - 등록할 카테고리 (없으면 excelType에 따라 결정)
+	 * @returns {Promise<void>}
+	 */
+	async function openCodeRegisterPopup(targetValue, category = null) {
+		if (!targetValue || targetValue.trim() === '') {
+			toast.error('등록할 값이 없습니다.');
+			return;
+		}
+
+		console.log('[openCodeRegisterPopup] 팝업 열기:', targetValue, 'category:', category);
+		registerTargetValue = targetValue.trim();
+		registerTitle = registerTargetValue;
+		registerCode = '';
+		registerComment = '';
+		registerParentCode = '';
+		registerCategory = category;
+		
+		// 카테고리 결정
+		const finalCategory = category || (excelType === 'sales' ? 'sales' : excelType === 'cost' ? 'cost' : 'organization');
+		
+		// 상위코드 옵션 로드
+		await loadParentCodeOptions(finalCategory);
+		
+		showCodeRegisterPopup = true;
+		console.log('[openCodeRegisterPopup] showCodeRegisterPopup:', showCodeRegisterPopup);
+	}
+
+	/**
+	 * 코드 등록 팝업 닫기
+	 * @returns {void}
+	 */
+	function closeCodeRegisterPopup() {
+		showCodeRegisterPopup = false;
+		registerTargetValue = null;
+		registerCode = '';
+		registerTitle = '';
+		registerComment = '';
+		registerCategory = null;
+		registerParentCode = '';
+		parentCodeOptions = [];
+	}
+
+	/**
+	 * 코드 등록 핸들러
+	 * @returns {Promise<void>}
+	 */
+	async function handleRegisterCode() {
+		if (!registerTargetValue || !registerTitle.trim()) {
+			toast.error('제목은 필수입니다.');
+			return;
+		}
+
+		if (!registerCode.trim()) {
+			toast.error('코드는 필수입니다.');
+			return;
+		}
+
+		if (registerCode.length > 16) {
+			toast.error('코드는 최대 16자리까지 가능합니다.');
+			return;
+		}
+
+		if (!registerParentCode.trim()) {
+			toast.error('상위코드는 필수입니다.');
+			return;
+		}
+
+		isRegisteringCode = true;
+		error = '';
+
+		try {
+			// 카테고리 결정 (registerCategory가 있으면 사용, 없으면 excelType에 따라)
+			const category = registerCategory || (excelType === 'sales' ? 'sales' : excelType === 'cost' ? 'cost' : 'organization');
+
+			// 다음 value 값 계산 (같은 카테고리의 최대 value + 1)
+			const categoryCodes = envCodes.filter(code => code.category === category);
+			const maxValue = categoryCodes.length > 0 
+				? Math.max(...categoryCodes.map(code => code.value || 0))
+				: 0;
+			const nextValue = maxValue + 1;
+
+			// param 배열 생성 (제목과 원본 값을 포함)
+			const paramArray = [registerTitle];
+			if (registerTargetValue !== registerTitle) {
+				paramArray.push(registerTargetValue);
+			}
+
+			const { data, error: createError } = await createSetting({
+				code: registerCode.trim(),
+				title: registerTitle.trim(),
+				comment: registerComment.trim() || null,
+				category: category,
+				parent_code: registerParentCode.trim() || null,
+				value: nextValue,
+				order: 0,
+				param: paramArray
+			});
+
+			if (createError) {
+				throw createError;
+			}
+
+			toast.success('코드가 성공적으로 등록되었습니다.');
+			
+			// envCodes 다시 로드하여 매칭 상태 업데이트
+			await loadEnvCodes();
+			
+			closeCodeRegisterPopup();
+		} catch (err) {
+			console.error('코드 등록 실패:', err);
+			const errorMessage = err.message || '코드 등록에 실패했습니다.';
+			error = errorMessage;
+			toast.error(errorMessage);
+		} finally {
+			isRegisteringCode = false;
+		}
+	}
+
 	// 컴포넌트 마운트 시 파일 로드 또는 제공된 workbook 사용
 	$effect(() => {
 		if (providedWorkbook) {
@@ -457,6 +675,8 @@
 								</select>
 							</div>
 						{/if}
+
+						<!-- 데이터 입력 -->
 					</div>
 				</div>
 
@@ -479,7 +699,19 @@
 															{#if matchingCode}
 																<span class="code-match">({matchingCode.code})</span>
 															{:else}
-																<span class="code-unmatched">(없음)</span>
+																<span 
+																	class="code-unmatched clickable" 
+																	role="button"
+																	tabindex="0"
+																	onclick={() => openCodeRegisterPopup(header, 'organization')}
+																	onkeydown={(e) => {
+																		if (e.key === 'Enter' || e.key === ' ') {
+																			e.preventDefault();
+																			openCodeRegisterPopup(header, 'organization');
+																		}
+																	}}
+																	title="클릭하여 코드 등록 (organization)"
+																>(등록)</span>
 															{/if}
 														{/if}
 													</div>
@@ -490,7 +722,19 @@
 															{#if matchingCode}
 																<span class="code-match">({matchingCode.code})</span>
 															{:else}
-																<span class="code-unmatched">(없음)</span>
+																<span 
+																	class="code-unmatched clickable" 
+																	role="button"
+																	tabindex="0"
+																	onclick={() => openCodeRegisterPopup(header, 'organization')}
+																	onkeydown={(e) => {
+																		if (e.key === 'Enter' || e.key === ' ') {
+																			e.preventDefault();
+																			openCodeRegisterPopup(header, 'organization');
+																		}
+																	}}
+																	title="클릭하여 코드 등록 (organization)"
+																>(등록)</span>
 															{/if}
 														{/if}
 													</div>
@@ -510,13 +754,25 @@
 													class:frozen={colIndex < frozenColumns}
 													style={colIndex < frozenColumns ? `left: ${colIndex * 150}px;` : ''}
 												>
-													<div class="frozen-td-cell-content">
-														{cellValue}
+													<div class="frozen-td-cell-content text-right">
+														{formatCellValue(cellValue)}
 														{#if isFirstColumn && cellValue && cellValue.trim() !== '' && matchingCode !== 'excluded'}
 															{#if matchingCode}
 																<span class="code-match">({matchingCode.code})</span>
 															{:else}
-																<span class="code-unmatched">(없음)</span>
+																<span 
+																	class="code-unmatched clickable" 
+																	role="button"
+																	tabindex="0"
+																	onclick={() => openCodeRegisterPopup(cellValue, excelType === 'sales' ? 'sales' : excelType === 'cost' ? 'cost' : null)}
+																	onkeydown={(e) => {
+																		if (e.key === 'Enter' || e.key === ' ') {
+																			e.preventDefault();
+																			openCodeRegisterPopup(cellValue, excelType === 'sales' ? 'sales' : excelType === 'cost' ? 'cost' : null);
+																		}
+																	}}
+																	title="클릭하여 코드 등록"
+																>(등록)</span>
 															{/if}
 														{/if}
 													</div>
@@ -536,6 +792,128 @@
 			</div>
 		{/if}
 	</div>
+
+	<!-- 코드 등록 레이어 팝업 -->
+	{#if showCodeRegisterPopup}
+		<div 
+			class="popup-overlay" 
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="popup-title"
+			tabindex="-1"
+			onclick={closeCodeRegisterPopup}
+			onkeydown={(e) => {
+				if (e.key === 'Escape') {
+					closeCodeRegisterPopup();
+				}
+			}}
+		>
+			<div 
+				class="popup-content" 
+				role="presentation"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}
+			>
+				<div class="popup-header">
+					<h3 id="popup-title">코드 등록</h3>
+					<button class="popup-close" onclick={closeCodeRegisterPopup} aria-label="닫기">×</button>
+				</div>
+				<div class="popup-body">
+					<div class="form-group">
+						<label for="register-target">등록할 값:</label>
+						<input 
+							id="register-target"
+							type="text" 
+							value={registerTargetValue || ''} 
+							readonly 
+							disabled
+							class="form-input"
+						/>
+					</div>
+					<div class="form-group">
+						<label for="register-parent-code">상위코드 <span class="required">*</span>:</label>
+						{#if isLoadingParentOptions}
+							<div class="form-info">로딩 중...</div>
+						{:else if parentCodeOptions.length === 0}
+							<div class="form-error">상위코드가 없습니다. 먼저 상위코드를 등록해주세요.</div>
+						{:else}
+							<select 
+								id="register-parent-code"
+								bind:value={registerParentCode}
+								class="form-select"
+								required
+							>
+								<option value="">선택하세요</option>
+								{#each parentCodeOptions as option}
+									<option value={option.code}>{option.code} - {option.title}</option>
+								{/each}
+							</select>
+						{/if}
+					</div>
+					<div class="form-group">
+						<label for="register-code">코드 <span class="required">*</span>:</label>
+						<input 
+							id="register-code"
+							type="text" 
+							bind:value={registerCode}
+							placeholder="예: SALES_0100"
+							maxlength="16"
+							class="form-input"
+						/>
+						<small class="form-hint">최대 16자리</small>
+					</div>
+					<div class="form-group">
+						<label for="register-title">제목 <span class="required">*</span>:</label>
+						<input 
+							id="register-title"
+							type="text" 
+							bind:value={registerTitle}
+							placeholder="코드 제목"
+							class="form-input"
+						/>
+					</div>
+					<div class="form-group">
+						<label for="register-comment">설명:</label>
+						<textarea 
+							id="register-comment"
+							bind:value={registerComment}
+							placeholder="코드에 대한 설명 (선택사항)"
+							class="form-textarea"
+							rows="3"
+						></textarea>
+					</div>
+					<div class="form-group">
+						<label for="register-category">카테고리:</label>
+						<div id="register-category" class="form-info">
+							{registerCategory === 'organization' ? '조직 (organization)' : 
+							 registerCategory === 'sales' ? '매출 (sales)' : 
+							 registerCategory === 'cost' ? '비용 (cost)' :
+							 (excelType === 'sales' ? '매출 (sales)' : excelType === 'cost' ? '비용 (cost)' : '조직 (organization)')}
+						</div>
+					</div>
+					{#if error}
+						<div class="form-error">{error}</div>
+					{/if}
+				</div>
+				<div class="popup-footer">
+					<button 
+						class="btn-secondary" 
+						onclick={closeCodeRegisterPopup}
+						disabled={isRegisteringCode}
+					>
+						취소
+					</button>
+					<button 
+						class="btn-primary" 
+						onclick={handleRegisterCode}
+						disabled={isRegisteringCode || !registerCode.trim() || !registerTitle.trim() || !registerParentCode.trim()}
+					>
+						{isRegisteringCode ? '등록 중...' : '등록'}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -774,6 +1152,20 @@
 		margin-left: 0.5rem;
 	}
 
+	.code-unmatched.clickable {
+		cursor: pointer;
+		text-decoration: underline;
+		color: #ef4444;
+		transition: all 0.2s;
+	}
+
+	.code-unmatched.clickable:hover {
+		color: #dc2626;
+		background-color: #fef2f2;
+		padding: 2px 4px;
+		border-radius: 4px;
+	}
+
 	.table-section {
 		width: 100%;
 		flex: 1;
@@ -913,6 +1305,218 @@
 		text-align: center;
 		padding: 3rem;
 		color: #6b7280;
+	}
+
+	/* 레이어 팝업 스타일 */
+	.popup-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 10000;
+		backdrop-filter: blur(2px);
+	}
+
+	.popup-content {
+		background: white;
+		border-radius: 0.75rem;
+		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+		width: 90%;
+		max-width: 500px;
+		max-height: 90vh;
+		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+		position: relative;
+		z-index: 10001;
+	}
+
+	.popup-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1.5rem;
+		border-bottom: 1px solid #e5e7eb;
+	}
+
+	.popup-header h3 {
+		margin: 0;
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #111827;
+	}
+
+	.popup-close {
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		cursor: pointer;
+		color: #6b7280;
+		padding: 0;
+		width: 2rem;
+		height: 2rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.25rem;
+		transition: all 0.2s;
+	}
+
+	.popup-close:hover {
+		background-color: #f3f4f6;
+		color: #111827;
+	}
+
+	.popup-body {
+		padding: 1.5rem;
+		flex: 1;
+		overflow-y: auto;
+	}
+
+	.popup-footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.75rem;
+		padding: 1.5rem;
+		border-top: 1px solid #e5e7eb;
+	}
+
+	.form-group {
+		margin-bottom: 1.25rem;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 500;
+		color: #374151;
+		font-size: 0.875rem;
+	}
+
+	.form-group .required {
+		color: #ef4444;
+	}
+
+	.form-input,
+	.form-textarea {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #d1d5db;
+		border-radius: 0.5rem;
+		font-size: 0.875rem;
+		color: #111827;
+		box-sizing: border-box;
+		font-family: inherit;
+	}
+
+	.form-select {
+		width: 100%;
+		padding: 0.75rem;
+		border: 1px solid #d1d5db;
+		border-radius: 0.5rem;
+		font-size: 0.875rem;
+		color: #111827;
+		box-sizing: border-box;
+		font-family: inherit;
+		background-color: white;
+		cursor: pointer;
+	}
+
+	.form-select:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+	}
+
+	.form-input:focus,
+	.form-textarea:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+	}
+
+	.form-input:disabled {
+		background-color: #f3f4f6;
+		color: #6b7280;
+		cursor: not-allowed;
+	}
+
+	.form-textarea {
+		resize: vertical;
+		min-height: 80px;
+		font-family: inherit;
+	}
+
+	.form-hint {
+		display: block;
+		margin-top: 0.25rem;
+		font-size: 0.75rem;
+		color: #6b7280;
+	}
+
+	.form-info {
+		padding: 0.75rem;
+		background-color: #f3f4f6;
+		border-radius: 0.5rem;
+		color: #374151;
+		font-size: 0.875rem;
+	}
+
+	.form-error {
+		padding: 0.75rem;
+		background-color: #fef2f2;
+		border: 1px solid #fecaca;
+		border-radius: 0.5rem;
+		color: #dc2626;
+		font-size: 0.875rem;
+		margin-top: 1rem;
+	}
+
+	.btn-primary {
+		background-color: #10b981;
+		color: white;
+		padding: 0.75rem 1.5rem;
+		border: none;
+		border-radius: 0.5rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s;
+		font-size: 0.875rem;
+	}
+
+	.btn-primary:hover:not(:disabled) {
+		background-color: #059669;
+	}
+
+	.btn-primary:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.btn-secondary {
+		background-color: #f3f4f6;
+		color: #374151;
+		padding: 0.75rem 1.5rem;
+		border: 1px solid #d1d5db;
+		border-radius: 0.5rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s;
+		font-size: 0.875rem;
+	}
+
+	.btn-secondary:hover:not(:disabled) {
+		background-color: #e5e7eb;
+	}
+
+	.btn-secondary:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 </style>

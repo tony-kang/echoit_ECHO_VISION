@@ -514,7 +514,11 @@
 		isUploading = true;
 		error = '';
 
-		const { data, error: uploadError } = await uploadExcelFile(selectedFile, excelType);
+		// 파일명에서 year와 month 추출
+		const year = extractYear(fileName);
+		const month = extractMonth(fileName);
+
+		const { data, error: uploadError } = await uploadExcelFile(selectedFile, excelType, year, month);
 
 		if (uploadError) {
 			error = uploadError.message || '파일 업로드에 실패했습니다.';

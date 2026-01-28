@@ -387,6 +387,8 @@
 							<DataTable
 								headers={[
 									{ label: '파일명', align: 'left' },
+									{ label: '년도', align: 'center' },
+									{ label: '월', align: 'center' },
 									{ label: '업로드 일시', align: 'center' },
 									{ label: '작업', align: 'center' }
 								]}
@@ -396,6 +398,8 @@
 								{#each filteredFiles as file}
 									<tr class="hover:bg-gray-50">
 										<td class="font-medium">{getOriginalFileName(file)}</td>
+										<td class="text-center text-sm text-gray-600">{file.year || '-'}</td>
+										<td class="text-center text-sm text-gray-600">{file.month || '-'}</td>
 										<td class="text-center text-sm text-gray-600">{formatDate(file.created_at)}</td>
 										<td class="flex justify-center gap-2">
 											<button
