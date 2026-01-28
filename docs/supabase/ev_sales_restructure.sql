@@ -3,21 +3,21 @@
 -- ============================================================================
 -- 목적: 엑셀 파일마다 컬럼이 다르므로 고정 컬럼 구조를 JSONB로 변경
 -- 변경 사항:
---   - 고정 컬럼만 유지: id, year, month, notes, created_at, updated_at, excel_file_id, sales_code
+--   - 고정 컬럼만 유지: id, year, month, notes, created_at, updated_at, excel_file_id, org_code
 --   - 나머지 모든 컬럼 삭제
---   - excel_file_data JSONB 추가 (sales_code별 엑셀 데이터 저장)
+--   - excel_file_data JSONB 추가 (org_code별 엑셀 데이터 저장)
 -- ============================================================================
 
 -- 기존 테이블 백업 (선택사항)
 -- CREATE TABLE public.ev_sales_backup AS SELECT * FROM public.ev_sales;
 
 -- 기존 제약조건 및 인덱스 삭제
-ALTER TABLE IF EXISTS public.ev_sales DROP CONSTRAINT IF EXISTS fk_ev_sales_code CASCADE;
+ALTER TABLE IF EXISTS public.ev_sales DROP CONSTRAINT IF EXISTS fk_ev_org_code CASCADE;
 ALTER TABLE IF EXISTS public.ev_sales DROP CONSTRAINT IF EXISTS unique_year_month_code CASCADE;
-DROP INDEX IF EXISTS idx_ev_sales_code;
+DROP INDEX IF EXISTS idx_ev_org_code;
 DROP INDEX IF EXISTS idx_ev_sales_year;
 DROP INDEX IF EXISTS idx_ev_sales_year_month;
-DROP INDEX IF EXISTS idx_ev_sales_code_year_month;
+DROP INDEX IF EXISTS idx_ev_org_code_year_month;
 
 -- 기존 트리거 삭제
 DROP TRIGGER IF EXISTS trigger_update_ev_sales_updated_at ON public.ev_sales;
@@ -55,16 +55,16 @@ CREATE TABLE public.ev_sales (
     
     -- 매출 코드 (env_code 참조)
     -- 매출 데이터가 속한 환경설정 코드
-    sales_code VARCHAR(16) NOT NULL,
+    org_code VARCHAR(16) NOT NULL,
     
     -- 엑셀 파일 데이터 (JSONB)
-    -- sales_code에 매칭된 엑셀의 모든 컬럼 데이터를 JSON 형태로 저장
+    -- org_code에 매칭된 엑셀의 모든 컬럼 데이터를 JSON 형태로 저장
     -- 예: {"컬럼명1": "값1", "컬럼명2": "값2", ...}
     excel_file_data JSONB DEFAULT '{}'::jsonb,
     
     -- 환경설정 코드 외래키 제약조건
-    CONSTRAINT fk_ev_sales_sales_code 
-        FOREIGN KEY (sales_code) 
+    CONSTRAINT fk_ev_sales_org_code 
+        FOREIGN KEY (org_code) 
         REFERENCES public.env_code(code) 
         ON DELETE RESTRICT 
         ON UPDATE CASCADE
@@ -73,15 +73,15 @@ CREATE TABLE public.ev_sales (
 -- 연도, 월, 엑셀 파일 ID, 매출 코드의 고유성 제약
 -- (동일 연도/월/엑셀파일/코드에 중복 데이터 방지)
 ALTER TABLE public.ev_sales 
-    ADD CONSTRAINT unique_year_month_excel_file_sales_code 
-    UNIQUE (year, month, excel_file_id, sales_code);
+    ADD CONSTRAINT unique_year_month_excel_file_org_code 
+    UNIQUE (year, month, excel_file_id, org_code);
 
 -- 인덱스 생성
-CREATE INDEX IF NOT EXISTS idx_ev_sales_sales_code ON public.ev_sales(sales_code);
+CREATE INDEX IF NOT EXISTS idx_ev_sales_org_code ON public.ev_sales(org_code);
 CREATE INDEX IF NOT EXISTS idx_ev_sales_year ON public.ev_sales(year);
 CREATE INDEX IF NOT EXISTS idx_ev_sales_year_month ON public.ev_sales(year, month);
 CREATE INDEX IF NOT EXISTS idx_ev_sales_excel_file_id ON public.ev_sales(excel_file_id);
-CREATE INDEX IF NOT EXISTS idx_ev_sales_sales_code_year_month ON public.ev_sales(sales_code, year, month);
+CREATE INDEX IF NOT EXISTS idx_ev_sales_org_code_year_month ON public.ev_sales(org_code, year, month);
 CREATE INDEX IF NOT EXISTS idx_ev_sales_excel_file_data ON public.ev_sales USING GIN (excel_file_data);
 
 -- RLS (Row Level Security) 활성화
@@ -138,5 +138,5 @@ COMMENT ON COLUMN public.ev_sales.notes IS '메모/비고';
 COMMENT ON COLUMN public.ev_sales.created_at IS '생성일시';
 COMMENT ON COLUMN public.ev_sales.updated_at IS '수정일시';
 COMMENT ON COLUMN public.ev_sales.excel_file_id IS '엑셀 파일 ID (ev_excel_file 참조)';
-COMMENT ON COLUMN public.ev_sales.sales_code IS '매출 코드 (env_code.code 참조)';
-COMMENT ON COLUMN public.ev_sales.excel_file_data IS '엑셀 파일 데이터 (JSONB) - sales_code에 매칭된 모든 컬럼 데이터';
+COMMENT ON COLUMN public.ev_sales.org_code IS '매출 코드 (env_code.code 참조)';
+COMMENT ON COLUMN public.ev_sales.excel_file_data IS '엑셀 파일 데이터 (JSONB) - org_code에 매칭된 모든 컬럼 데이터';

@@ -96,7 +96,7 @@ CREATE TABLE public.ev_cost (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- 환경설정 코드 외래키 제약조건
-    CONSTRAINT fk_ev_cost_code 
+    CONSTRAINT fk_ev_org_code 
         FOREIGN KEY (code) 
         REFERENCES public.env_code(code) 
         ON DELETE RESTRICT 
@@ -130,12 +130,12 @@ END $$;
 
 -- 인덱스 생성
 -- 코드 조회 성능 향상
-CREATE INDEX IF NOT EXISTS idx_ev_cost_code ON public.ev_cost(code);
+CREATE INDEX IF NOT EXISTS idx_ev_org_code ON public.ev_cost(code);
 -- 연도/월 조회 성능 향상
 CREATE INDEX IF NOT EXISTS idx_ev_cost_year ON public.ev_cost(year);
 CREATE INDEX IF NOT EXISTS idx_ev_cost_year_month ON public.ev_cost(year, month);
 -- 코드별 연도/월 조회 성능 향상
-CREATE INDEX IF NOT EXISTS idx_ev_cost_code_year_month ON public.ev_cost(code, year, month);
+CREATE INDEX IF NOT EXISTS idx_ev_org_code_year_month ON public.ev_cost(code, year, month);
 
 -- RLS (Row Level Security) 활성화
 ALTER TABLE public.ev_cost ENABLE ROW LEVEL SECURITY;

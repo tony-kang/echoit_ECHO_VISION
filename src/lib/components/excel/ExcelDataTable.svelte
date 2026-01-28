@@ -3,6 +3,7 @@
 	import { getExcelFileUrl } from '$lib/excelUploadService';
 	import { getSettings, createSetting, getRootSettings } from '$lib/settingsService';
 	import { toast } from 'svelte-sonner';
+	import { supabase } from '$lib/supabaseClient';
 
 	/**
 	 * 컴포넌트 Props
@@ -52,6 +53,8 @@
 	let parentCodeOptions = $state([]);
 	/** @type {boolean} 상위코드 옵션 로딩 중 여부 */
 	let isLoadingParentOptions = $state(false);
+	/** @type {boolean} 데이터 저장 중 여부 */
+	let isSavingData = $state(false);
 
 	/** @type {string[]} 매칭 검사에서 제외할 텍스트 목록 */
 	const EXCLUDED_MATCHING_TEXTS = ['과목'];
@@ -254,6 +257,32 @@
 			return matchResult === null;
 		}).length;
 	});
+
+	/**
+	 * 파일명에서 연도 추출
+	 * @param {string} fileName - 파일명
+	 * @returns {number | null} 연도
+	 */
+	function extractYear(fileName) {
+		if (!fileName) return null;
+		const yearMatch = fileName.match(/(\d{4})/);
+		return yearMatch ? parseInt(yearMatch[1], 10) : null;
+	}
+
+	/**
+	 * 파일명에서 월 추출
+	 * @param {string} fileName - 파일명
+	 * @returns {number | null} 월 (1-12)
+	 */
+	function extractMonth(fileName) {
+		if (!fileName) return null;
+		const monthMatch = fileName.match(/(\d{1,2})월|(\d{1,2})월/);
+		if (monthMatch) {
+			const month = parseInt(monthMatch[1] || monthMatch[2], 10);
+			return month >= 1 && month <= 12 ? month : null;
+		}
+		return null;
+	}
 
 	/**
 	 * 셀 값을 천단위 콤마로 포맷팅
@@ -588,6 +617,134 @@
 		}
 	}
 
+	/**
+	 * 가로 칼럼 데이터를 ev_sales/ev_cost 테이블에 저장
+	 * @returns {Promise<void>}
+	 */
+	async function handleSaveColumnData() {
+		if (!file || !excelType || headers.length === 0 || rows.length === 0) {
+			toast.error('저장할 데이터가 없습니다.');
+			return;
+		}
+
+		isSavingData = true;
+		error = '';
+
+		try {
+			// 파일에서 year, month 추출
+			const fileYear = file.year || extractYear(fileName);
+			const fileMonth = file.month || extractMonth(fileName);
+
+			if (!fileYear) {
+				throw new Error('연도를 확인할 수 없습니다. 파일명에 연도가 포함되어 있는지 확인해주세요.');
+			}
+
+			// ev_excel_file에서 excel_file_id 조회
+			const filePath = file.fullPath || (excelType ? `${excelType}/${file.name}` : file.name);
+			const { data: excelFileData, error: excelFileError } = await supabase
+				.from('ev_excel_file')
+				.select('id')
+				.eq('storage_path', `excel-files/${filePath}`)
+				.single();
+
+			if (excelFileError || !excelFileData) {
+				throw new Error('엑셀 파일 정보를 찾을 수 없습니다.');
+			}
+
+			const excelFileId = excelFileData.id;
+			const tableName = excelType === 'sales' ? 'ev_sales' : 'ev_cost';
+			const codeField = excelType === 'sales' ? 'org_code' : 'org_code';
+
+			/** @type {Map<string, {year: number, month: number | null, excel_file_id: string, [key: string]: any}>} */
+			const codeDataMap = new Map();
+
+			// 각 행을 순회하면서 데이터 수집
+			for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+				const row = rows[rowIndex];
+				if (!row || row.length === 0) continue;
+
+				// 첫 번째 컬럼에서 코드 찾기
+				const firstCellValue = row[0] ?? '';
+				const matchingCode = findMatchingCodeForFirstColumn(firstCellValue);
+
+				if (!matchingCode || matchingCode === 'excluded') {
+					continue; // 매칭되지 않거나 제외된 경우 건너뛰기
+				}
+
+				const code = matchingCode.code || matchingCode.value;
+				if (!code) continue;
+
+				// 이미 존재하는 코드 데이터인지 확인
+				if (!codeDataMap.has(code)) {
+					codeDataMap.set(code, {
+						year: fileYear,
+						month: fileMonth || null,
+						excel_file_id: excelFileId,
+						[codeField]: code,
+						excel_file_data: {}
+					});
+				}
+
+				const codeData = codeDataMap.get(code);
+				if (!codeData) continue;
+
+				// 모든 컬럼 데이터를 excel_file_data에 저장
+				for (let colIndex = 0; colIndex < headers.length; colIndex++) {
+					const header = headers[colIndex];
+					const cellValue = row[colIndex];
+
+					if (header && header.trim() !== '') {
+						// 숫자인 경우 콤마 제거 후 저장
+						let value = cellValue;
+						if (typeof cellValue === 'string' && cellValue.includes(',')) {
+							const numValue = parseFloat(cellValue.replace(/,/g, ''));
+							if (!isNaN(numValue) && isFinite(numValue)) {
+								value = numValue;
+							}
+						}
+						codeData.excel_file_data[header] = value;
+					}
+				}
+			}
+
+			const insertData = Array.from(codeDataMap.values());
+
+			if (insertData.length === 0) {
+				toast.error('저장할 데이터가 없습니다. 코드가 매칭되지 않았습니다.');
+				isSavingData = false;
+				return;
+			}
+
+			console.log('[handleSaveColumnData] 저장할 데이터:', {
+				tableName,
+				count: insertData.length,
+				firstItem: insertData[0]
+			});
+
+			// upsert 실행
+			const { error: insertError } = await supabase
+				.from(tableName)
+				.upsert(insertData, { 
+					onConflict: `year,month,excel_file_id,${codeField}` 
+				});
+
+			if (insertError) {
+				console.error('[handleSaveColumnData] upsert 에러:', insertError);
+				throw insertError;
+			}
+
+			console.log('[handleSaveColumnData] 저장 완료');
+			toast.success(`${insertData.length}개의 데이터가 성공적으로 저장되었습니다.`);
+		} catch (err) {
+			console.error('[handleSaveColumnData] 데이터 저장 실패:', err);
+			const errorMessage = err.message || '데이터 저장에 실패했습니다.';
+			error = errorMessage;
+			toast.error(errorMessage);
+		} finally {
+			isSavingData = false;
+		}
+	}
+
 	// 컴포넌트 마운트 시 파일 로드 또는 제공된 workbook 사용
 	$effect(() => {
 		if (providedWorkbook) {
@@ -677,6 +834,18 @@
 						{/if}
 
 						<!-- 데이터 입력 -->
+						<div class="data-input-section">
+							<button
+								class="data-input-btn"
+								onclick={handleSaveColumnData}
+								disabled={isSavingData || headers.length === 0 || rows.length === 0 || unmatchedColumnsCount > 0}
+							>
+								{isSavingData ? '저장 중...' : '데이터 입력'}
+							</button>
+							{#if unmatchedColumnsCount > 0}
+								<span class="data-input-hint">매칭되지 않은 컬럼이 있어 저장할 수 없습니다.</span>
+							{/if}
+						</div>
 					</div>
 				</div>
 
@@ -1305,6 +1474,43 @@
 		text-align: center;
 		padding: 3rem;
 		color: #6b7280;
+	}
+
+	.data-input-section {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.data-input-btn {
+		padding: 2px 10px;
+		font-size: 1rem;
+		font-weight: 600;
+		border-radius: 0.5rem;
+		cursor: pointer;
+		transition: all 0.2s;
+		background-color: #10b981;
+		color: white;
+		border: none;
+	}
+
+	.data-input-btn:hover:not(:disabled) {
+		background-color: #059669;
+	}
+
+	.data-input-btn:active:not(:disabled) {
+		background-color: #047857;
+	}
+
+	.data-input-btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+		background-color: #6ee7b7;
+	}
+
+	.data-input-hint {
+		font-size: 0.875rem;
+		color: #dc2626;
 	}
 
 	/* 레이어 팝업 스타일 */
