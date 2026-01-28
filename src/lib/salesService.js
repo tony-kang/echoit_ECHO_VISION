@@ -4,20 +4,11 @@ import { supabase } from './supabaseClient';
  * 매출 데이터 타입 정의
  * @typedef {Object} SalesData
  * @property {string} id - 고유 ID
- * @property {string} code - 환경설정 코드
+ * @property {string} org_code - 조직 코드 (env_code 참조)
  * @property {number} year - 연도
  * @property {number|null} month - 월 (1~12, null이면 연간 합계)
- * @property {number} target_sales_amount - 목표 매출액
- * @property {number} sales_amount - 매출액
- * @property {number} sales_cost - 매출 원가
- * @property {number} sales_gross_loss - 매출 총손실
- * @property {number} selling_admin_expenses - 판매 관리비
- * @property {number} operating_loss - 영업 손실
- * @property {number} non_operating_income - 영업외 수익
- * @property {number} non_operating_expenses - 영업외 비용
- * @property {number} loss_before_tax - 법인세 비용 차감전 순손실
- * @property {number} corporate_tax_expenses - 법인세 비용
- * @property {number} net_loss - 당기 순손실
+ * @property {string|null} excel_file_id - 엑셀 파일 ID (ev_excel_file 참조)
+ * @property {Object} excel_file_data - 엑셀 파일 데이터 (JSONB, org_code별 엑셀 컬럼 데이터)
  * @property {string|null} notes - 메모/비고
  * @property {string} created_at - 생성일시
  * @property {string} updated_at - 수정일시
@@ -26,7 +17,7 @@ import { supabase } from './supabaseClient';
 /**
  * 매출 데이터 조회 옵션
  * @typedef {Object} GetSalesOptions
- * @property {string[]} [codes] - 조회할 코드 배열 (없으면 전체)
+ * @property {string[]} [codes] - 조회할 코드 배열 (없으면 전체, org_code 필터링)
  * @property {number} [year] - 연도 필터
  * @property {number} [month] - 월 필터
  * @property {boolean} [orderByYear] - 연도순 정렬 (기본값: true)
@@ -46,9 +37,9 @@ export async function getSales(options = {}) {
 			.from('ev_sales')
 			.select('*');
 
-		// 코드 필터링
+		// 코드 필터링 (org_code 사용)
 		if (codes && codes.length > 0) {
-			query = query.in('code', codes);
+			query = query.in('org_code', codes);
 		}
 
 		// 연도 필터링
@@ -68,7 +59,7 @@ export async function getSales(options = {}) {
 		if (orderByMonth) {
 			query = query.order('month', { ascending: true, nullsFirst: false });
 		}
-		query = query.order('code', { ascending: true });
+		query = query.order('org_code', { ascending: true });
 
 		const { data, error } = await query;
 

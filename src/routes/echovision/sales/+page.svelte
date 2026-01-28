@@ -2,11 +2,10 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
-	import YearMonthCodeFilter from '$lib/components/YearMonthCodeFilter.svelte';
+	import FilterBar from '$lib/components/FilterBar.svelte';
 	import { authStore } from '$lib/stores/authStore';
-	import { getSettings } from '$lib/settingsService';
-	import { getSales, getChildCodes } from '$lib/salesService';
-	import { isAdmin } from '$lib/userService';
+	import { getSettings, getEvCodes } from '$lib/settingsService';
+	import { getSales } from '$lib/salesService';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
@@ -18,92 +17,29 @@
 	
 	/** @type {Array<any>} 전체 환경설정 코드 목록 */
 	let allSettings = $state([]);
-	/** @type {Array<any>} 접근 가능한 최상위 코드 목록 (select 옵션용) */
-	let accessibleTopLevelOptions = $state([]);
-	/** @type {string|null} 선택된 최상위 코드 */
-	let selectedTopLevelCode = $state(null);
-	/** @type {boolean} 초기 선택 완료 여부 */
-	let initialSelectionDone = $state(false);
 	/** @type {Array<any>} 표시할 매출 데이터 */
 	let salesData = $state([]);
 	let isLoading = $state(false);
+	/** @type {Array<any>} ev_code 목록 (sales 카테고리) */
+	let evCodes = $state([]);
+	let isLoadingEvCodes = $state(false);
 	
-	/** @type {number|null} 선택된 연도 */
-	let selectedYear = $state(null);
-	/** @type {number|null} 선택된 월 (null이면 전체) */
-	let selectedMonth = $state(null);
-
-	/**
-	 * 사용자가 접근 가능한 최상위 코드 목록
-	 * @type {string[]|null}
-	 */
-	const accessibleTopLevelCodes = $derived.by(() => {
-		if (!userProfile) return null;
-		/** @type {any} */
-		const profile = userProfile;
-		const topLevelCodes = Array.isArray(profile?.top_level_codes) ? profile.top_level_codes : [];
-		
-		// top_level_codes가 있으면 그것을 사용 (관리자/마스터도 포함)
-		if (topLevelCodes.length > 0) {
-			return topLevelCodes;
-		}
-		
-		// top_level_codes가 없고 관리자/마스터인 경우 모든 코드 접근 가능
-		if (profile?.role && isAdmin(profile.role)) {
-			return null; // null이면 모든 코드 접근 가능
-		}
-		
-		// 일반 사용자이고 top_level_codes가 없으면 빈 배열
-		return [];
-	});
-
-	/**
-	 * 선택된 코드와 그 하위 코드 목록
-	 * @type {string[]}
-	 */
-	const selectedCodes = $derived.by(() => {
-		if (!selectedTopLevelCode || !allSettings.length) return [];
-		
-		const accessibleCodes = accessibleTopLevelCodes;
-		// 접근 가능한 코드인지 확인
-		if (accessibleCodes !== null && accessibleCodes.length > 0) {
-			if (!accessibleCodes.includes(selectedTopLevelCode)) {
-				return [];
-			}
-		}
-		
-		// 선택된 코드와 그 하위 코드들 가져오기
-		return getChildCodes(selectedTopLevelCode, allSettings);
-	});
+	/** @type {Record<string, any>} 필터 객체 */
+	let filters = $state({ year: null });
+	/** @type {string | null} 이전 연도 값 (무한루프 방지) */
+	let previousYear = $state(null);
 
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
 			authLoading = state.loading;
-			const prevUserProfile = userProfile;
 			userProfile = state.userProfile;
 
 			if (!state.loading && !state.user) {
 				goto('/login');
 			} else if (state.user && state.userProfile) {
 				// 사용자 프로필이 로드된 후에만 설정 로드
-				if (!prevUserProfile && state.userProfile) {
-					// 처음 프로필이 로드될 때만
-					loadAllSettings();
-				} else if (prevUserProfile && state.userProfile) {
-					// top_level_codes가 변경된 경우 다시 로드
-					const prevCodes = JSON.stringify(prevUserProfile?.top_level_codes || []);
-					const newCodes = JSON.stringify(state.userProfile?.top_level_codes || []);
-					if (prevCodes !== newCodes) {
-						loadAllSettings();
-					} else if (allSettings.length === 0) {
-						// 설정이 없으면 로드
-						loadAllSettings();
-					} else {
-						// 설정은 있지만 옵션이 업데이트되지 않은 경우
-						loadAccessibleTopLevelOptions();
-					}
-				}
+				loadAllSettings();
 			}
 		});
 
@@ -113,11 +49,49 @@
 	});
 
 	/**
-	 * 선택된 코드, 연도, 월 변경 시 매출 데이터 로드
+	 * ev_code 목록 로드 (sales 카테고리)
+	 * @returns {Promise<void>}
+	 */
+	async function loadEvCodes() {
+		isLoadingEvCodes = true;
+		try {
+			const { data, error } = await getEvCodes({ category: 'sales' });
+			if (error) {
+				console.error('ev_code 로드 실패:', error);
+				evCodes = [];
+			} else {
+				evCodes = data || [];
+			}
+		} catch (error) {
+			console.error('ev_code 로드 중 예외 발생:', error);
+			evCodes = [];
+		} finally {
+			isLoadingEvCodes = false;
+		}
+	}
+
+	/**
+	 * 사용자 및 인증 상태가 준비되면 ev_code 로드
 	 */
 	$effect(() => {
-		if (user && !authLoading && selectedTopLevelCode && allSettings.length > 0 && selectedCodes.length > 0 && initialSelectionDone && selectedYear) {
+		if (user && !authLoading && userProfile) {
+			loadEvCodes();
+		}
+	});
+
+	/**
+	 * 연도 변경 시 매출 데이터 로드 (무한루프 방지)
+	 */
+	$effect(() => {
+		const currentYear = filters.year;
+		
+		// 연도가 변경되었고, 사용자가 로그인했고, 로딩 중이 아닐 때만 호출
+		if (user && !authLoading && currentYear && currentYear !== previousYear && !isLoading) {
+			previousYear = currentYear;
 			loadSalesData();
+		} else if (!currentYear) {
+			// 연도가 없으면 이전 연도도 초기화
+			previousYear = null;
 		}
 	});
 
@@ -140,18 +114,6 @@
 			}
 
 			allSettings = data || [];
-			// 설정 로드 후 접근 가능한 최상위 코드 옵션 로드
-			// userProfile이 준비될 때까지 기다림
-			if (userProfile) {
-				loadAccessibleTopLevelOptions();
-			} else {
-				// userProfile이 아직 없으면 잠시 후 다시 시도
-				setTimeout(() => {
-					if (userProfile && allSettings.length > 0) {
-						loadAccessibleTopLevelOptions();
-					}
-				}, 100);
-			}
 		} catch (err) {
 			console.error('환경설정 코드 로드 예외:', err);
 			allSettings = [];
@@ -159,86 +121,24 @@
 	}
 
 	/**
-	 * 접근 가능한 최상위 코드 옵션 로드
-	 * @returns {void}
-	 */
-	function loadAccessibleTopLevelOptions() {
-		if (!userProfile || allSettings.length === 0) {
-			console.log('loadAccessibleTopLevelOptions: userProfile 또는 allSettings가 없음');
-			return;
-		}
-		
-		const accessibleCodes = accessibleTopLevelCodes;
-		const topLevelCodesFromProfile = Array.isArray(userProfile.top_level_codes) ? userProfile.top_level_codes : [];
-		
-		console.log('loadAccessibleTopLevelOptions 호출:', {
-			accessibleCodes,
-			topLevelCodesFromProfile,
-			allSettingsCount: allSettings.length,
-			userProfileRole: userProfile?.role,
-			isAdmin: userProfile?.role && isAdmin(userProfile.role)
-		});
-		
-		/** @type {Array<any>} */
-		let newOptions = [];
-		
-		if (accessibleCodes === null) {
-			// 관리자/마스터: 모든 최상위 코드 표시
-			newOptions = allSettings.filter((/** @type {any} */ s) => !s.parent_code);
-		} else if (accessibleCodes.length > 0) {
-			// 일반 사용자: 접근 가능한 코드만 표시 (최상위 코드가 아니어도 포함)
-			const accessibleCodesSet = new Set(accessibleCodes);
-			console.log('접근 가능한 코드:', Array.from(accessibleCodesSet));
-			
-			// 접근 가능한 코드 목록을 기준으로 allSettings에서 직접 찾기
-			newOptions = accessibleCodes.map((code) => {
-				const setting = allSettings.find((/** @type {any} */ s) => s.code === code);
-				if (setting) {
-					console.log(`코드 ${code} 찾음:`, {
-						code: setting.code,
-						title: setting.title,
-						parent_code: setting.parent_code,
-						isTopLevel: !setting.parent_code
-					});
-				} else {
-					console.warn(`코드 ${code}를 allSettings에서 찾을 수 없음`);
-				}
-				return setting;
-			}).filter((/** @type {any} */ s) => {
-				// 설정이 존재하면 포함 (최상위 코드가 아니어도 포함)
-				return s !== undefined;
-			});
-			
-			console.log('필터링된 옵션:', newOptions.map((/** @type {any} */ s) => `${s.code} - ${s.title} (parent: ${s.parent_code || '최상위'})`));
-		}
-		
-		console.log('필터링된 옵션:', newOptions.map((/** @type {any} */ o) => `${o.code} - ${o.title}`));
-		accessibleTopLevelOptions = newOptions;
-
-		// 기본 선택: 첫 번째 옵션 (이미 선택된 값이 없을 때만)
-		if (accessibleTopLevelOptions.length > 0 && !selectedTopLevelCode && !initialSelectionDone) {
-			selectedTopLevelCode = accessibleTopLevelOptions[0].code;
-			initialSelectionDone = true;
-			console.log('기본 선택 설정:', selectedTopLevelCode);
-		}
-	}
-
-	/**
-	 * 매출 데이터 로드
+	 * 매출 데이터 로드 (중복 호출 방지)
 	 * @returns {Promise<void>}
 	 */
 	async function loadSalesData() {
-		if (!selectedTopLevelCode || selectedCodes.length === 0 || !selectedYear) {
+		if (!filters.year) {
 			salesData = [];
+			return;
+		}
+
+		// 이미 로딩 중이면 중복 호출 방지
+		if (isLoading) {
 			return;
 		}
 
 		isLoading = true;
 		try {
 			const { data, error } = await getSales({
-				codes: selectedCodes,
-				year: selectedYear,
-				month: selectedMonth || undefined,
+				year: parseInt(filters.year),
 				orderByYear: true,
 				orderByMonth: true
 			});
@@ -251,7 +151,8 @@
 				}
 				salesData = [];
 			} else {
-				salesData = data || [];
+				// ev_code별로 그룹화
+				salesData = organizeSalesDataByOrgCode(data || []);
 			}
 		} catch (err) {
 			console.error('매출 데이터 로드 예외:', err);
@@ -259,6 +160,76 @@
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	/**
+	 * 매출 데이터를 ev_code별로 그룹화하고 월별 데이터를 구성
+	 * ev_code를 행으로, 1~12월을 열로 표시하기 위한 데이터 구조 생성
+	 * ev_code의 item_code와 rawData의 org_code가 일치하는 항목만 사용
+	 * @param {Array<any>} rawData - 원본 데이터
+	 * @returns {Array<any>} ev_code별로 그룹화된 데이터 (각 항목에 1~12월 데이터 포함)
+	 */
+	function organizeSalesDataByOrgCode(rawData) {
+		if (!rawData || rawData.length === 0) {
+			return [];
+		}
+
+		// ev_code별로 데이터 구성
+		/** @type {Map<string, any>} */
+		const evCodeDataMap = new Map();
+
+		// 각 ev_code에 대해 초기화
+		// evCodes는 ev_code 테이블에서 조회한 데이터
+		for (const evCode of evCodes) {
+			if (!evCode.item_code) continue;
+			
+			evCodeDataMap.set(evCode.item_code, {
+				evCode: evCode,
+				year: filters.year ? parseInt(filters.year) : null,
+				monthData: {} // 1~12월 데이터
+			});
+		}
+
+		// rawData를 순회하면서 각 항목의 excel_file_data에서 ev_code.item_code를 키로 사용하여 금액 찾기
+		// rawData는 ev_sales 테이블에서 조회한 데이터 = 여러개의 엑셀로 입력한 매출 데이터
+		// rawData의 org_code는 "SUM_000" 등이고, excel_file_data에는 "SALES_1400", "SALES_1300" 등의 키로 금액이 저장됨
+		for (const item of rawData) {
+			const orgCode = item.org_code;
+			const year = item.year;
+			const month = item.month;
+			
+			if (!orgCode || !year || !month || month < 1 || month > 12) {
+				continue; // 필수 값이 없으면 제외
+			}
+
+			// excel_file_data가 없으면 제외
+			if (!item.excel_file_data || typeof item.excel_file_data !== 'object') {
+				continue;
+			}
+
+			// evCodeDataMap의 각 ev_code에 대해 처리
+			for (const [evCodeItemCode, evCodeItem] of evCodeDataMap.entries()) {
+				// ev_code.item_code를 excel_file_data의 키로 사용하여 금액 찾기
+				const value = item.excel_file_data[evCodeItemCode];
+				if (value === null || value === undefined) {
+					continue; // 해당 키의 값이 없으면 제외
+				}
+
+				const numValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : Number(value);
+				if (isNaN(numValue)) {
+					continue; // 숫자가 아니면 제외
+				}
+
+				// 해당 월의 데이터에 합산 (같은 월에 여러 데이터가 있을 수 있으므로 합산)
+				if (evCodeItem.monthData[month] === undefined) {
+					evCodeItem.monthData[month] = 0;
+				}
+				evCodeItem.monthData[month] += numValue;
+			}
+		}
+
+		// 배열로 변환하여 반환
+		return Array.from(evCodeDataMap.values());
 	}
 
 	/**
@@ -272,32 +243,25 @@
 	}
 
 	/**
-	 * 금액 포맷팅
+	 * 금액 포맷팅 (천단위 콤마만, ₩ 기호 제거)
 	 * @param {number} amount - 금액
 	 * @returns {string}
 	 */
 	function formatAmount(amount) {
 		if (amount === null || amount === undefined) return '-';
 		return new Intl.NumberFormat('ko-KR', {
-			style: 'currency',
-			currency: 'KRW',
 			minimumFractionDigits: 0,
 			maximumFractionDigits: 0
 		}).format(amount);
 	}
 
 	/**
-	 * 연도/월 표시
-	 * @param {number} year - 연도
-	 * @param {number|null} month - 월
-	 * @returns {string}
+	 * 1~12월 배열 생성
+	 * @type {number[]}
 	 */
-	function formatPeriod(year, month) {
-		if (month === null || month === undefined) {
-			return `${year}년`;
-		}
-		return `${year}년 ${month}월`;
-	}
+	const months = $derived.by(() => {
+		return Array.from({ length: 12 }, (_, i) => i + 1);
+	});
 </script>
 
 <div class="main-content-page">
@@ -339,52 +303,35 @@
 									</button>
 									<h1 class="text-2xl font-bold text-gray-900">매출 정보</h1>
 								</div>
-								{#if userProfile}
-									{@const topLevelCodes = Array.isArray(userProfile.top_level_codes) ? userProfile.top_level_codes : []}
-									{#if topLevelCodes.length > 0}
-										<div class="flex items-center gap-2 flex-wrap">
-											<span class="text-sm text-gray-600 whitespace-nowrap">접근 가능한 매출 코드:</span>
-											<div class="flex flex-wrap gap-2">
-												{#each topLevelCodes as code}
-													{@const setting = allSettings.find((/** @type {any} */ s) => s.code === code)}
-													<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-														{code}
-														{#if setting?.title}
-															<span class="ml-1 text-blue-600">- {setting.title}</span>
-														{/if}
-													</span>
-												{/each}
-											</div>
-										</div>
-									{:else if accessibleTopLevelCodes === null}
-										<div class="text-sm text-gray-500">모든 코드 접근 가능</div>
-									{/if}
-								{/if}
 							</div>
 						</div>
 
-						<!-- 필터 영역 -->
-						<YearMonthCodeFilter
-							bind:selectedYear
-							bind:selectedMonth
-							bind:selectedCode={selectedTopLevelCode}
-							bind:codeOptions={accessibleTopLevelOptions}
-							codeLabel="매출 구분"
-							onFilterChange={() => {
-								initialSelectionDone = true;
-								loadSalesData();
-							}}
-						/>
+					<!-- 필터 영역 -->
+					<FilterBar
+						bind:filters={filters}
+						fields={[
+							{
+								key: 'year',
+								type: 'select',
+								label: '년도',
+								options: [
+									{ value: new Date().getFullYear().toString(), label: `${new Date().getFullYear()}년` },
+									{ value: (new Date().getFullYear() - 1).toString(), label: `${new Date().getFullYear() - 1}년` },
+									{ value: (new Date().getFullYear() - 2).toString(), label: `${new Date().getFullYear() - 2}년` }
+								]
+							}
+						]}
+						onReset={() => {
+							filters = { year: null };
+							salesData = [];
+						}}
+					/>
 
 						<!-- 매출 데이터 테이블 -->
 						<div class="bg-white rounded-lg shadow-md overflow-hidden">
 							{#if isLoading}
 								<div class="flex items-center justify-center py-12">
 									<div class="text-gray-500">데이터 로딩 중...</div>
-								</div>
-							{:else if !selectedTopLevelCode}
-								<div class="flex items-center justify-center py-12">
-									<div class="text-gray-500">최상위 코드를 선택해주세요.</div>
 								</div>
 							{:else if salesData.length === 0}
 								<div class="flex flex-col items-center justify-center py-12">
@@ -400,40 +347,29 @@
 									<table class="data-table">
 										<thead>
 											<tr>
-												<th>코드</th>
-												<th>기간</th>
-												<th>목표 매출액</th>
-												<th>매출액</th>
-												<th>매출 원가</th>
-												<th>매출 총손실</th>
-												<th>판매 관리비</th>
-												<th>영업 손실</th>
-												<th>영업외 수익</th>
-												<th>영업외 비용</th>
-												<th>법인세 비용 차감전 순손실</th>
-												<th>법인세 비용</th>
-												<th>당기 순손실</th>
+												<th class="w-60 !text-left">항목</th>
+												<th class="w-8 !text-center">년도</th>
+												{#each months as month}
+													<th class="!text-right">{month}월</th>
+												{/each}
+												<th class="!text-right">합계</th>
 											</tr>
 										</thead>
 										<tbody>
 											{#each salesData as item}
 												<tr>
-													<td>
-														<div class="font-mono text-sm">{item.code}</div>
-														<div class="text-xs text-gray-500">{getCodeTitle(item.code)}</div>
+													<td>{item.evCode.title}</td>
+													<td>{item.year}</td>
+													{#each months as month}
+														<td class="w-40 !text-right">
+															{formatAmount(item.monthData[month] || 0)}
+														</td>
+													{/each}
+													<td class="w-40 !text-right">
+														{formatAmount(
+															months.reduce((sum, month) => sum + (item.monthData[month] || 0), 0)
+														)}
 													</td>
-													<td>{formatPeriod(item.year, item.month)}</td>
-													<td class="text-right">{formatAmount(item.target_sales_amount)}</td>
-													<td class="text-right">{formatAmount(item.sales_amount)}</td>
-													<td class="text-right">{formatAmount(item.sales_cost)}</td>
-													<td class="text-right">{formatAmount(item.sales_gross_loss)}</td>
-													<td class="text-right">{formatAmount(item.selling_admin_expenses)}</td>
-													<td class="text-right">{formatAmount(item.operating_loss)}</td>
-													<td class="text-right">{formatAmount(item.non_operating_income)}</td>
-													<td class="text-right">{formatAmount(item.non_operating_expenses)}</td>
-													<td class="text-right">{formatAmount(item.loss_before_tax)}</td>
-													<td class="text-right">{formatAmount(item.corporate_tax_expenses)}</td>
-													<td class="text-right font-semibold">{formatAmount(item.net_loss)}</td>
 												</tr>
 											{/each}
 										</tbody>
@@ -471,7 +407,7 @@
 
 	.data-table td {
 		padding: 12px;
-		border-bottom: 1px solid #e5e7eb;
+		border: 1px solid #e5e7eb;
 		font-size: 0.875rem;
 		color: #374151;
 	}
