@@ -407,6 +407,7 @@
 												{#each months as month}
 													<th class="!text-right">{month}월</th>
 												{/each}
+												<th class="!text-right">합계</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -420,6 +421,11 @@
 															{formatAmount(item.monthData[month] || 0)}
 														</td>
 													{/each}
+													<td class="w-40 !text-right !text-blue-500">
+														{formatAmount(
+															months.reduce((sum, month) => sum + (item.monthData[month] || 0), 0)
+														)}
+													</td>
 												</tr>
 											{/each}
 										</tbody>
