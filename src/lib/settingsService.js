@@ -592,7 +592,7 @@ export async function getEvCodes(options = {}) {
 
 /**
  * ev_code 단일 조회
- * @param {string} code - 코드
+ * @param {string} code - 코드 (item_code)
  * @returns {Promise<{data: any|null, error: Error|null}>}
  */
 export async function getEvCode(code) {
@@ -600,7 +600,7 @@ export async function getEvCode(code) {
 		const { data, error } = await supabase
 			.from('ev_code')
 			.select('*')
-			.eq('code', code)
+			.eq('item_code', code)
 			.single();
 
 		if (error) throw error;
@@ -615,7 +615,7 @@ export async function getEvCode(code) {
 /**
  * ev_code 생성
  * @param {Object} evCodeData - ev_code 데이터
- * @param {string} evCodeData.code - 코드
+ * @param {string} evCodeData.code - 코드 (item_code)
  * @param {string} evCodeData.category - 구분 ('sales' 또는 'cost')
  * @param {string[]} [evCodeData.items] - 항목 배열 (env_code의 code 배열)
  * @param {string} [evCodeData.title] - 제목
@@ -635,7 +635,7 @@ export async function createEvCode(evCodeData) {
 		}
 
 		const insertData = {
-			code: code.trim(),
+			item_code: code.trim(),
 			category,
 			items: Array.isArray(items) ? items.filter(item => item && item.trim() !== '') : [],
 			title: title || null,
@@ -670,7 +670,7 @@ export async function createEvCode(evCodeData) {
 
 /**
  * ev_code 수정
- * @param {string} code - 코드
+ * @param {string} code - 코드 (item_code)
  * @param {Object} updateData - 수정할 데이터
  * @param {string} [updateData.category] - 구분
  * @param {string[]} [updateData.items] - 항목 배열
@@ -706,7 +706,7 @@ export async function updateEvCode(code, updateData) {
 		const { data, error } = await supabase
 			.from('ev_code')
 			.update(updateFields)
-			.eq('code', code)
+			.eq('item_code', code)
 			.select()
 			.single();
 
@@ -731,7 +731,7 @@ export async function updateEvCode(code, updateData) {
 
 /**
  * ev_code 삭제
- * @param {string} code - 코드
+ * @param {string} code - 코드 (item_code)
  * @returns {Promise<{data: boolean, error: Error|null}>}
  */
 export async function deleteEvCode(code) {
@@ -739,7 +739,7 @@ export async function deleteEvCode(code) {
 		const { error } = await supabase
 			.from('ev_code')
 			.delete()
-			.eq('code', code);
+			.eq('item_code', code);
 
 		if (error) throw error;
 

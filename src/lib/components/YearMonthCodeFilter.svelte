@@ -5,12 +5,12 @@
 	 * @property {number|null} selectedYear - 선택된 연도
 	 * @property {number|null} selectedMonth - 선택된 월 (null이면 전체)
 	 * @property {string|null} selectedCode - 선택된 코드
-	 * @property {Array<any>} codeOptions - 코드 옵션 목록
-	 * @property {string} codeLabel - 코드 필터 라벨 (기본값: "매출 구분")
+	 * @property {Array<any>} [codeOptions] - 코드 옵션 목록 (선택사항, 제공되지 않으면 코드 선택 UI가 렌더링되지 않음)
+	 * @property {string} [codeLabel] - 코드 필터 라벨 (기본값: "매출 구분")
 	 * @property {function} onFilterChange - 필터 변경 시 호출할 함수
 	 */
 	
-	/** @type {{ selectedYear: number|null, selectedMonth: number|null, selectedCode: string|null, codeOptions: Array<any>, codeLabel?: string, onFilterChange: function }} */
+	/** @type {{ selectedYear: number|null, selectedMonth: number|null, selectedCode: string|null, codeOptions?: Array<any>, codeLabel?: string, onFilterChange: function }} */
 	let { 
 		selectedYear = $bindable(null),
 		selectedMonth = $bindable(null),
@@ -112,24 +112,22 @@
 			{/each}
 		</select>
 		
-		<label for="code-select-{componentId}" class="text-sm font-medium text-gray-700 whitespace-nowrap">
-			{codeLabel}:
-		</label>
-		<select
-			id="code-select-{componentId}"
-			bind:value={selectedCode}
-			onchange={handleCodeChange}
-			class="flex-1 max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-		>
-			{#if codeOptions.length === 0}
-				<option value="">접근 가능한 코드가 없습니다</option>
-			{:else}
+		{#if codeOptions && codeOptions.length > 0}
+			<label for="code-select-{componentId}" class="text-sm font-medium text-gray-700 whitespace-nowrap">
+				{codeLabel}:
+			</label>
+			<select
+				id="code-select-{componentId}"
+				bind:value={selectedCode}
+				onchange={handleCodeChange}
+				class="flex-1 max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+			>
 				{#each codeOptions as option}
 					<option value={option.code}>
 						{option.code} - {option.title}
 					</option>
 				{/each}
-			{/if}
-		</select>
+			</select>
+		{/if}
 	</div>
 </div>

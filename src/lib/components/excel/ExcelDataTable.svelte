@@ -119,9 +119,10 @@
 	/**
 	 * 컬럼명과 매칭되는 환경 코드 찾기
 	 * @param {string} columnName - 컬럼명
+	 * @param {number} [columnIndex] - 컬럼 인덱스 (frozenColumns와 비교용)
 	 * @returns {any | null | 'excluded'} 매칭되는 코드, null, 또는 'excluded' (제외된 컬럼)
 	 */
-	function findMatchingCode(columnName) {
+	function findMatchingCode(columnName, columnIndex = -1) {
 		if (!columnName) return null;
 		
 		// 제외할 텍스트가 포함된 컬럼은 매칭 검사에서 제외
@@ -133,7 +134,17 @@
 		
 		const normalizedColumn = normalizeString(columnName);
 		
+		// 칼럼 인덱스가 frozenColumns보다 큰 경우 organization 카테고리만 검색
+		const targetCategories = (columnIndex >= 0 && columnIndex > frozenColumns) 
+			? ['organization']
+			: getCategoryFromExcelType(excelType);
+		
 		for (const code of envCodes) {
+			// 카테고리 필터링
+			if (!targetCategories.includes(code.category)) {
+				continue;
+			}
+			
 			if (code.param && Array.isArray(code.param)) {
 				for (const param of code.param) {
 					const normalizedParam = normalizeString(param);
@@ -263,30 +274,21 @@
 	});
 
 	/**
-	 * 파일명에서 연도 추출
-	 * @param {string} fileName - 파일명
-	 * @returns {number | null} 연도
+	 * 현재 파일의 연도와 월 정보 (버튼 표시용)
+	 * DB에 저장된 값만 사용 (파일명 파싱 제거)
+	 * @type {{year: number | null, month: number | null}}
 	 */
-	function extractYear(fileName) {
-		if (!fileName) return null;
-		const yearMatch = fileName.match(/(\d{4})/);
-		return yearMatch ? parseInt(yearMatch[1], 10) : null;
-	}
-
-	/**
-	 * 파일명에서 월 추출
-	 * @param {string} fileName - 파일명
-	 * @returns {number | null} 월 (1-12)
-	 */
-	function extractMonth(fileName) {
-		if (!fileName) return null;
-		const monthMatch = fileName.match(/(\d{1,2})월|(\d{1,2})월/);
-		if (monthMatch) {
-			const month = parseInt(monthMatch[1] || monthMatch[2], 10);
-			return month >= 1 && month <= 12 ? month : null;
+	const fileYearMonth = $derived.by(() => {
+		if (!file) {
+			return { year: null, month: null };
 		}
-		return null;
-	}
+
+		// file 객체에서 year, month 가져오기 (DB에 저장된 값만 사용)
+		const year = file?.year || null;
+		const month = (file?.month !== null && file?.month !== undefined) ? file.month : null;
+
+		return { year, month };
+	});
 
 	/**
 	 * 셀 값을 천단위 콤마로 포맷팅
@@ -377,6 +379,20 @@
 			await checkDataSaved();
 			// 파일 경로 가져오기
 			const filePath = file.fullPath || (excelType ? `${excelType}/${file.name}` : file.name);
+			
+			// ev_excel_file에서 year, month 정보 가져오기
+			const { data: excelFileData, error: excelFileError } = await supabase
+				.from('ev_excel_file')
+				.select('year, month')
+				.eq('storage_path', `excel-files/${filePath}`)
+				.single();
+			
+			if (!excelFileError && excelFileData) {
+				// file 객체에 year, month 정보 업데이트
+				file.year = excelFileData.year || null;
+				file.month = excelFileData.month || null;
+			}
+			
 			const { data: url, error: urlError } = await getExcelFileUrl(filePath);
 
 			if (urlError || !url) {
@@ -692,19 +708,11 @@
 		error = '';
 
 		try {
-			// 파일에서 year, month 추출
-			const fileYear = file.year || extractYear(fileName);
-			const fileMonth = file.month || extractMonth(fileName);
-
-			if (!fileYear) {
-				throw new Error('연도를 확인할 수 없습니다. 파일명에 연도가 포함되어 있는지 확인해주세요.');
-			}
-
-			// ev_excel_file에서 excel_file_id 조회
+			// ev_excel_file에서 excel_file_id, year, month 조회
 			const filePath = file.fullPath || (excelType ? `${excelType}/${file.name}` : file.name);
 			const { data: excelFileData, error: excelFileError } = await supabase
 				.from('ev_excel_file')
-				.select('id')
+				.select('id, year, month')
 				.eq('storage_path', `excel-files/${filePath}`)
 				.single();
 
@@ -713,6 +721,23 @@
 			}
 
 			const excelFileId = excelFileData.id;
+			// ev_excel_file에 저장된 year, month만 사용 (파일명 파싱 제거)
+			const fileYear = excelFileData.year || null;
+			const fileMonth = (excelFileData.month !== null && excelFileData.month !== undefined) 
+				? excelFileData.month 
+				: null;
+
+			console.log('[handleSaveColumnData] year/month (DB 값만 사용):', {
+				excelFileDataYear: excelFileData.year,
+				excelFileDataMonth: excelFileData.month,
+				finalYear: fileYear,
+				finalMonth: fileMonth
+			});
+
+			if (!fileYear) {
+				throw new Error('연도 정보가 없습니다. 파일 리스트에서 년도를 설정해주세요.');
+			}
+
 			const tableName = excelType === 'sales' ? 'ev_sales' : 'ev_cost';
 
 			/** @type {Map<string, {year: number, month: number | null, excel_file_id: string, org_code: string, excel_file_data: Record<string, any>}>} */
@@ -737,7 +762,7 @@
 				if (!orgCodeDataMap.has(orgCode)) {
 					orgCodeDataMap.set(orgCode, {
 						year: fileYear,
-						month: fileMonth || null,
+						month: (fileMonth !== null && fileMonth !== undefined) ? fileMonth : null,
 						excel_file_id: excelFileId,
 						org_code: orgCode,
 						excel_file_data: {}
@@ -793,7 +818,10 @@
 			console.log('[handleSaveColumnData] 저장할 데이터:', {
 				tableName,
 				count: insertData.length,
-				firstItem: insertData[0]
+				firstItem: insertData[0],
+				fileYear,
+				fileMonth,
+				allItems: insertData.map(item => ({ org_code: item.org_code, year: item.year, month: item.month }))
 			});
 
 			// upsert 실행
@@ -930,7 +958,18 @@
 									onclick={handleSaveColumnData}
 									disabled={isSavingData || headers.length === 0 || rows.length === 0 || unmatchedColumnsCount > 0}
 								>
-									{isSavingData ? '저장 중...' : '데이터 입력'}
+									{isSavingData 
+										? '저장 중...' 
+										: (() => {
+											const { year, month } = fileYearMonth;
+											if (year && month) {
+												return `${year}년 ${month}월 데이터 입력`;
+											} else if (year) {
+												return `${year}년 데이터 입력`;
+											} else {
+												return '데이터 입력';
+											}
+										})()}
 								</button>
 								{#if unmatchedColumnsCount > 0}
 									<span class="data-input-hint">매칭되지 않은 컬럼이 있어 저장할 수 없습니다.</span>
@@ -947,7 +986,7 @@
 								<thead>
 									<tr>
 										{#each headers as header, index}
-											{@const matchingCode = findMatchingCode(header)}
+											{@const matchingCode = findMatchingCode(header, index)}
 											<th
 												class:frozen={index < frozenColumns}
 												style={index < frozenColumns ? `left: ${index * 150}px;` : ''}

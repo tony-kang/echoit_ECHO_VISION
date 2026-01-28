@@ -27,6 +27,8 @@
 	let editingEvCode = $state(null);
 	/** @type {Array<any>} env_code 목록 (items 선택용) */
 	let envCodeOptions = $state([]);
+	/** @type {Array<any>} env_code 최상위 레벨 항목 (코드 선택용) */
+	let topLevelEnvCodes = $state([]);
 	/** @type {boolean} 데이터 로드 완료 여부 */
 	let dataLoaded = $state(false);
 
@@ -78,29 +80,58 @@
 	 */
 	async function loadEnvCodeOptions() {
 		try {
-			// sales와 cost 카테고리의 env_code만 로드
+			// organization 카테고리의 env_code만 로드
+			const organizationResult = await getSettings({ category: 'organization' });
+
+			console.log('[loadEnvCodeOptions] organizationResult:', $state.snapshot(organizationResult));
+
+			if (organizationResult.data) {
+				envCodeOptions = organizationResult.data.map(code => ({
+					value: code.code,
+					label: `${code.code} - ${code.title}`,
+					code: code.code,
+					title: code.title,
+					category: code.category,
+					param: code.param || []
+				}));
+			} else {
+				envCodeOptions = [];
+			}
+		} catch (error) {
+			console.error('env_code 옵션 로드 실패:', error);
+			envCodeOptions = [];
+		}
+	}
+
+	/**
+	 * env_code 최상위 레벨 항목 로드 (코드 선택용)
+	 * @returns {Promise<void>}
+	 */
+	async function loadTopLevelEnvCodes() {
+		try {
+			// sales와 cost 카테고리의 최상위 레벨 env_code만 로드 (parent_code가 없는 항목)
 			const [salesResult, costResult] = await Promise.all([
 				getSettings({ category: 'sales' }),
 				getSettings({ category: 'cost' })
 			]);
 
-			console.log('[loadEnvCodeOptions] salesResult:', $state.snapshot(salesResult));
-			console.log('[loadEnvCodeOptions] costResult:', $state.snapshot(costResult));
-
 			const allCodes = [];
 			if (salesResult.data) allCodes.push(...salesResult.data);
 			if (costResult.data) allCodes.push(...costResult.data);
-            envCodeOptions = allCodes.map(code => ({
-                value: code.code,
-                label: `${code.category} - ${code.code} - ${code.title}`,
-                code: code.code,
-                title: code.title,
-                category: code.category,
-                param: code.param || []
-            }));
+			
+			// 최상위 레벨만 필터링 (parent_code가 null이거나 없는 항목)
+			topLevelEnvCodes = allCodes
+				.filter(code => !code.parent_code)
+				.map(code => ({
+					value: code.code,
+					label: `${code.code} - ${code.title}`,
+					code: code.code,
+					title: code.title,
+					category: code.category
+				}));
 		} catch (error) {
-			console.error('env_code 옵션 로드 실패:', error);
-			envCodeOptions = [];
+			console.error('env_code 최상위 레벨 항목 로드 실패:', error);
+			topLevelEnvCodes = [];
 		}
 	}
 
@@ -138,7 +169,7 @@
 	 */
 	function handleEdit(evCode) {
 		editingEvCode = evCode;
-		formCode = evCode.code;
+		formCode = evCode.item_code;
 		formCategory = evCode.category;
 		formTitle = evCode.title || '';
 		formItems = evCode.items ? [...evCode.items] : [];
@@ -152,12 +183,12 @@
 	 * @returns {Promise<void>}
 	 */
 	async function handleDelete(evCode) {
-		if (!confirm(`정말로 "${evCode.code}" 코드를 삭제하시겠습니까?`)) {
+		if (!confirm(`정말로 "${evCode.item_code}" 코드를 삭제하시겠습니까?`)) {
 			return;
 		}
 
 		try {
-			const { error } = await deleteEvCode(evCode.code);
+			const { error } = await deleteEvCode(evCode.item_code);
 			
 			if (error) {
 				alert(`삭제 실패: ${error.message || '알 수 없는 오류'}`);
@@ -173,33 +204,13 @@
 	}
 
 	/**
-	 * 다음 코드 번호 자동 생성
-	 * @param {string} category - 구분 (sales 또는 cost)
-	 * @returns {string} 생성된 코드 (예: SALES_001, COST_001)
+	 * 선택된 카테고리에 해당하는 최상위 레벨 env_code 목록 가져오기
+	 * @type {Array<any>}
 	 */
-	function generateNextCode(category) {
-		if (!category || !['sales', 'cost'].includes(category)) {
-			return '';
-		}
-
-		const prefix = category.toUpperCase();
-		const pattern = new RegExp(`^${prefix}_(\\d+)$`);
-		
-		// 해당 카테고리의 기존 코드들 중에서 패턴에 맞는 것 찾기
-		const matchingCodes = evCodes
-			.filter(code => code.category === category && pattern.test(code.code))
-			.map(code => {
-				const match = code.code.match(pattern);
-				return match ? parseInt(match[1], 10) : 0;
-			});
-
-		// 가장 큰 번호 찾기
-		const maxNumber = matchingCodes.length > 0 ? Math.max(...matchingCodes) : 0;
-		
-		// 다음 번호 생성 (3자리 숫자로 포맷)
-		const nextNumber = maxNumber + 1;
-		return `${prefix}_${String(nextNumber).padStart(3, '0')}`;
-	}
+	const filteredTopLevelEnvCodes = $derived.by(() => {
+		if (!formCategory) return [];
+		return topLevelEnvCodes.filter(code => code.category === formCategory);
+	});
 
 
 	/**
@@ -216,6 +227,15 @@
 		itemSearchQuery = '';
 		showItemDropdown = false;
 		selectedItems.clear();
+	}
+
+	/**
+	 * 카테고리 변경 핸들러
+	 * @returns {void}
+	 */
+	function handleCategoryChange() {
+		// 카테고리가 변경되면 코드 초기화
+		formCode = '';
 	}
 
 	/**
@@ -246,7 +266,7 @@
 
 			let result;
 			if (editingEvCode) {
-				result = await updateEvCode(editingEvCode.code, evCodeData);
+				result = await updateEvCode(editingEvCode.item_code, evCodeData);
 			} else {
 				result = await createEvCode(evCodeData);
 			}
@@ -287,15 +307,9 @@
 		if (!formCategory) return [];
 		
 		const query = itemSearchQuery.toLowerCase().trim();
-		const categoryOptions = envCodeOptions.filter(option => {
-			// category 필드로 필터링 (value가 COST_로 시작하지 않을 수도 있음)
-			if (formCategory === 'sales') {
-				return option.category === 'sales';
-			} else if (formCategory === 'cost') {
-				return option.category === 'cost';
-			}
-			return false;
-		});
+		
+		// organization 카테고리 항목만 사용 (이미 loadEnvCodeOptions에서 organization만 로드됨)
+		const categoryOptions = envCodeOptions;
 
 		if (!query) {
 			return categoryOptions;
@@ -444,18 +458,9 @@
 		
 		// 정확히 일치하는 항목이 있으면 자동 선택
 		if (formCategory) {
-			const categoryOptions = envCodeOptions.filter(option => {
-				// category 필드로 필터링 (value가 COST_로 시작하지 않을 수도 있음)
-				if (formCategory === 'sales') {
-					return option.category === 'sales';
-				} else if (formCategory === 'cost') {
-					return option.category === 'cost';
-				}
-				return false;
-			});
-			
+			// organization 카테고리 항목만 사용 (이미 loadEnvCodeOptions에서 organization만 로드됨)
 			const trimmedValue = value.toLowerCase().trim();
-			const exactMatch = categoryOptions.find(opt => {
+			const exactMatch = envCodeOptions.find(opt => {
 				// 코드 정확 일치
 				if (opt.value.toLowerCase() === trimmedValue) {
 					return true;
@@ -502,7 +507,7 @@
 		if (!filters.code) return evCodes;
 		const codeFilter = filters.code.toLowerCase();
 		return evCodes.filter(evCode => 
-			evCode.code.toLowerCase().includes(codeFilter)
+			evCode.item_code?.toLowerCase().includes(codeFilter)
 		);
 	});
 
@@ -584,20 +589,7 @@
 			dataLoaded = true;
 			loadEvCodes();
 			loadEnvCodeOptions();
-		}
-	});
-
-	// 구분 선택 시 자동 코드 생성
-	// formCategory와 evCodes를 의존성으로 가져서 둘 중 하나라도 변경되면 실행
-	$effect(() => {
-		// 모달이 열려있고, 수정 모드가 아니고, 구분이 선택되었을 때만 실행
-		if (showFormModal && !editingEvCode && formCategory) {
-			// evCodes를 참조하여 의존성에 추가 (evCodes가 변경되면 다시 실행됨)
-			const _ = evCodes; // 의존성 추적을 위한 참조
-			const generatedCode = generateNextCode(formCategory);
-			if (generatedCode) {
-				formCode = generatedCode;
-			}
+			loadTopLevelEnvCodes();
 		}
 	});
 </script>
@@ -679,7 +671,7 @@
 							>
 								{#each filteredEvCodes as evCode}
 									<tr>
-										<td class="font-mono text-sm">{evCode.code}</td>
+										<td class="font-mono text-sm">{evCode.item_code}</td>
 										<td>
 											<span class="px-2 py-1 rounded text-xs font-semibold {evCode.category === 'sales' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
 												{evCode.category === 'sales' ? '매출' : '비용'}
@@ -746,6 +738,7 @@
 					<label class="form-label">구분 *</label>
 					<select 
 						bind:value={formCategory} 
+						onchange={handleCategoryChange}
 						class="form-input" 
 						disabled={!!editingEvCode}
 					>
@@ -763,18 +756,33 @@
 				{#if formCategory || editingEvCode}
 					<div class="form-group">
 						<label class="form-label">코드 *</label>
-						<input
-							type="text"
-							bind:value={formCode}
-							placeholder="코드를 입력하세요"
-							class="form-input"
-							readonly
-							disabled
-						/>
 						{#if editingEvCode}
+							<input
+								type="text"
+								value={formCode}
+								class="form-input"
+								readonly
+								disabled
+							/>
 							<p class="text-xs text-gray-500 mt-1">코드는 수정할 수 없습니다.</p>
-						{:else if formCode}
-							<p class="text-xs text-green-600 mt-1">자동 생성된 코드입니다.</p>
+						{:else}
+							<select
+								bind:value={formCode}
+								class="form-input"
+								disabled={!formCategory || filteredTopLevelEnvCodes.length === 0}
+							>
+								<option value="">코드를 선택하세요</option>
+								{#each filteredTopLevelEnvCodes as option}
+									<option value={option.value}>{option.label}</option>
+								{/each}
+							</select>
+							{#if !formCategory}
+								<p class="text-xs text-gray-500 mt-1">구분을 먼저 선택해주세요.</p>
+							{:else if filteredTopLevelEnvCodes.length === 0}
+								<p class="text-xs text-gray-500 mt-1">선택 가능한 최상위 레벨 코드가 없습니다.</p>
+							{:else if formCode}
+								<p class="text-xs text-green-600 mt-1">코드가 선택되었습니다.</p>
+							{/if}
 						{/if}
 					</div>
 
@@ -789,7 +797,7 @@
 					</div>
 
 					<div class="form-group">
-						<label class="form-label">항목 (env_code의 code)</label>
+						<label class="form-label">구성항목</label>
 						<div class="item-search-container relative">
 							<div class="flex gap-2 mb-2">
 								<div class="flex-1 relative">

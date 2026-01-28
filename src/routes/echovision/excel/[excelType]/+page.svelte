@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { getExcelFileUrl, listExcelFiles, deleteExcelFile } from '$lib/excelUploadService';
+	import { getExcelFileUrl, listExcelFiles, deleteExcelFile, updateExcelFileYearMonth } from '$lib/excelUploadService';
 	import { authStore } from '$lib/stores/authStore';
 	import { supabase } from '$lib/supabaseClient';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
@@ -29,6 +29,14 @@
 	let showDataTable = $state(false);
 	/** @type {any | null} 데이터 테이블에 표시할 파일 */
 	let selectedFileForView = $state(null);
+	/** @type {any | null} 수정할 파일 */
+	let editingFile = $state(null);
+	/** @type {number | null} 수정할 년도 */
+	let editYear = $state(null);
+	/** @type {number | null} 수정할 월 */
+	let editMonth = $state(null);
+	/** @type {boolean} 수정 중 여부 */
+	let isUpdating = $state(false);
 
 	let listLoaded = $state(false);
 
@@ -432,6 +440,67 @@
 		return labels[type] || type;
 	}
 
+	/**
+	 * 최근 3년 목록 (현재 년도 포함)
+	 * @type {number[]}
+	 */
+	const recentYears = $derived.by(() => {
+		const currentYear = new Date().getFullYear();
+		return [currentYear - 2, currentYear - 1, currentYear];
+	});
+
+	/**
+	 * 파일 수정 다이얼로그 열기 핸들러
+	 * @param {any} file - 수정할 파일 정보
+	 * @returns {void}
+	 */
+	function handleEditFile(file) {
+		editingFile = file;
+		const currentYear = new Date().getFullYear();
+		editYear = file.year || currentYear;
+		editMonth = file.month || null;
+	}
+
+	/**
+	 * 파일 수정 다이얼로그 닫기 핸들러
+	 * @returns {void}
+	 */
+	function handleCloseEditDialog() {
+		editingFile = null;
+		editYear = null;
+		editMonth = null;
+	}
+
+	/**
+	 * 파일 년도/월 업데이트 핸들러
+	 * @returns {Promise<void>}
+	 */
+	async function handleUpdateYearMonth() {
+		if (!editingFile) return;
+
+		isUpdating = true;
+		try {
+			const filePath = editingFile.fullPath || (excelTypeParam ? `${excelTypeParam}/${editingFile.name}` : editingFile.name);
+			const { error } = await updateExcelFileYearMonth(filePath, editYear, editMonth);
+
+			if (error) {
+				alert(`년도/월 업데이트 실패: ${error.message}`);
+				return;
+			}
+
+			// 파일 목록 갱신
+			listLoaded = false;
+			await loadExcelFiles();
+			handleCloseEditDialog();
+			// alert('년도/월이 업데이트되었습니다.');
+		} catch (err) {
+			console.error('[handleUpdateYearMonth] 오류:', err);
+			alert('년도/월 업데이트 중 오류가 발생했습니다.');
+		} finally {
+			isUpdating = false;
+		}
+	}
+
 	// console.log('(F)', new Date().toISOString());
 </script>
 
@@ -524,6 +593,12 @@
 										<td class="text-center text-sm text-gray-600">{formatDate(file.created_at)}</td>
 										<td class="flex justify-center gap-2">
 											<button
+												onclick={() => handleEditFile(file)}
+												class="btn-small btn-edit"
+											>
+												수정
+											</button>
+											<button
 												onclick={() => handleDownloadFile(file)}
 												class="btn-small btn-secondary"
 											>
@@ -571,6 +646,62 @@
 								excelType={excelTypeParam}
 								onClose={handleCloseDataTable}
 							/>
+						{/if}
+
+						<!-- 년도/월 수정 다이얼로그 -->
+						{#if editingFile}
+							<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="edit-dialog-title">
+								<div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+									<h2 id="edit-dialog-title" class="text-xl font-bold mb-4">년도/월 수정</h2>
+									<div class="mb-4">
+										<p class="text-sm text-gray-600 mb-2">파일명: {getOriginalFileName(editingFile)}</p>
+									</div>
+									<div class="space-y-4">
+										<div>
+											<label for="edit-year" class="block text-sm font-medium text-gray-700 mb-1">년도</label>
+											<select
+												id="edit-year"
+												bind:value={editYear}
+												class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+											>
+												<option value={null}>선택 안함</option>
+												{#each recentYears as year}
+													<option value={year}>{year}년</option>
+												{/each}
+											</select>
+										</div>
+										<div>
+											<label for="edit-month" class="block text-sm font-medium text-gray-700 mb-1">월</label>
+											<select
+												id="edit-month"
+												bind:value={editMonth}
+												class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+											>
+												<option value={null}>선택 안함</option>
+												{#each Array.from({ length: 12 }, (_, i) => i + 1) as month}
+													<option value={month}>{month}월</option>
+												{/each}
+											</select>
+										</div>
+									</div>
+									<div class="flex justify-end gap-2 mt-6">
+										<button
+											onclick={handleCloseEditDialog}
+											class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+											disabled={isUpdating}
+										>
+											취소
+										</button>
+										<button
+											onclick={handleUpdateYearMonth}
+											class="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700"
+											disabled={isUpdating}
+										>
+											{isUpdating ? '저장 중...' : '저장'}
+										</button>
+									</div>
+								</div>
+							</div>
 						{/if}
 					</div>
 				{/if}
@@ -629,6 +760,15 @@
 
 	.btn-small.btn-delete-data:hover:not(:disabled) {
 		background-color: #ea580c;
+	}
+
+	.btn-small.btn-edit {
+		background-color: #3b82f6;
+		color: white;
+	}
+
+	.btn-small.btn-edit:hover:not(:disabled) {
+		background-color: #2563eb;
 	}
 
 	.btn-small:disabled {

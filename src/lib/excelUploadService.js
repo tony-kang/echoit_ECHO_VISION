@@ -229,6 +229,52 @@ export async function deleteExcelFile(filePath) {
 }
 
 /**
+ * 엑셀 파일의 년도/월 정보 업데이트
+ * @param {string} filePath - Storage에 저장된 파일 경로
+ * @param {number | null} year - 연도 (선택사항)
+ * @param {number | null} month - 월 (1-12, 선택사항)
+ * @returns {Promise<{data: boolean, error: Error | null}>}
+ */
+export async function updateExcelFileYearMonth(filePath, year = null, month = null) {
+	try {
+		if (!filePath) {
+			return { data: false, error: new Error('파일 경로가 필요합니다.') };
+		}
+
+		const fullStoragePath = filePath.startsWith('excel-files/') 
+			? filePath 
+			: `excel-files/${filePath}`;
+
+		/** @type {Record<string, any>} */
+		const updateData = {};
+		
+		if (year !== null && year !== undefined) {
+			updateData.year = year;
+		}
+		if (month !== null && month !== undefined && month >= 1 && month <= 12) {
+			updateData.month = month;
+		} else if (month === null) {
+			updateData.month = null;
+		}
+
+		const { error } = await supabase
+			.from('ev_excel_file')
+			.update(updateData)
+			.eq('storage_path', fullStoragePath);
+
+		if (error) {
+			console.error('엑셀 파일 년도/월 업데이트 실패:', error);
+			return { data: false, error };
+		}
+
+		return { data: true, error: null };
+	} catch (error) {
+		console.error('엑셀 파일 년도/월 업데이트 중 오류:', error);
+		return { data: false, error };
+	}
+}
+
+/**
  * 엑셀 파일 목록 조회
  * @param {string} excelType - 엑셀 타입 ('sales' 또는 'cost')
  * @param {string} searchQuery - 검색어 (원본 파일명 LIKE 검색)
