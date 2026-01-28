@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { getExcelFileUrl, listExcelFiles, deleteExcelFile } from '$lib/excelUploadService';
 	import { authStore } from '$lib/stores/authStore';
+	import { supabase } from '$lib/supabaseClient';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
@@ -41,6 +42,48 @@
 	});
 
 	/**
+	 * 엑셀 파일의 데이터 존재 여부 확인
+	 * @param {any} file - 파일 객체
+	 * @returns {Promise<boolean>}
+	 */
+	async function checkFileHasData(file) {
+		if (!file || !excelTypeParam) return false;
+
+		try {
+			// ev_excel_file에서 excel_file_id 조회
+			const filePath = file.fullPath || (excelTypeParam ? `${excelTypeParam}/${file.name}` : file.name);
+			const { data: excelFileData, error: excelFileError } = await supabase
+				.from('ev_excel_file')
+				.select('id')
+				.eq('storage_path', `excel-files/${filePath}`)
+				.single();
+
+			if (excelFileError || !excelFileData) {
+				return false;
+			}
+
+			const excelFileId = excelFileData.id;
+			const tableName = excelTypeParam === 'sales' ? 'ev_sales' : 'ev_cost';
+
+			// 해당 excel_file_id로 데이터 존재 여부 확인
+			const { count, error: countError } = await supabase
+				.from(tableName)
+				.select('*', { count: 'exact', head: true })
+				.eq('excel_file_id', excelFileId);
+
+			if (countError) {
+				console.error('[checkFileHasData] 데이터 확인 실패:', countError);
+				return false;
+			}
+
+			return (count || 0) > 0;
+		} catch (err) {
+			console.error('[checkFileHasData] 오류:', err);
+			return false;
+		}
+	}
+
+	/**
 	 * 엑셀 파일 목록 로드
 	 * @returns {Promise<void>}
 	 */
@@ -60,7 +103,17 @@
 			return;
 		}
 		
-		excelFiles = data || [];
+		const files = data || [];
+		
+		// 각 파일의 데이터 존재 여부 확인
+		const filesWithDataStatus = await Promise.all(
+			files.map(async (file) => {
+				const hasData = await checkFileHasData(file);
+				return { ...file, hasData };
+			})
+		);
+		
+		excelFiles = filesWithDataStatus;
 		isLoadingFiles = false;
 		listLoaded = true;
 	}
@@ -202,8 +255,46 @@
 	 * @returns {Promise<void>}
 	 */
 	async function handleDeleteData(file) {
-		if (!confirm(`정말로 "${file.name}" 파일에서 추출한 데이터를 삭제하시겠습니까?`)) {
+		if (!confirm(`정말로 "${getOriginalFileName(file)}" 파일에서 추출한 데이터를 삭제하시겠습니까?`)) {
 			return;
+		}
+
+		try {
+			// ev_excel_file에서 excel_file_id 조회
+			const filePath = file.fullPath || (excelTypeParam ? `${excelTypeParam}/${file.name}` : file.name);
+			const { data: excelFileData, error: excelFileError } = await supabase
+				.from('ev_excel_file')
+				.select('id')
+				.eq('storage_path', `excel-files/${filePath}`)
+				.single();
+
+			if (excelFileError || !excelFileData) {
+				alert('엑셀 파일 정보를 찾을 수 없습니다.');
+				return;
+			}
+
+			const excelFileId = excelFileData.id;
+			const tableName = excelTypeParam === 'sales' ? 'ev_sales' : 'ev_cost';
+
+			// 해당 excel_file_id의 모든 데이터 삭제
+			const { error: deleteError } = await supabase
+				.from(tableName)
+				.delete()
+				.eq('excel_file_id', excelFileId);
+
+			if (deleteError) {
+				console.error('[handleDeleteData] 데이터 삭제 실패:', deleteError);
+				alert(`데이터 삭제 실패: ${deleteError.message}`);
+				return;
+			}
+
+			// 파일 목록 갱신
+			listLoaded = false;
+			await loadExcelFiles();
+			alert('데이터가 삭제되었습니다.');
+		} catch (err) {
+			console.error('[handleDeleteData] 오류:', err);
+			alert('데이터 삭제 중 오류가 발생했습니다.');
 		}
 	}
 
@@ -389,6 +480,7 @@
 									{ label: '파일명', align: 'left' },
 									{ label: '년도', align: 'center' },
 									{ label: '월', align: 'center' },
+									{ label: '데이터 상태', align: 'center' },
 									{ label: '업로드 일시', align: 'center' },
 									{ label: '작업', align: 'center' }
 								]}
@@ -400,6 +492,13 @@
 										<td class="font-medium">{getOriginalFileName(file)}</td>
 										<td class="text-center text-sm text-gray-600">{file.year || '-'}</td>
 										<td class="text-center text-sm text-gray-600">{file.month || '-'}</td>
+										<td class="text-center text-sm">
+											{#if file.hasData}
+												<span class="data-status-badge data-saved">데이터 저장됨</span>
+											{:else}
+												<span class="data-status-badge data-not-saved">데이터 없음</span>
+											{/if}
+										</td>
 										<td class="text-center text-sm text-gray-600">{formatDate(file.created_at)}</td>
 										<td class="flex justify-center gap-2">
 											<button
@@ -411,12 +510,14 @@
 											<button
 												onclick={() => handleDeleteFile(file)}
 												class="btn-small btn-danger"
+												disabled={file.hasData}
 											>
 												파일삭제
 											</button>
 											<button
 												onclick={() => handleDeleteData(file)}
 												class="btn-small btn-delete-data"
+												disabled={!file.hasData}
 											>
 												데이터삭제
 											</button>
@@ -509,7 +610,25 @@
 	}
 
 	.btn-small:disabled {
-		opacity: 0.6;
+		opacity: 0.4;
 		cursor: not-allowed;
+	}
+
+	.data-status-badge {
+		display: inline-block;
+		padding: 0.25rem 0.75rem;
+		border-radius: 0.375rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+
+	.data-status-badge.data-saved {
+		background-color: #d1fae5;
+		color: #065f46;
+	}
+
+	.data-status-badge.data-not-saved {
+		background-color: #fee2e2;
+		color: #991b1b;
 	}
 </style>
