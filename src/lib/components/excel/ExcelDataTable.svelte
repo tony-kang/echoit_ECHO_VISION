@@ -59,6 +59,16 @@
 	let hasDataSaved = $state(null);
 	/** @type {boolean} 데이터 저장 여부 확인 중 */
 	let isCheckingData = $state(false);
+	/** @type {boolean} 상위코드 검색 팝업 표시 여부 */
+	let showParentCodeSearchPopup = $state(false);
+	/** @type {string} 상위코드 검색 카테고리 */
+	let parentCodeSearchCategory = $state('');
+	/** @type {Array<any>} 상위코드 검색 결과 */
+	let parentCodeSearchResults = $state([]);
+	/** @type {string} 상위코드 검색어 */
+	let parentCodeSearchQuery = $state('');
+	/** @type {boolean} 상위코드 검색 로딩 중 여부 */
+	let isLoadingParentCodeSearch = $state(false);
 
 	/** @type {string[]} 매칭 검사에서 제외할 텍스트 목록 */
 	const EXCLUDED_MATCHING_TEXTS = ['과목'];
@@ -562,6 +572,94 @@
 		registerCategory = null;
 		registerParentCode = '';
 		parentCodeOptions = [];
+	}
+
+	/**
+	 * 상위코드 검색 팝업 열기
+	 * @param {string} category - 검색할 카테고리
+	 * @returns {Promise<void>}
+	 */
+	async function openParentCodeSearchPopup(category) {
+		parentCodeSearchCategory = category || 'organization';
+		parentCodeSearchQuery = '';
+		parentCodeSearchResults = [];
+		showParentCodeSearchPopup = true;
+		
+		// 초기 검색 (전체 목록)
+		await searchParentCodes();
+	}
+
+	/**
+	 * 상위코드 검색 팝업 닫기
+	 * @returns {void}
+	 */
+	function closeParentCodeSearchPopup() {
+		showParentCodeSearchPopup = false;
+		parentCodeSearchCategory = '';
+		parentCodeSearchQuery = '';
+		parentCodeSearchResults = [];
+	}
+
+	/**
+	 * 상위코드 검색 실행
+	 * @returns {Promise<void>}
+	 */
+	async function searchParentCodes() {
+		if (!parentCodeSearchCategory) return;
+
+		isLoadingParentCodeSearch = true;
+		try {
+			const { data, error } = await getSettings({
+				category: parentCodeSearchCategory === 'all' ? '' : parentCodeSearchCategory
+			});
+
+			if (error) {
+				console.error('상위코드 검색 실패:', error);
+				parentCodeSearchResults = [];
+				return;
+			}
+
+			let results = data || [];
+
+			// 검색어가 있으면 필터링
+			if (parentCodeSearchQuery.trim()) {
+				const query = parentCodeSearchQuery.trim().toLowerCase();
+				results = results.filter((/** @type {any} */ item) => {
+					return (
+						item.code?.toLowerCase().includes(query) ||
+						item.title?.toLowerCase().includes(query)
+					);
+				});
+			}
+
+			parentCodeSearchResults = results;
+		} catch (err) {
+			console.error('상위코드 검색 중 예외 발생:', err);
+			parentCodeSearchResults = [];
+		} finally {
+			isLoadingParentCodeSearch = false;
+		}
+	}
+
+	/**
+	 * 상위코드 선택 핸들러
+	 * @param {any} selectedCode - 선택한 코드 객체
+	 * @returns {void}
+	 */
+	function handleSelectParentCode(selectedCode) {
+		// parentCodeOptions에 이미 있는지 확인
+		const exists = parentCodeOptions.some((/** @type {any} */ opt) => opt.code === selectedCode.code);
+		
+		if (!exists) {
+			// parentCodeOptions에 추가
+			parentCodeOptions = [...parentCodeOptions, selectedCode];
+		}
+
+		// registerParentCode에 설정
+		registerParentCode = selectedCode.code;
+
+		// 팝업 닫기
+		closeParentCodeSearchPopup();
 	}
 
 	/**
@@ -1126,7 +1224,16 @@
 						/>
 					</div>
 					<div class="form-group">
-						<label for="register-parent-code">상위코드 <span class="required">*</span>:</label>
+						<div class="form-label">
+							<label for="register-parent-code">상위코드 <span class="required">*</span></label>
+							<button 
+								class="btn-parent-code btn-blue" 
+								onclick={() => openParentCodeSearchPopup(registerCategory || 'organization')}
+								type="button"
+							>
+								검색
+							</button>
+						</div>
 						{#if isLoadingParentOptions}
 							<div class="form-info">로딩 중...</div>
 						{:else if parentCodeOptions.length === 0}
@@ -1155,7 +1262,7 @@
 							maxlength="16"
 							class="form-input"
 						/>
-						<small class="form-hint">최대 16자리</small>
+						<small class="form-hint">최대 16자리(중복되지 않아야 함)</small>
 					</div>
 					<div class="form-group">
 						<label for="register-title">제목 <span class="required">*</span>:</label>
@@ -1204,6 +1311,91 @@
 						disabled={isRegisteringCode || !registerCode.trim() || !registerTitle.trim() || !registerParentCode.trim()}
 					>
 						{isRegisteringCode ? '등록 중...' : '등록'}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- 상위코드 검색 팝업 -->
+	{#if showParentCodeSearchPopup}
+		<div 
+			class="popup-overlay" 
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="parent-code-search-title"
+			tabindex="-1"
+			onclick={closeParentCodeSearchPopup}
+			onkeydown={(e) => {
+				if (e.key === 'Escape') {
+					closeParentCodeSearchPopup();
+				}
+			}}
+		>
+			<div 
+				class="popup-content" 
+				role="presentation"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}
+			>
+				<div class="popup-header">
+					<h3 id="parent-code-search-title">상위코드 검색</h3>
+					<button class="popup-close" onclick={closeParentCodeSearchPopup} aria-label="닫기">×</button>
+				</div>
+				<div class="popup-body">
+					<div class="form-group">
+						<label for="parent-code-search-query">검색어:</label>
+						<div class="flex gap-2">
+							<input 
+								id="parent-code-search-query"
+								type="text" 
+								bind:value={parentCodeSearchQuery}
+								placeholder="코드 또는 제목으로 검색"
+								class="form-input flex-1"
+								onkeydown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault();
+										searchParentCodes();
+									}
+								}}
+							/>
+							<button 
+								class="btn-primary" 
+								onclick={searchParentCodes}
+								disabled={isLoadingParentCodeSearch}
+							>
+								검색
+							</button>
+						</div>
+					</div>
+					<div class="form-group">
+						<div class="form-label">검색 결과:</div>
+						{#if isLoadingParentCodeSearch}
+							<div class="form-info">검색 중...</div>
+						{:else if parentCodeSearchResults.length === 0}
+							<div class="form-info">검색 결과가 없습니다.</div>
+						{:else}
+							<div class="code-search-results">
+								{#each parentCodeSearchResults as codeItem}
+									<button
+										class="code-search-item"
+										onclick={() => handleSelectParentCode(codeItem)}
+										type="button"
+									>
+										<div class="font-mono text-sm">{codeItem.code}</div>
+										<div class="text-xs text-gray-500">{codeItem.title}</div>
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+				<div class="popup-footer">
+					<button 
+						class="btn-secondary" 
+						onclick={closeParentCodeSearchPopup}
+					>
+						닫기
 					</button>
 				</div>
 			</div>
@@ -1454,12 +1646,12 @@
 		transition: all 0.2s;
 	}
 
-	.code-unmatched.clickable:hover {
+	/* .code-unmatched.clickable:hover {
 		color: #dc2626;
 		background-color: #fef2f2;
 		padding: 2px 4px;
 		border-radius: 4px;
-	}
+	} */
 
 	.table-section {
 		width: 100%;
@@ -1745,6 +1937,20 @@
 		font-size: 0.875rem;
 	}
 
+	.form-label {
+		display: flex;
+		align-items: center;
+		margin-bottom: 0.5rem;
+		font-weight: 500;
+		color: #374151;
+		font-size: 0.875rem;
+	}
+
+	.form-label label {
+		margin-bottom: 0;
+		margin-right: 0.5rem;
+	}
+
 	.form-group .required {
 		color: #ef4444;
 	}
@@ -1864,6 +2070,63 @@
 	.btn-secondary:disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
+	}
+
+	.btn-parent-code {
+		margin-left: 0.5rem;
+		padding: 2px 10px;
+		font-size: 0.875rem;
+		border: none;
+		border-radius: 0.375rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.btn-parent-code.btn-blue {
+		background-color: #3b82f6;
+		color: white;
+	}
+
+	.btn-parent-code.btn-blue:hover {
+		background-color: #2563eb;
+	}
+
+	.code-search-results {
+		max-height: 300px;
+		overflow-y: auto;
+		border: 1px solid #e5e7eb;
+		border-radius: 0.5rem;
+	}
+
+	.code-search-item {
+		width: 100%;
+		padding: 0.75rem;
+		border: none;
+		border-bottom: 1px solid #e5e7eb;
+		background: white;
+		text-align: left;
+		cursor: pointer;
+		transition: background-color 0.2s;
+	}
+
+	.code-search-item:last-child {
+		border-bottom: none;
+	}
+
+	.code-search-item:hover {
+		background-color: #f3f4f6;
+	}
+
+	.flex {
+		display: flex;
+	}
+
+	.gap-2 {
+		gap: 0.5rem;
+	}
+
+	.flex-1 {
+		flex: 1;
 	}
 
 </style>
