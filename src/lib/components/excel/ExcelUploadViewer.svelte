@@ -645,9 +645,9 @@
 							<button onclick={handleUpload} class="btn-primary" disabled={!canUpload}>
 								업로드
 							</button>
-							{#if !hasYearAndMonth}
+							<!-- {#if !hasYearAndMonth}
 								<span class="year-month-warning">⚠️ 파일명에 년도와 월 정보가 필요합니다 (예: 2024년 01월)</span>
-							{/if}
+							{/if} -->
 						{/if}
 
 						{#if fileName}

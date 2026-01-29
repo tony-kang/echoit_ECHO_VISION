@@ -921,17 +921,13 @@
 							<div class="data-info">
 								컬럼: {headers.length}개 | 행: {rows.length}개
 								{#if unmatchedColumnsCount > 0}
-									<span class="unmatched-badge">매칭 안됨: {unmatchedColumnsCount}개 - 환경설정 - 코드관리 - 조직 에서 코드를 매칭시켜 주세요. </span>
+									<span class="unmatched-badge">매칭 안됨: {unmatchedColumnsCount}개</span>
 								{/if}
-								{#if unmatchedColumnNames && unmatchedColumnNames.length > 0}
+								<!-- {#if unmatchedColumnNames && unmatchedColumnNames.length > 0}
 									<div class="unmatched-names">
 										매칭 안된 컬럼: {unmatchedColumnNames.join(', ')}
 									</div>
-								{:else if unmatchedColumnsCount > 0 && (!unmatchedColumnNames || unmatchedColumnNames.length === 0)}
-									<div class="unmatched-names">
-										매칭 안된 컬럼: (로딩 중...)
-									</div>
-								{/if}
+								{/if} -->
 							</div>
 						{/if}
 						
@@ -1422,8 +1418,8 @@
 	.unmatched-badge {
 		background-color: #dc2626;
 		color: white;
-		padding: 0.25rem 0.5rem;
-		border-radius: 0.25rem;
+		padding: 2px 10px;
+		border-radius: 0.5rem;
 		font-size: 0.85rem;
 		font-weight: 600;
 	}
@@ -1614,7 +1610,7 @@
 
 	.data-input-btn {
 		padding: 2px 10px;
-		font-size: 1rem;
+		font-size: 0.85rem;
 		font-weight: 600;
 		border-radius: 0.5rem;
 		cursor: pointer;
@@ -1633,9 +1629,8 @@
 	}
 
 	.data-input-btn:disabled {
-		opacity: 0.6;
 		cursor: not-allowed;
-		background-color: #6ee7b7;
+		background-color: #46eeab;
 	}
 
 	.data-input-hint {
