@@ -244,121 +244,10 @@
 	});
 
 	/**
-	 * 파일명에서 년도 추출
-	 * @param {string} filename - 파일명
-	 * @returns {number | null} 년도 (4자리 숫자) 또는 null
-	 */
-	 function extractYear(filename) {
-		if (!filename) return null;
-		
-		// Unicode 정규화 (조합형 → 완성형)
-		const normalized = filename.normalize('NFC');
-		// console.log('[extractYear] 정규화된 파일명:', normalized);
-		
-		// 먼저 4자리 년도 패턴 찾기 ("yyyy년")
-		const fourDigitPattern = /(\d{4})\s*년/;
-		let match = normalized.match(fourDigitPattern);
-		
-		if (match && match[1]) {
-			const year = parseInt(match[1], 10);
-			// 1900-2100 범위의 유효한 년도인지 확인
-			if (year >= 1900 && year <= 2100) {
-				// console.log('[extractYear] 4자리 년도 찾음:', year, '파일명:', filename);
-				return year;
-			}
-		}
-		
-		// 4자리 숫자만 있는 경우 (공백이나 다른 문자로 구분, "년" 없이)
-		const fourDigitOnlyPattern = /\b(\d{4})\b/;
-		match = normalized.match(fourDigitOnlyPattern);
-		if (match && match[1]) {
-			const year = parseInt(match[1], 10);
-			// 1900-2100 범위의 유효한 년도인지 확인
-			if (year >= 1900 && year <= 2100) {
-				// console.log('[extractYear] 4자리 숫자만 찾음:', year, '파일명:', filename);
-				return year;
-			}
-		}
-		
-		// 4자리 년도가 없으면 2자리 년도 패턴 찾기 ("yy년")
-		const twoDigitPattern = /(\d{2})\s*년/;
-		match = normalized.match(twoDigitPattern);
-		
-		if (match && match[1]) {
-			const twoDigitYear = parseInt(match[1], 10);
-			// 2자리 년도에 2000을 더해서 처리 (00-99 → 2000-2099)
-			const year = 2000 + twoDigitYear;
-			// 유효한 년도 범위인지 확인
-			if (year >= 2000 && year <= 2099) {
-				// console.log('[extractYear] 2자리 년도 찾음:', year, '파일명:', filename);
-				return year;
-			}
-		}
-		
-		console.log('[extractYear] 년도를 찾지 못함. 파일명:', filename);
-		return null;
-	}
-
-	/**
-	 * 파일명에서 월 추출
-	 * @param {string} filename - 파일명
-	 * @returns {number | null} 월 (1-12) 또는 null
-	 */
-	 function extractMonth(filename) {
-		// 1. 먼저 정규화 시도
-		let normalized = filename.normalize('NFC');
-		
-		// 2. 완성형 "월" 매칭
-		let monthPattern = /(\d{1,2})\s*월/;
-		let match = normalized.match(monthPattern);
-		
-		if (match && match[1]) {
-			const month = parseInt(match[1], 10);
-			if (month >= 1 && month <= 12) {
-				// console.log('[extractMonth] 월 찾음:', month);
-				return month;
-			}
-		}
-		
-		// 3. 조합형 자모 패턴으로도 시도 (백업)
-		// ㅇ(4363) + ㅓ(4463) + ㄹ(4527)
-		monthPattern = /(\d{1,2})\s*[\u1167\u110b\u1169\u110f]/;
-		match = filename.match(monthPattern);
-		
-		if (match && match[1]) {
-			const month = parseInt(match[1], 10);
-			if (month >= 1 && month <= 12) {
-				// console.log('[extractMonth] 월 찾음 (조합형):', month);
-				return month;
-			}
-		}
-		
-		console.log('[extractMonth] 월을 찾지 못함');
-		return null;
-	}
-
-
-	/**
-	 * 파일명에 년도와 월 정보가 모두 포함되어 있는지 확인
-	 * @type {boolean}
-	 */
-	const hasYearAndMonth = $derived.by(() => {
-		if (!fileName) {
-			console.log('[hasYearAndMonth] fileName이 없음');
-			return false;
-		}
-		const year = extractYear(fileName);
-		const month = extractMonth(fileName);
-		const result = year !== null && month !== null;
-		// console.log('[hasYearAndMonth] 결과:', result, '년도:', year, '월:', month, '파일명:', fileName);
-		return result;
-	});
-
-	/**
-	 * 업로드 가능 여부 (모든 컬럼이 매칭되어야 하고, 파일명에 년도와 월이 있어야 함)
+	 * 업로드 가능 여부 (모든 컬럼이 매칭되어야 함)
 	 */
 	const canUpload = $derived.by(() => {
-		return unmatchedColumnsCount === 0 && headers.length > 0 && hasYearAndMonth;
+		return unmatchedColumnsCount === 0 && headers.length > 0;
 	});
 
 	/**
@@ -514,11 +403,8 @@
 		isUploading = true;
 		error = '';
 
-		// 파일명에서 year와 month 추출
-		const year = extractYear(fileName);
-		const month = extractMonth(fileName);
-
-		const { data, error: uploadError } = await uploadExcelFile(selectedFile, excelType, year, month);
+		// 년도/월은 null로 전달 (데이터 입력 시 입력받도록 함)
+		const { data, error: uploadError } = await uploadExcelFile(selectedFile, excelType, null, null);
 
 		if (uploadError) {
 			error = uploadError.message || '파일 업로드에 실패했습니다.';
@@ -645,9 +531,6 @@
 							<button onclick={handleUpload} class="btn-primary" disabled={!canUpload}>
 								업로드
 							</button>
-							<!-- {#if !hasYearAndMonth}
-								<span class="year-month-warning">⚠️ 파일명에 년도와 월 정보가 필요합니다 (예: 2024년 01월)</span>
-							{/if} -->
 						{/if}
 
 						{#if fileName}
@@ -686,6 +569,7 @@
 					excelType={excelType}
 					frozenColumns={frozenColumns}
 					inline={true}
+					isUploaded={!!uploadedFileId}
 				/>
 			</div>
 		{/if}
@@ -852,13 +736,6 @@
 
 	.btn-secondary:hover {
 		background-color: #4b5563;
-	}
-
-	.year-month-warning {
-		font-size: 0.875rem;
-		color: #dc2626;
-		margin-left: 0.75rem;
-		white-space: nowrap;
 	}
 
 	.error-message {

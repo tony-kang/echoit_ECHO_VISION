@@ -7,9 +7,9 @@
 
 	/**
 	 * 컴포넌트 Props
-	 * @type {{ file?: any, excelType: string, onClose?: Function, frozenColumns?: number, workbook?: any, fileName?: string, inline?: boolean }}
+	 * @type {{ file?: any, excelType: string, onClose?: Function, frozenColumns?: number, workbook?: any, fileName?: string, inline?: boolean, isUploaded?: boolean }}
 	 */
-	let { file, excelType = '', onClose, frozenColumns = 1, workbook: providedWorkbook, fileName: providedFileName, inline = false } = $props();
+	let { file, excelType = '', onClose, frozenColumns = 1, workbook: providedWorkbook, fileName: providedFileName, inline = false, isUploaded = false } = $props();
 
 	/** @type {string} 파일명 */
 	let fileName = $state('');
@@ -285,7 +285,7 @@
 
 	/**
 	 * 현재 파일의 연도와 월 정보 (버튼 표시용)
-	 * DB에 저장된 값만 사용 (파일명 파싱 제거)
+	 * DB에 저장된 값만 사용 (데이터 입력 시 년도/월을 입력받음)
 	 * @type {{year: number | null, month: number | null}}
 	 */
 	const fileYearMonth = $derived.by(() => {
@@ -796,8 +796,19 @@
 	 *   - excel_file_data에 {과목코드: 값} 형태로 저장
 	 * @returns {Promise<void>}
 	 */
+	/**
+	 * 데이터 입력 버튼 클릭 핸들러
+	 * 저장 로직:
+	 *   - Col 1: 매출/비용 과목 코드 (ev_code)
+	 *   - Row 1: 헤더 (col 1은 매출/비용 과목, col 2~N은 조직코드)
+	 *   - Row 2~N: 데이터 행
+	 *   - 각 조직코드(col 2~N)별로 레코드 생성
+	 *   - excel_file_data에 {과목코드: 값} 형태로 저장
+	 * @returns {Promise<void>}
+	 */
 	async function handleSaveColumnData() {
 		if (!file || !excelType || headers.length === 0 || rows.length === 0) {
+			console.log('저장할 데이터가 없습니다.', file, excelType, headers, rows);
 			toast.error('저장할 데이터가 없습니다.');
 			return;
 		}
@@ -819,7 +830,7 @@
 			}
 
 			const excelFileId = excelFileData.id;
-			// ev_excel_file에 저장된 year, month만 사용 (파일명 파싱 제거)
+			// ev_excel_file에 저장된 year, month만 사용
 			const fileYear = excelFileData.year || null;
 			const fileMonth = (excelFileData.month !== null && excelFileData.month !== undefined) 
 				? excelFileData.month 
@@ -1041,35 +1052,37 @@
 						{/if}
 
 						<!-- 데이터 입력 -->
-						<div class="data-input-section">
-							{#if isCheckingData}
-								<div class="data-status-message">데이터 확인 중...</div>
-							{:else if hasDataSaved}
-								<div class="data-status-message data-saved-message">데이터가 추가된 상태 입니다.</div>
-							{:else}
-								<button
-									class="data-input-btn"
-									onclick={handleSaveColumnData}
-									disabled={isSavingData || headers.length === 0 || rows.length === 0 || unmatchedColumnsCount > 0}
-								>
-									{isSavingData 
-										? '저장 중...' 
-										: (() => {
-											const { year, month } = fileYearMonth;
-											if (year && month) {
-												return `${year}년 ${month}월 데이터 입력`;
-											} else if (year) {
-												return `${year}년 데이터 입력`;
-											} else {
-												return '데이터 입력';
-											}
-										})()}
-								</button>
-								{#if unmatchedColumnsCount > 0}
-									<span class="data-input-hint">매칭되지 않은 컬럼이 있어 저장할 수 없습니다.</span>
+						{#if file || isUploaded}
+							<div class="data-input-section">
+								{#if isCheckingData}
+									<div class="data-status-message">데이터 확인 중...</div>
+								{:else if hasDataSaved}
+									<div class="data-status-message data-saved-message">데이터가 추가된 상태 입니다.</div>
+								{:else}
+									<button
+										class="data-input-btn"
+										onclick={handleSaveColumnData}
+										disabled={isSavingData || headers.length === 0 || rows.length === 0 || unmatchedColumnsCount > 0}
+									>
+										{isSavingData 
+											? '저장 중...' 
+											: (() => {
+												const { year, month } = fileYearMonth;
+												if (year && month) {
+													return `${year}년 ${month}월 데이터 입력`;
+												} else if (year) {
+													return `${year}년 데이터 입력`;
+												} else {
+													return '데이터 입력';
+												}
+											})()}
+									</button>
+									{#if unmatchedColumnsCount > 0}
+										<span class="data-input-hint">매칭되지 않은 컬럼이 있어 저장할 수 없습니다.</span>
+									{/if}
 								{/if}
-							{/if}
-						</div>
+							</div>
+						{/if}
 					</div>
 				</div>
 
@@ -1401,6 +1414,7 @@
 			</div>
 		</div>
 	{/if}
+
 </div>
 
 <style>
