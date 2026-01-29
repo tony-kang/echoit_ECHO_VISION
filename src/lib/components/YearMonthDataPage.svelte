@@ -323,7 +323,7 @@
 										<thead>
 											<tr>
 												<th class="w-60 !text-left">항목</th>
-												<th class="w-8 !text-center">년도</th>
+												<!-- <th class="w-8 !text-center">년도</th> -->
 												{#each months as month}
 													<th class="!text-right">{month}월</th>
 												{/each}
@@ -333,14 +333,14 @@
 										<tbody>
 											{#each displayData as item}
 												<tr>
-													<td>{item.evCode.title}</td>
-													<td>{item.year}</td>
+													<td class="!text-blue-500">{item.evCode.title}</td>
+													<!-- <td class="!text-blue-500">{item.year}</td> -->
 													{#each months as month}
 														<td class="w-40 !text-right">
 															{formatAmount(item.monthData[month] || 0)}
 														</td>
 													{/each}
-													<td class="w-40 !text-right">
+													<td class="w-40 !text-right !text-blue-500">
 														{formatAmount(
 															months.reduce((sum, month) => sum + (item.monthData[month] || 0), 0)
 														)}
