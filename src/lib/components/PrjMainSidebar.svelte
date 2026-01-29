@@ -29,26 +29,28 @@
 				{ label: '손익 현황', path: '/echovision/profit' },
 			]
 		},
-		{
-			id: 'sales',
-			label: '매출',
-			icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
-			path: '/echovision/sales',
-			subMenus: [
-				{ label: '매출 관리', path: '/echovision/sales' },
-				{ label: '매출 (엑셀)파일 관리', path: '/echovision/excel/sales' },
-				{ label: '매출 분석', path: '/echovision/compare/sales' },
-			]
-		},
+		// {
+		// 	id: 'sales',
+		// 	label: '매출',
+		// 	icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+		// 	path: '/echovision/sales',
+		// 	subMenus: [
+		// 		{ label: '매출 관리', path: '/echovision/sales' },
+		// 		{ label: '매출 (엑셀)파일 관리', path: '/echovision/excel/sales' },
+		// 		// { label: '매출 분석', path: '/echovision/compare/sales' },
+		// 	]
+		// },
 		{
 			id: 'cost',
-			label: '비용',
+			label: '매출 / 원가',
 			icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
 			path: '/echovision/cost',
 			subMenus: [
-				{ label: '비용 관리', path: '/echovision/cost' },
-				{ label: '비용 (엑셀)파일 관리', path: '/echovision/excel/cost' },
-				{ label: '비용 분석', path: '/echovision/compare/cost' },
+				{ label: '매출 관리', path: '/echovision/sales' },
+				{ label: '원가 관리', path: '/echovision/cost' },
+				{ label: '매출 (엑셀)파일 관리', path: '/echovision/excel/sales' },
+				{ label: '원가 (엑셀)파일 관리', path: '/echovision/excel/cost' },
+				// { label: '원가 분석', path: '/echovision/compare/cost' },
 			]
 		},
 		{
