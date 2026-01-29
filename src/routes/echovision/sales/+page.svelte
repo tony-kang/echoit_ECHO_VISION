@@ -25,7 +25,7 @@
 	let isLoadingEvCodes = $state(false);
 	
 	/** @type {Record<string, any>} 필터 객체 */
-	let filters = $state({ year: null });
+	let filters = $state({ year: new Date().getFullYear().toString() });
 	/** @type {string | null} 이전 연도 값 (무한루프 방지) */
 	let previousYear = $state(null);
 
@@ -336,6 +336,9 @@
 							{:else if salesData.length === 0}
 								<div class="flex flex-col items-center justify-center py-12">
 									<div class="text-gray-500 mb-2">매출 데이터가 없습니다.</div>
+									{#if !filters.year}
+										<div class="text-xs text-gray-400">년도를 선택해주세요.</div>
+									{/if}
 									<div class="text-xs text-gray-400">
 										{#if isLoading}
 											데이터를 불러오는 중...
