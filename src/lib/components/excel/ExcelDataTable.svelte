@@ -69,6 +69,10 @@
 	let parentCodeSearchQuery = $state('');
 	/** @type {boolean} 상위코드 검색 로딩 중 여부 */
 	let isLoadingParentCodeSearch = $state(false);
+	/** @type {number | null} 파일의 년도 (DB에서 로드) */
+	let fileYearFromDB = $state(null);
+	/** @type {number | null} 파일의 월 (DB에서 로드) */
+	let fileMonthFromDB = $state(null);
 
 	/** @type {string[]} 매칭 검사에서 제외할 텍스트 목록 */
 	const EXCLUDED_MATCHING_TEXTS = ['과목'];
@@ -293,9 +297,9 @@
 			return { year: null, month: null };
 		}
 
-		// file 객체에서 year, month 가져오기 (DB에 저장된 값만 사용)
-		const year = file?.year || null;
-		const month = (file?.month !== null && file?.month !== undefined) ? file.month : null;
+		// DB에서 로드한 year, month를 우선 사용하고, 없으면 file 객체에서 가져오기
+		const year = fileYearFromDB !== null ? fileYearFromDB : (file?.year || null);
+		const month = fileMonthFromDB !== null ? fileMonthFromDB : ((file?.month !== null && file?.month !== undefined) ? file.month : null);
 
 		return { year, month };
 	});
@@ -398,9 +402,9 @@
 				.single();
 			
 			if (!excelFileError && excelFileData) {
-				// file 객체에 year, month 정보 업데이트
-				file.year = excelFileData.year || null;
-				file.month = excelFileData.month || null;
+				// 내부 state에 year, month 정보 저장 (file prop 직접 수정 방지)
+				fileYearFromDB = excelFileData.year || null;
+				fileMonthFromDB = excelFileData.month !== null && excelFileData.month !== undefined ? excelFileData.month : null;
 			}
 			
 			const { data: url, error: urlError } = await getExcelFileUrl(filePath);
@@ -966,6 +970,15 @@
 			isSavingData = false;
 		}
 	}
+
+	// file prop이 변경될 때 내부 state 초기화
+	$effect(() => {
+		if (file) {
+			// file prop이 변경되면 DB에서 로드한 값 초기화 (loadExcelFile에서 다시 로드됨)
+			fileYearFromDB = null;
+			fileMonthFromDB = null;
+		}
+	});
 
 	// 컴포넌트 마운트 시 파일 로드 또는 제공된 workbook 사용
 	$effect(() => {
