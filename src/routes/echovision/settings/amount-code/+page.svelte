@@ -43,6 +43,8 @@
 	let formItems = $state([]);
 	/** @type {string} 설명 */
 	let formComment = $state('');
+	/** @type {number} 출력순서 */
+	let formDisplayOrder = $state(0);
 	/** @type {string} 새 항목 입력값 */
 	let newItemValue = $state('');
 	/** @type {string} 항목 검색어 */
@@ -174,6 +176,7 @@
 		formTitle = evCode.title || '';
 		formItems = evCode.items ? [...evCode.items] : [];
 		formComment = evCode.comment || '';
+		formDisplayOrder = evCode.display_order || 0;
 		showFormModal = true;
 	}
 
@@ -223,6 +226,7 @@
 		formTitle = '';
 		formItems = [];
 		formComment = '';
+		formDisplayOrder = 0;
 		newItemValue = '';
 		itemSearchQuery = '';
 		showItemDropdown = false;
@@ -261,7 +265,8 @@
 				category: formCategory,
 				title: formTitle.trim() || null,
 				items: formItems.filter(item => item && item.trim() !== ''),
-				comment: formComment || null
+				comment: formComment || null,
+				display_order: formDisplayOrder || 0
 			};
 
 			let result;
@@ -500,15 +505,28 @@
 	}
 
 	/**
-	 * 필터링된 ev_code 목록
+	 * 필터링된 ev_code 목록 (display_order 순서대로 정렬)
 	 * @type {Array<any>}
 	 */
 	const filteredEvCodes = $derived.by(() => {
-		if (!filters.code) return evCodes;
-		const codeFilter = filters.code.toLowerCase();
-		return evCodes.filter(evCode => 
-			evCode.item_code?.toLowerCase().includes(codeFilter)
-		);
+		let filtered = evCodes;
+		if (filters.code) {
+			const codeFilter = filters.code.toLowerCase();
+			filtered = evCodes.filter(evCode => 
+				evCode.item_code?.toLowerCase().includes(codeFilter)
+			);
+		}
+		// display_order 순서대로 정렬 (작은 값이 먼저, 같으면 item_code 순서)
+		// 복사본을 만들어서 정렬 (원본 배열 변경 방지)
+		return [...filtered].sort((a, b) => {
+			const orderA = a.display_order || 0;
+			const orderB = b.display_order || 0;
+			if (orderA !== orderB) {
+				return orderA - orderB;
+			}
+			// display_order가 같으면 item_code로 정렬
+			return (a.item_code || '').localeCompare(b.item_code || '');
+		});
 	});
 
 	/**
@@ -661,6 +679,7 @@
 									{ label: '제목' },
 									{ label: '항목 수' },
 									{ label: '항목' },
+									{ label: '출력순서', align: 'center' },	
 									{ label: '설명' },
 									{ label: '생성일' },
 									{ label: '수정일' },
@@ -689,6 +708,7 @@
 												{/if}
 											</div>
 										</td>
+										<td class="text-center">{evCode.display_order || 0}</td>
 										<td class="max-w-xs truncate" title={evCode.comment || ''}>{evCode.comment || '-'}</td>
 										<td class="text-sm text-gray-600">{new Date(evCode.created_at).toLocaleDateString('ko-KR')}</td>
 										<td class="text-sm text-gray-600">{new Date(evCode.updated_at).toLocaleDateString('ko-KR')}</td>
@@ -936,6 +956,18 @@
 							class="form-input"
 							rows="3"
 						></textarea>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label">출력순서</label>
+						<input
+							type="number"
+							bind:value={formDisplayOrder}
+							placeholder="출력순서를 입력하세요 (작은 값이 먼저 표시됨)"
+							class="form-input"
+							min="0"
+						/>
+						<p class="text-xs text-gray-500 mt-1">작은 값이 먼저 표시됩니다. 기본값은 0입니다.</p>
 					</div>
 				{/if}
 			</div>

@@ -620,11 +620,12 @@ export async function getEvCode(code) {
  * @param {string[]} [evCodeData.items] - 항목 배열 (env_code의 code 배열)
  * @param {string} [evCodeData.title] - 제목
  * @param {string} [evCodeData.comment] - 설명
+ * @param {number} [evCodeData.display_order] - 출력순서
  * @returns {Promise<{data: any|null, error: Error|null}>}
  */
 export async function createEvCode(evCodeData) {
 	try {
-		const { code, category, items = [], title, comment } = evCodeData;
+		const { code, category, items = [], title, comment, display_order } = evCodeData;
 
 		// 유효성 검사
 		if (!code || code.trim() === '') {
@@ -639,7 +640,8 @@ export async function createEvCode(evCodeData) {
 			category,
 			items: Array.isArray(items) ? items.filter(item => item && item.trim() !== '') : [],
 			title: title || null,
-			comment: comment || null
+			comment: comment || null,
+			display_order: display_order !== undefined && display_order !== null ? Number(display_order) : 0
 		};
 
 		const { data, error } = await supabase
@@ -676,11 +678,12 @@ export async function createEvCode(evCodeData) {
  * @param {string[]} [updateData.items] - 항목 배열
  * @param {string} [updateData.title] - 제목
  * @param {string} [updateData.comment] - 설명
+ * @param {number} [updateData.display_order] - 출력순서
  * @returns {Promise<{data: any|null, error: Error|null}>}
  */
 export async function updateEvCode(code, updateData) {
 	try {
-		const { category, items, title, comment } = updateData;
+		const { category, items, title, comment, display_order } = updateData;
 
 		const updateFields = {};
 		if (category !== undefined) {
@@ -697,6 +700,9 @@ export async function updateEvCode(code, updateData) {
 		}
 		if (comment !== undefined) {
 			updateFields.comment = comment || null;
+		}
+		if (display_order !== undefined && display_order !== null) {
+			updateFields.display_order = Number(display_order);
 		}
 
 		if (Object.keys(updateFields).length === 0) {

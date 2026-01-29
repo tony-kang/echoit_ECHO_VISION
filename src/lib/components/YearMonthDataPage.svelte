@@ -79,7 +79,17 @@
 				console.error('ev_code 로드 실패:', error);
 				evCodes = [];
 			} else {
-				evCodes = data || [];
+				// display_order 순서대로 정렬 (작은 값이 먼저, 같으면 item_code 순서)
+				// 복사본을 만들어서 정렬 (원본 배열 변경 방지)
+				evCodes = [...(data || [])].sort((a, b) => {
+					const orderA = a.display_order || 0;
+					const orderB = b.display_order || 0;
+					if (orderA !== orderB) {
+						return orderA - orderB;
+					}
+					// display_order가 같으면 item_code로 정렬
+					return (a.item_code || '').localeCompare(b.item_code || '');
+				});
 			}
 		} catch (error) {
 			console.error('ev_code 로드 중 예외 발생:', error);
@@ -90,10 +100,17 @@
 	}
 
 	/**
-	 * 사용자 및 인증 상태가 준비되면 ev_code 로드
+	 * 사용자 및 인증 상태가 준비되면 ev_code 로드 (중복 호출 방지)
 	 */
 	$effect(() => {
+		// 이미 로드되었거나 로딩 중이면 실행하지 않음
+		if (evCodes.length > 0 || isLoadingEvCodes) {
+			return;
+		}
+
+		// 사용자 및 인증 상태가 준비되었을 때만 로드
 		if (user && !authLoading && userProfile) {
+			console.log('ev_code 로드');
 			loadEvCodes();
 		}
 	});
