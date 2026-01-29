@@ -11,7 +11,7 @@
 	 * @type {{ 
 	 *   title: string, 
 	 *   category: 'sales' | 'cost',
-	 *   loadData: (year: number) => Promise<{ data: any[] | null, error: any }>,
+	 *   loadData: (year: number, evCodeItems?: string[]) => Promise<{ data: any[] | null, error: any }>,
 	 *   organizeData: (rawData: any[], evCodes: any[], filters: Record<string, any>) => any[],
 	 *   emptyMessage?: string,
 	 *   tableName?: string
@@ -41,6 +41,7 @@
 	let isLoading = $state(false);
 	/** @type {Array<any>} ev_code 목록 */
 	let evCodes = $state([]);
+	let evCodeItems = $state([]);
 	let isLoadingEvCodes = $state(false);
 
 	/** @type {Record<string, any>} 필터 객체 */
@@ -90,6 +91,13 @@
 					// display_order가 같으면 item_code로 정렬
 					return (a.item_code || '').localeCompare(b.item_code || '');
 				});
+
+				// ev_sales/ev_cost 데이터를 로드할 때 사용할 evCode의 items를 평탄화하고 중복 제거
+				const allItems = evCodes.flatMap(evCode => evCode.items || []);
+				evCodeItems = [...new Set(allItems)];
+
+				// console.log('ev_code 목록:', $state.snapshot(evCodes));
+				console.log('evCodeItems:', $state.snapshot(evCodeItems));
 			}
 		} catch (error) {
 			console.error('ev_code 로드 중 예외 발생:', error);
@@ -110,7 +118,6 @@
 
 		// 사용자 및 인증 상태가 준비되었을 때만 로드
 		if (user && !authLoading && userProfile) {
-			console.log('ev_code 로드');
 			loadEvCodes();
 		}
 	});
@@ -173,19 +180,21 @@
 
 		isLoading = true;
 		try {
-			const { data, error } = await loadData(parseInt(filters.year));
+			// evCodeItems 만 데이터 로드
+			const { data, error } = await loadData(parseInt(filters.year), evCodeItems);
 
 			if (error) {
 				console.error(`${title} 데이터 로드 실패:`, error);
 				// 테이블이 없는 경우 에러 메시지 표시
-				if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
-					const tableFile = tableName ? `docs/supabase/${tableName}.sql` : `docs/supabase/ev_${category}.sql`;
-					console.error(`⚠️ ev_${category} 테이블이 생성되지 않았습니다. ${tableFile} 파일을 Supabase SQL Editor에서 실행하세요.`);
-				}
+				// if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+				// 	const tableFile = tableName ? `docs/supabase/${tableName}.sql` : `docs/supabase/ev_${category}.sql`;
+				// 	console.error(`⚠️ ev_${category} 테이블이 생성되지 않았습니다. ${tableFile} 파일을 Supabase SQL Editor에서 실행하세요.`);
+				// }
 				displayData = [];
 			} else {
 				// 데이터 조직화
 				displayData = organizeData(data || [], evCodes, filters);
+				console.log(category === 'sales' ? '매출' : '원가', '데이터를 테이블 출력용으로 변환:', $state.snapshot(displayData));
 			}
 		} catch (err) {
 			console.error(`${title} 데이터 로드 예외:`, err);

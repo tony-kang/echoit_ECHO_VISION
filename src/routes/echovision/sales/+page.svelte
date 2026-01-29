@@ -5,11 +5,13 @@
 	/**
 	 * 매출 데이터 로드 함수
 	 * @param {number} year - 연도
+	 * @param {string[]} [evCodeItems] - ev_code의 items 배열 (평탄화된 중복 제거된 배열)
 	 * @returns {Promise<{ data: any[] | null, error: any }>}
 	 */
-	async function loadSalesData(year) {
+	async function loadSalesData(year, evCodeItems) {
 		return await getSales({
 			year,
+			evCodeItems,
 			orderByYear: true,
 			orderByMonth: true
 		});
@@ -41,7 +43,8 @@
 			evCodeDataMap.set(evCode.item_code, {
 				evCode: evCode,
 				year: filters.year ? parseInt(filters.year) : null,
-				monthData: {} // 1~12월 데이터
+				monthData: {}, // 1~12월 데이터
+				monthDataDetail: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: [] } // 1~12월 데이터 상세
 			});
 		}
 
@@ -79,7 +82,9 @@
 				if (evCodeItem.monthData[month] === undefined) {
 					evCodeItem.monthData[month] = 0;
 				}
-				evCodeItem.monthData[month] += numValue;
+				//console.log(`evCodeItem.monthData[${month}]: ${numValue}`);
+				evCodeItem.monthData[month] += numValue; // 합산
+				evCodeItem.monthDataDetail[month].push({year: year, month: month, value: numValue});
 			}
 		}
 

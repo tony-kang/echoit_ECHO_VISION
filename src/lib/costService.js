@@ -18,6 +18,7 @@ import { supabase } from './supabaseClient';
  * 원가 데이터 조회 옵션
  * @typedef {Object} GetCostOptions
  * @property {string[]} [codes] - 조회할 코드 배열 (없으면 전체)
+ * @property {string[]} [evCodeItems] - ev_code의 items 배열 (평탄화된 중복 제거된 배열)
  * @property {number} [year] - 연도 필터
  * @property {number} [month] - 월 필터
  * @property {boolean} [orderByYear] - 연도순 정렬 (기본값: true)
@@ -31,7 +32,7 @@ import { supabase } from './supabaseClient';
  */
 export async function getCosts(options = {}) {
 	try {
-		const { codes, year, month, orderByYear = true, orderByMonth = true } = options;
+		const { codes, year, month, evCodeItems, orderByYear = true, orderByMonth = true } = options;
 
 		let query = supabase
 			.from('ev_cost')
@@ -52,6 +53,12 @@ export async function getCosts(options = {}) {
 			query = query.eq('month', month);
 		}
 
+		// evCodeItems 필터링 (배열인 경우에만)
+		if (evCodeItems && Array.isArray(evCodeItems) && evCodeItems.length > 0) {
+			// console.log('evCodeItems 필터링:', evCodeItems);
+			query = query.in('org_code', evCodeItems);
+		}
+
 		// 정렬
 		if (orderByYear) {
 			query = query.order('year', { ascending: false });
@@ -68,7 +75,7 @@ export async function getCosts(options = {}) {
 			return { data: [], error };
 		}
 
-		// console.log('원가 데이터 조회 결과:', data);
+		console.log('원가 데이터(원본):', data);
 
 		return { data: data || [], error: null };
 	} catch (error) {

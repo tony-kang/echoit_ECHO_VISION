@@ -18,6 +18,7 @@ import { supabase } from './supabaseClient';
  * 매출 데이터 조회 옵션
  * @typedef {Object} GetSalesOptions
  * @property {string[]} [codes] - 조회할 코드 배열 (없으면 전체, org_code 필터링)
+ * @property {string[]} [evCodeItems] - ev_code의 items 배열 (평탄화된 중복 제거된 배열)
  * @property {number} [year] - 연도 필터
  * @property {number} [month] - 월 필터
  * @property {boolean} [orderByYear] - 연도순 정렬 (기본값: true)
@@ -31,16 +32,16 @@ import { supabase } from './supabaseClient';
  */
 export async function getSales(options = {}) {
 	try {
-		const { codes, year, month, orderByYear = true, orderByMonth = true } = options;
+		const { year, month, evCodeItems, orderByYear = true, orderByMonth = true } = options;
 
 		let query = supabase
 			.from('ev_sales')
 			.select('*');
 
 		// 코드 필터링 (org_code 사용)
-		if (codes && codes.length > 0) {
-			query = query.in('org_code', codes);
-		}
+		// if (codes && codes.length > 0) {
+		// 	query = query.in('org_code', codes);
+		// }
 
 		// 연도 필터링
 		if (year !== undefined && year !== null) {
@@ -50,6 +51,12 @@ export async function getSales(options = {}) {
 		// 월 필터링
 		if (month !== undefined && month !== null) {
 			query = query.eq('month', month);
+		}
+
+		// evCodeItems 필터링 (배열인 경우에만)
+		if (evCodeItems && Array.isArray(evCodeItems) && evCodeItems.length > 0) {
+			// console.log('evCodeItems 필터링:', evCodeItems);
+			query = query.in('org_code', evCodeItems);
 		}
 
 		// 정렬
@@ -67,6 +74,8 @@ export async function getSales(options = {}) {
 			console.error('매출 데이터 조회 실패:', error);
 			return { data: [], error };
 		}
+
+		console.log('매출 데이터(원본):', data);
 
 		return { data: data || [], error: null };
 	} catch (error) {
