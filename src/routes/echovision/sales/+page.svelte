@@ -27,7 +27,7 @@
 	/** @type {Record<string, any>} 필터 객체 */
 	let filters = $state({ year: new Date().getFullYear().toString() });
 	/** @type {string | null} 이전 연도 값 (무한루프 방지) */
-	let previousYear = $state(null);
+	let previousYear = $state(new Date().getFullYear().toString());
 
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
@@ -322,7 +322,7 @@
 							}
 						]}
 						onReset={() => {
-							filters = { year: null };
+							filters = { year: new Date().getFullYear().toString() };
 							salesData = [];
 						}}
 					/>
