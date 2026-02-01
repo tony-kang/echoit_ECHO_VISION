@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import ScheduleForm from '$lib/components/ScheduleForm.svelte';
 	import ScheduleSidebar from '$lib/components/ScheduleSidebar.svelte';
+	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import {
 		getAllSchedules,
@@ -12,7 +13,7 @@
 		updateSchedule,
 		deleteSchedule
 	} from '$lib/scheduleService';
-	import { getActiveCategories } from '$lib/scheduleCategoryService';
+	import { getActiveCategories } from '$lib/scheduleCategoryService'; 
 
 	// URL 쿼리 파라미터에서 categoryLevel 읽기
 	// 예: /schedules?categoryLevel=contract (단일 레벨)
@@ -471,21 +472,7 @@
 			<!-- 헤더 -->
 			<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 shrink-0">
 				<div class="flex items-center gap-3 mb-4 md:mb-0">
-					<!-- 모바일 햄버거 버튼 -->
-					<button
-						onclick={() => (isSidebarOpen = true)}
-						class="md:hidden p-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
-						aria-label="메뉴 열기"
-					>
-						<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 6h16M4 12h16M4 18h16"
-							></path>
-						</svg>
-					</button>
+					<MobileMenuButton bind:isOpen={isSidebarOpen} />
 					<h1 class="text-3xl font-bold text-gray-900">주요일정</h1>
 				</div>
 				<div class="flex gap-2">

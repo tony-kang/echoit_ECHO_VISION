@@ -3,8 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
+	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import CodeManagement from '$lib/components/settings/CodeManagement.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore';  
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
@@ -84,21 +85,7 @@
 						<!-- 헤더 -->
 						<div class="mb-6">
 							<div class="flex items-center gap-3 mb-2">
-								<!-- 모바일 햄버거 버튼 -->
-								<button
-									onclick={() => (isSidebarOpen = true)}
-									class="md:hidden p-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
-									aria-label="메뉴 열기"
-								>
-									<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M4 6h16M4 12h16M4 18h16"
-										/>
-									</svg>
-								</button>
+								<MobileMenuButton bind:isOpen={isSidebarOpen} />
 								<div class="flex items-center gap-3">
 									<!-- <button
 										onclick={() => goto('/echovision/settings/code')}

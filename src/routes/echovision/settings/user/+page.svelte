@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
+	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import {
 		getAllUsers,
@@ -13,7 +14,7 @@
 		USER_ROLES,
 		isAdmin
 	} from '$lib/userService';
-	import { searchSettingsByTitle } from '$lib/settingsService';
+	import { searchSettingsByTitle } from '$lib/settingsService'; 
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
@@ -435,21 +436,7 @@
 						<!-- 헤더 -->
 						<div class="mb-6">
 							<div class="flex items-center gap-3 mb-2">
-								<!-- 모바일 햄버거 버튼 -->
-								<button
-									onclick={() => (isSidebarOpen = true)}
-									class="md:hidden p-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
-									aria-label="메뉴 열기"
-								>
-									<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M4 6h16M4 12h16M4 18h16"
-										></path>
-									</svg>
-								</button>
+								<MobileMenuButton bind:isOpen={isSidebarOpen} />
 								<h1 class="text-3xl font-bold text-gray-800">사용자 관리</h1>
 							</div>
 							<p class="text-gray-600">사용자 역할 변경, 상태 관리 등 사용자 관리 기능을 제공합니다</p>

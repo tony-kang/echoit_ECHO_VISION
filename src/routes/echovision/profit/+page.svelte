@@ -2,11 +2,12 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
+	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import YearMonthCodeFilter from '$lib/components/YearMonthCodeFilter.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import { getSettingsHierarchy, getSettings } from '$lib/settingsService';
 	import { getSales, getChildCodes } from '$lib/salesService';
-	import { isAdmin } from '$lib/userService';
+	import { isAdmin } from '$lib/userService'; 
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
@@ -459,21 +460,7 @@
 						<div class="mb-6">
 							<div class="flex items-center justify-between gap-3 mb-2">
 								<div class="flex items-center gap-3">
-									<!-- 모바일 햄버거 버튼 -->
-									<button
-										onclick={() => (isSidebarOpen = true)}
-										class="md:hidden p-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
-										aria-label="메뉴 열기"
-									>
-										<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M4 6h16M4 12h16M4 18h16"
-											/>
-										</svg>
-									</button>
+									<MobileMenuButton bind:isOpen={isSidebarOpen} />
 									<h1 class="text-2xl font-bold text-gray-900">수익 정보</h1>
 								</div>
 								{#if userProfile}
