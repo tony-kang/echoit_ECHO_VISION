@@ -1,5 +1,6 @@
 // 인증 상태 관리 Store (Svelte 5)
 import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
 import { supabase } from '$lib/supabaseClient';
 import { getCurrentUserProfile as fetchUserProfile, USER_ROLES } from '$lib/userService';
 import { logAction, ACTION_TYPES, ACTION_CATEGORIES } from '$lib/logService';
@@ -71,9 +72,39 @@ function createAuthStore() {
           await this.loadUserProfile();
         }
 
+        /**
+         * 유효하지 않은 세션 처리
+         * @returns {Promise<void>}
+         */
+        const handleInvalidSession = async () => {
+          // 로컬 스토리지 정리
+          await supabase.auth.signOut();
+          lastLoadedUserId = null;
+          set({
+            user: null,
+            session: null,
+            loading: false,
+            userProfile: null,
+            profileLoading: false
+          });
+          // 로그인 페이지로 이동 (클라이언트 사이드에서만)
+          if (typeof window !== 'undefined') {
+            // Store 내부에서 네비게이션은 클라이언트 사이드에서만 실행됨
+            // onAuthStateChange는 클라이언트 사이드에서만 실행되므로 goto 사용 가능
+            // eslint-disable-next-line svelte/no-ignored-unsubscribe
+            goto('/login');
+          }
+        };
+
         // 인증 상태 변화 감지 리스너 등록
         supabase.auth.onAuthStateChange(async (event, newSession) => {
           const newUser = newSession?.user ?? null;
+          
+          // 세션이 무효한 경우 처리 (로그아웃 또는 토큰 갱신 실패)
+          if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !newSession)) {
+            await handleInvalidSession();
+            return;
+          }
           
           // 사용자가 변경된 경우에만 프로필 다시 로드
           if (newUser?.id !== lastLoadedUserId) {
