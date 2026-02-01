@@ -34,8 +34,6 @@ export async function getSales(options = {}) {
 	try {
 		const { year, month, evCodeItems, orderByYear = true, orderByMonth = true } = options;
 
-		console.log('getSales options:', options);
-		
 		let query = supabase
 			.from('ev_sales')
 			.select('*');
@@ -77,7 +75,7 @@ export async function getSales(options = {}) {
 			return { data: [], error };
 		}
 
-		console.log('매출 데이터(원본):', data);
+		console.log('매출 데이터(원본):',evCodeItems, data);
 
 		return { data: data || [], error: null };
 	} catch (error) {

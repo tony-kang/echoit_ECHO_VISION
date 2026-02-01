@@ -32,16 +32,16 @@ import { supabase } from './supabaseClient';
  */
 export async function getCosts(options = {}) {
 	try {
-		const { codes, year, month, evCodeItems, orderByYear = true, orderByMonth = true } = options;
+		const { year, month, evCodeItems, orderByYear = true, orderByMonth = true } = options;
 
 		let query = supabase
 			.from('ev_cost')
 			.select('*');
 
 		// 코드 필터링
-		if (codes && codes.length > 0) {
-			query = query.in('org_code', codes);
-		}
+		// if (codes && codes.length > 0) {
+		// 	query = query.in('org_code', codes);
+		// }
 
 		// 연도 필터링
 		if (year !== undefined && year !== null) {

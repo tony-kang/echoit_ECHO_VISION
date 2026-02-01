@@ -56,8 +56,6 @@
 			const year = item.year;
 			const month = item.month;
 
-			if (orgCode !== 'SUM_000') continue;
-
 			if (!orgCode || !year || !month || month < 1 || month > 12) {
 				continue; // 필수 값이 없으면 제외
 			}

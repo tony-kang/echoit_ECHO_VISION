@@ -325,12 +325,11 @@
 				return;
 			}
 
-			// 선택된 상위 코드의 모든 하위 코드 찾기
+			// 선택된 상위 코드의 모든 하위 코드 찾기 (자기 자신 제외)
 			const allChildCodes = getAllChildCodes(filters.parentCode, data || []);
 			
-			// 하위 코드 목록 생성 (상위 코드 포함)
-			const allCodes = [filters.parentCode, ...allChildCodes];
-			childCodes = allCodes.map((code) => {
+			// 하위 코드 목록 생성 (상위 코드 제외, 하위 코드만)
+			childCodes = allChildCodes.map((code) => {
 				const codeData = (data || []).find((/** @type {any} */ c) => c.code === code);
 				return {
 					value: code,
@@ -343,7 +342,7 @@
 			if (currentSelectedCodes.length > 0) {
 				evCodeItems = currentSelectedCodes;
 			} else {
-				evCodeItems = allCodes;
+				evCodeItems = allChildCodes;
 			}
 		} catch (err) {
 			console.error('하위 코드 업데이트 예외:', err);
