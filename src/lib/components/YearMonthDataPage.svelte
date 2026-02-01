@@ -74,6 +74,8 @@
 	/** @type {string | null} 이전 evCodeItems 문자열 (무한루프 방지) */
 	let previousEvCodeItemsStr = $state(null);
 
+	let allSettingsLoaded = $state(false);
+
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
@@ -84,7 +86,11 @@
 				goto('/login');
 			} else if (state.user && state.userProfile) {
 				// 사용자 프로필이 로드된 후에만 설정 로드
-				loadAllSettings();
+				if (!allSettingsLoaded) {
+					allSettingsLoaded = true;
+					console.log('loadAllSettings');
+					loadAllSettings();
+				}
 			}
 		});
 
@@ -232,6 +238,7 @@
 		if (!user) return;
 
 		try {
+			console.log('>>>>loadAllSettings');
 			const { data, error } = await getSettings({
 				orderByOrder: true
 			});
@@ -245,6 +252,7 @@
 			allSettings = data || [];
 			
 			// organization 카테고리의 두 번째 레벨 코드 목록 로드
+			console.log('>>>>----------loadSecondLevelOrgCodes');
 			await loadSecondLevelOrgCodes();
 		} catch (err) {
 			console.error('환경설정 코드 로드 예외:', err);
@@ -259,6 +267,7 @@
 	async function loadSecondLevelOrgCodes() {
 		try {
 			// 먼저 최상위 코드들을 가져옴
+			console.log('먼저 최상위 코드들을 가져옴');
 			const { data: topLevelData, error: topLevelError } = await getSettings({
 				category: 'organization',
 				parentCode: null,
@@ -278,6 +287,7 @@
 					value: topCode.code,
 					label: `🔸 ${topCode.code} - ${topCode.title}`
 				});
+				console.log('최상위 코드의 자식 코드들을 가져옴');
 				const { data: childrenData, error: childrenError } = await getSettings({
 					category: 'organization',
 					parentCode: topCode.code,
