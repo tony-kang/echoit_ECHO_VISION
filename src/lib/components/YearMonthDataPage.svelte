@@ -45,10 +45,27 @@
 	let evCodeItems = $state([]);
 	let isLoadingEvCodes = $state(false);
 
+	/** @type {Array<any>} organization 카테고리의 두 번째 레벨 코드 목록 (최상위의 자식 코드들) */
+	let secondLevelOrgCodes = $state([]);
+	/** @type {Array<any>} 선택된 상위 코드의 하위 코드 목록 */
+	let childCodes = $state([]);
+	/** @type {boolean} 하위 코드 목록 로딩 상태 */
+	let isLoadingChildCodes = $state(false);
+
 	/** @type {Record<string, any>} 필터 객체 */
-	let filters = $state({ year: new Date().getFullYear().toString() });
+	let filters = $state({ 
+		year: new Date().getFullYear().toString(),
+		parentCode: 'SUM_000',
+		selectedCodes: []
+	});
 	/** @type {string | null} 이전 연도 값 (무한루프 방지) */
 	let previousYear = $state(new Date().getFullYear().toString());
+	/** @type {string | null} 이전 상위 코드 값 (무한루프 방지) */
+	let previousParentCode = $state(null);
+	/** @type {string[]} 이전 선택된 코드 배열 (무한루프 방지) */
+	let previousSelectedCodes = $state([]);
+	/** @type {string | null} 이전 evCodeItems 문자열 (무한루프 방지) */
+	let previousEvCodeItemsStr = $state(null);
 
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
@@ -93,9 +110,12 @@
 					return (a.item_code || '').localeCompare(b.item_code || '');
 				});
 
-				// ev_sales/ev_cost 데이터를 로드할 때 사용할 evCode의 items를 평탄화하고 중복 제거
-				const allItems = evCodes.flatMap(evCode => evCode.items || []);
-				evCodeItems = [...new Set(allItems)];
+				// 상위 코드가 선택되지 않은 경우에만 기본 evCodeItems 설정
+				if (!filters.parentCode) {
+					// ev_sales/ev_cost 데이터를 로드할 때 사용할 evCode의 items를 평탄화하고 중복 제거
+					const allItems = evCodes.flatMap(evCode => evCode.items || []);
+					evCodeItems = [...new Set(allItems)];
+				}
 
 				// console.log('ev_code 목록:', $state.snapshot(evCodes));
 				console.log('evCodeItems:', $state.snapshot(evCodeItems));
@@ -124,18 +144,49 @@
 	});
 
 	/**
-	 * 연도 변경 시 데이터 로드 (무한루프 방지)
+	 * 상위 코드 변경 시 하위 코드 목록 업데이트 (무한루프 방지)
+	 */
+	$effect(() => {
+		const currentParentCode = filters.parentCode || null;
+		
+		// 상위 코드가 변경되었고, 사용자가 로그인했고, 설정이 로드되었을 때만 실행
+		if (user && !authLoading && allSettings.length > 0 && currentParentCode && currentParentCode !== previousParentCode && !isLoadingChildCodes) {
+			previousParentCode = currentParentCode;
+			updateChildCodes();
+		} else if (!currentParentCode) {
+			// 상위 코드가 없으면 이전 값도 초기화
+			previousParentCode = null;
+		}
+	});
+
+	/**
+	 * 초기 로드 시 SUM_000 기본 선택 및 하위 코드 로드
+	 */
+	$effect(() => {
+		if (user && !authLoading && allSettings.length > 0 && filters.parentCode === 'SUM_000' && childCodes.length === 0 && !isLoadingChildCodes) {
+			updateChildCodes();
+		}
+	});
+
+	/**
+	 * 연도 또는 evCodeItems 변경 시 데이터 로드 (무한루프 방지)
 	 */
 	$effect(() => {
 		const currentYear = filters.year;
+		const currentEvCodeItemsStr = JSON.stringify([...evCodeItems].sort());
 
-		// 연도가 변경되었고, 사용자가 로그인했고, 로딩 중이 아닐 때만 호출
-		if (user && !authLoading && currentYear && currentYear !== previousYear && !isLoading) {
-			previousYear = currentYear;
-			loadDataByYear();
+		// 연도나 evCodeItems가 변경되었고, 사용자가 로그인했고, 로딩 중이 아닐 때만 호출
+		if (user && !authLoading && currentYear && !isLoading && evCodeItems.length > 0) {
+			// 연도가 변경되었거나 evCodeItems가 변경된 경우
+			if (currentYear !== previousYear || currentEvCodeItemsStr !== (previousEvCodeItemsStr || '')) {
+				previousYear = currentYear;
+				previousEvCodeItemsStr = currentEvCodeItemsStr;
+				loadDataByYear();
+			}
 		} else if (!currentYear) {
 			// 연도가 없으면 이전 연도도 초기화
 			previousYear = null;
+			previousEvCodeItemsStr = null;
 		}
 	});
 
@@ -158,6 +209,9 @@
 			}
 
 			allSettings = data || [];
+			
+			// organization 카테고리의 두 번째 레벨 코드 목록 로드
+			await loadSecondLevelOrgCodes();
 		} catch (err) {
 			console.error('환경설정 코드 로드 예외:', err);
 			allSettings = [];
@@ -165,11 +219,195 @@
 	}
 
 	/**
+	 * organization 카테고리의 두 번째 레벨 코드 목록 로드 (최상위의 자식 코드들)
+	 * @returns {Promise<void>}
+	 */
+	async function loadSecondLevelOrgCodes() {
+		try {
+			// 먼저 최상위 코드들을 가져옴
+			const { data: topLevelData, error: topLevelError } = await getSettings({
+				category: 'organization',
+				parentCode: null,
+				orderByOrder: true
+			});
+
+			if (topLevelError) {
+				console.error('최상위 조직 코드 로드 실패:', topLevelError);
+				secondLevelOrgCodes = [];
+				return;
+			}
+
+			// 최상위 코드들의 자식 코드들을 가져옴
+			const secondLevelCodes = [];
+			for (const topCode of topLevelData || []) {
+				const { data: childrenData, error: childrenError } = await getSettings({
+					category: 'organization',
+					parentCode: topCode.code,
+					orderByOrder: true
+				});
+
+				if (!childrenError && childrenData) {
+					for (const child of childrenData) {
+						secondLevelCodes.push({
+							value: child.code,
+							label: `${child.code} - ${child.title}`
+						});
+					}
+				}
+			}
+
+			secondLevelOrgCodes = secondLevelCodes;
+		} catch (err) {
+			console.error('두 번째 레벨 조직 코드 로드 예외:', err);
+			secondLevelOrgCodes = [];
+		}
+	}
+
+	/**
+	 * 상위 코드의 모든 하위 코드를 재귀적으로 찾는 함수
+	 * @param {string} parentCode - 상위 코드
+	 * @param {Array<any>} allCodes - 전체 코드 목록
+	 * @returns {string[]} 하위 코드 배열
+	 */
+	function getAllChildCodes(parentCode, allCodes) {
+		/** @type {string[]} */
+		const result = [];
+		
+		/**
+		 * 재귀적으로 하위 코드 찾기
+		 * @param {string} code - 현재 코드
+		 */
+		function findChildren(code) {
+			const children = allCodes.filter((/** @type {any} */ c) => c.parent_code === code);
+			for (const child of children) {
+				result.push(child.code);
+				findChildren(child.code);
+			}
+		}
+		
+		findChildren(parentCode);
+		return result;
+	}
+
+	/**
+	 * 상위 코드 변경 시 하위 코드 목록 업데이트
+	 * @returns {Promise<void>}
+	 */
+	async function updateChildCodes() {
+		if (!filters.parentCode) {
+			childCodes = [];
+			previousSelectedCodes = [];
+			// 상위 코드가 없으면 기본 evCodeItems로 복원
+			if (evCodes.length > 0) {
+				const allItems = evCodes.flatMap(evCode => evCode.items || []);
+				evCodeItems = [...new Set(allItems)];
+			} else {
+				evCodeItems = [];
+			}
+			return;
+		}
+
+		isLoadingChildCodes = true;
+		try {
+			// organization 카테고리의 모든 코드 로드
+			const { data, error } = await getSettings({
+				category: 'organization',
+				orderByOrder: true
+			});
+
+			if (error) {
+				console.error('조직 코드 로드 실패:', error);
+				childCodes = [];
+				return;
+			}
+
+			// 선택된 상위 코드의 모든 하위 코드 찾기
+			const allChildCodes = getAllChildCodes(filters.parentCode, data || []);
+			
+			// 하위 코드 목록 생성 (상위 코드 포함)
+			const allCodes = [filters.parentCode, ...allChildCodes];
+			childCodes = allCodes.map((code) => {
+				const codeData = (data || []).find((/** @type {any} */ c) => c.code === code);
+				return {
+					value: code,
+					label: codeData ? `${code} - ${codeData.title}` : code
+				};
+			});
+
+			// 선택된 하위 코드가 있으면 그것만 사용, 없으면 모든 하위 코드 사용
+			const currentSelectedCodes = Array.isArray(filters.selectedCodes) ? filters.selectedCodes : [];
+			if (currentSelectedCodes.length > 0) {
+				evCodeItems = currentSelectedCodes;
+			} else {
+				evCodeItems = allCodes;
+			}
+		} catch (err) {
+			console.error('하위 코드 업데이트 예외:', err);
+			childCodes = [];
+		} finally {
+			isLoadingChildCodes = false;
+		}
+	}
+
+	/**
+	 * 하위 코드 선택 변경 시 evCodeItems 업데이트 (무한루프 방지)
+	 */
+	$effect(() => {
+		if (!filters.parentCode || childCodes.length === 0 || isLoadingChildCodes) {
+			return;
+		}
+
+		const currentSelectedCodes = Array.isArray(filters.selectedCodes) ? filters.selectedCodes : [];
+		const currentSelectedCodesStr = JSON.stringify([...currentSelectedCodes].sort());
+		const previousSelectedCodesStr = JSON.stringify([...previousSelectedCodes].sort());
+		
+		// 선택된 코드가 실제로 변경되었을 때만 실행
+		if (currentSelectedCodesStr !== previousSelectedCodesStr) {
+			previousSelectedCodes = [...currentSelectedCodes];
+			
+			if (currentSelectedCodes.length > 0) {
+				evCodeItems = currentSelectedCodes;
+			} else {
+				// 선택된 하위 코드가 없으면 모든 하위 코드 사용
+				const allCodes = childCodes.map((/** @type {any} */ c) => c.value);
+				evCodeItems = allCodes;
+			}
+			
+			// 연도가 있고 로딩 중이 아니면 데이터 다시 로드
+			if (filters.year && !isLoading && evCodeItems.length > 0) {
+				loadDataByYear();
+			}
+		}
+	});
+
+	/**
+	 * childCodes 변경 시 evCodeItems 업데이트 (초기 로드 시)
+	 */
+	$effect(() => {
+		if (!filters.parentCode || childCodes.length === 0 || isLoadingChildCodes) {
+			return;
+		}
+
+		// childCodes가 변경되었는데 evCodeItems가 비어있거나 초기화가 필요한 경우
+		const allCodes = childCodes.map((/** @type {any} */ c) => c.value);
+		const currentSelectedCodes = Array.isArray(filters.selectedCodes) ? filters.selectedCodes : [];
+		
+		// evCodeItems가 비어있거나, childCodes와 일치하지 않으면 업데이트
+		if (evCodeItems.length === 0 || (currentSelectedCodes.length === 0 && JSON.stringify([...evCodeItems].sort()) !== JSON.stringify([...allCodes].sort()))) {
+			if (currentSelectedCodes.length > 0) {
+				evCodeItems = currentSelectedCodes;
+			} else {
+				evCodeItems = allCodes;
+			}
+		}
+	});
+
+	/**
 	 * 데이터 로드 (중복 호출 방지)
 	 * @returns {Promise<void>}
 	 */
 	async function loadDataByYear() {
-		if (!filters.year) {
+		if (!filters.year || !evCodeItems || evCodeItems.length === 0) {
 			displayData = [];
 			return;
 		}
@@ -182,6 +420,7 @@
 		isLoading = true;
 		try {
 			// evCodeItems 만 데이터 로드
+			console.log('loadDataByYear evCodeItems:', $state.snapshot(evCodeItems));
 			const { data, error } = await loadData(parseInt(filters.year), evCodeItems);
 
 			if (error) {
@@ -278,11 +517,32 @@
 										{ value: (new Date().getFullYear() - 1).toString(), label: `${new Date().getFullYear() - 1}년` },
 										{ value: (new Date().getFullYear() - 2).toString(), label: `${new Date().getFullYear() - 2}년` }
 									]
+								},
+								{
+									key: 'parentCode',
+									type: 'select',
+									label: '상위 코드',
+									options: secondLevelOrgCodes
+								},
+								{
+									key: 'selectedCodes',
+									type: 'select-multiple',
+									label: '하위 코드',
+									options: childCodes
 								}
 							]}
 							onReset={() => {
-								filters = { year: new Date().getFullYear().toString() };
+								filters = { 
+									year: new Date().getFullYear().toString(),
+									parentCode: 'SUM_000',
+									selectedCodes: []
+								};
 								displayData = [];
+								evCodeItems = [];
+								childCodes = [];
+								previousParentCode = 'SUM_000';
+								previousSelectedCodes = [];
+								previousYear = new Date().getFullYear().toString();
 							}}
 						/>
 

@@ -75,7 +75,7 @@ export async function getCosts(options = {}) {
 			return { data: [], error };
 		}
 
-		console.log('원가 데이터(원본):', data);
+		console.log('원가 데이터(원본):', evCodeItems, data);
 
 		return { data: data || [], error: null };
 	} catch (error) {

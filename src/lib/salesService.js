@@ -34,6 +34,8 @@ export async function getSales(options = {}) {
 	try {
 		const { year, month, evCodeItems, orderByYear = true, orderByMonth = true } = options;
 
+		console.log('getSales options:', options);
+		
 		let query = supabase
 			.from('ev_sales')
 			.select('*');

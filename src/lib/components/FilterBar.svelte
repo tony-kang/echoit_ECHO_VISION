@@ -5,11 +5,14 @@
 	/**
 	 * @typedef {Object} FilterField
 	 * @property {string} key - 필터 키
-	 * @property {'select' | 'input' | 'date'} type - 필터 타입
+	 * @property {'select' | 'select-multiple' | 'input' | 'date'} type - 필터 타입
 	 * @property {string} [label] - 라벨
 	 * @property {string} [placeholder] - placeholder (input 타입용)
 	 * @property {Array<{value: string, label: string}> | Record<string, string>} [options] - 옵션 (select 타입용)
 	 */
+	
+	/** @type {Record<string, boolean>} 각 필드별 드롭다운 열림 상태 */
+	let dropdownOpen = $state({});
 
 	/**
 	 * @typedef {Object} ActionButton
@@ -73,9 +76,71 @@
 		if (Array.isArray(options)) return options;
 		return Object.entries(options).map(([value, label]) => ({ value, label }));
 	}
+
+	/**
+	 * 드롭다운 토글
+	 * @param {string} fieldKey - 필드 키
+	 */
+	function toggleDropdown(fieldKey) {
+		dropdownOpen[fieldKey] = !dropdownOpen[fieldKey];
+		dropdownOpen = { ...dropdownOpen };
+	}
+
+	/**
+	 * 드롭다운 닫기
+	 * @param {string} fieldKey - 필드 키
+	 */
+	function closeDropdown(fieldKey) {
+		dropdownOpen[fieldKey] = false;
+		dropdownOpen = { ...dropdownOpen };
+	}
+
+	/**
+	 * 체크박스 변경 핸들러
+	 * @param {string} fieldKey - 필드 키
+	 * @param {string} value - 옵션 값
+	 * @param {boolean} checked - 체크 상태
+	 */
+	function handleCheckboxChange(fieldKey, value, checked) {
+		const currentValues = Array.isArray(filters[fieldKey]) ? filters[fieldKey] : [];
+		if (checked) {
+			if (!currentValues.includes(value)) {
+				filters[fieldKey] = [...currentValues, value];
+			}
+		} else {
+			filters[fieldKey] = currentValues.filter(v => v !== value);
+		}
+		filters = { ...filters };
+	}
+
+	/**
+	 * 전체 선택/해제 핸들러
+	 * @param {string} fieldKey - 필드 키
+	 * @param {Array<{value: string, label: string}>} options - 옵션 목록
+	 * @param {boolean} selectAll - 전체 선택 여부
+	 */
+	function handleSelectAll(fieldKey, options, selectAll) {
+		if (selectAll) {
+			filters[fieldKey] = options.map(opt => opt.value);
+		} else {
+			filters[fieldKey] = [];
+		}
+		filters = { ...filters };
+	}
+
 </script>
 
-<div class="filter-bar">
+<div class="filter-bar" onclick={(e) => {
+	// 외부 클릭 시 드롭다운 닫기
+	for (const fieldKey in dropdownOpen) {
+		if (dropdownOpen[fieldKey]) {
+			const wrapper = e.target.closest(`[data-dropdown="${fieldKey}"]`);
+			if (!wrapper) {
+				closeDropdown(fieldKey);
+			}
+		}
+	}
+}}>
 	{#if fields && fields.length > 0}
 		<div class="filter-grid">
 			{#each fields as field}
@@ -90,6 +155,64 @@
 							<option value={option.value}>{option.label}</option>
 						{/each}
 					</select>
+				{:else if field.type === 'select-multiple'}
+					<div class="filter-dropdown-wrapper" data-dropdown={field.key}>
+						<button
+							type="button"
+							onclick={() => toggleDropdown(field.key)}
+							class="filter-input filter-dropdown-button"
+						>
+							<span class="filter-dropdown-text">
+								{#if filters[field.key] && Array.isArray(filters[field.key]) && filters[field.key].length > 0}
+									{filters[field.key].length}개 선택됨
+								{:else}
+									{field.label || '선택하세요'}
+								{/if}
+							</span>
+							<svg
+								class="filter-dropdown-icon {dropdownOpen[field.key] ? 'rotate-180' : ''}"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+							</svg>
+						</button>
+						{#if dropdownOpen[field.key]}
+							{@const options = normalizeOptions(field.options)}
+							{@const selectedValues = Array.isArray(filters[field.key]) ? filters[field.key] : []}
+							{@const allSelected = options.length > 0 && selectedValues.length === options.length}
+							<div class="filter-dropdown-menu">
+								<div class="filter-dropdown-header">
+									<label class="filter-dropdown-checkbox-label">
+										<input
+											type="checkbox"
+											checked={allSelected}
+											onchange={(e) => handleSelectAll(field.key, options, e.target.checked)}
+											class="filter-dropdown-checkbox"
+										/>
+										<span class="filter-dropdown-checkbox-text">
+											전체 선택 ({selectedValues.length}/{options.length})
+										</span>
+									</label>
+								</div>
+								<div class="filter-dropdown-list">
+									{#each options as option}
+										{@const isChecked = selectedValues.includes(option.value)}
+										<label class="filter-dropdown-item">
+											<input
+												type="checkbox"
+												checked={isChecked}
+												onchange={(e) => handleCheckboxChange(field.key, option.value, e.target.checked)}
+												class="filter-dropdown-checkbox"
+											/>
+											<span class="filter-dropdown-item-text">{option.label}</span>
+										</label>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					</div>
 				{:else if field.type === 'input'}
 					<input
 						type="text"
@@ -182,6 +305,111 @@
 		transition: all 0.2s;
 		min-width: 150px;
 		box-sizing: border-box;
+	}
+
+	.filter-dropdown-wrapper {
+		position: relative;
+		min-width: 150px;
+	}
+
+	.filter-dropdown-button {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		cursor: pointer;
+		text-align: left;
+	}
+
+	.filter-dropdown-text {
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.filter-dropdown-icon {
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
+		transition: transform 0.2s;
+		color: #6b7280;
+	}
+
+	.filter-dropdown-menu {
+		position: absolute;
+		top: calc(100% + 4px);
+		left: 0;
+		right: 0;
+		background: white;
+		border: 1px solid #d1d5db;
+		border-radius: 6px;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+		z-index: 1000;
+		max-height: 300px;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		min-width: max-content;
+	}
+
+	.filter-dropdown-header {
+		padding: 8px 12px;
+		border-bottom: 1px solid #e5e7eb;
+		background: #f9fafb;
+	}
+
+	.filter-dropdown-checkbox-label {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		cursor: pointer;
+	}
+
+	.filter-dropdown-checkbox {
+		width: 16px;
+		height: 16px;
+		cursor: pointer;
+		accent-color: #667eea;
+	}
+
+	.filter-dropdown-checkbox-text {
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #374151;
+	}
+
+	.filter-dropdown-list {
+		overflow-y: auto;
+		max-height: 250px;
+	}
+
+	.filter-dropdown-item {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 12px;
+		cursor: pointer;
+		transition: background-color 0.15s;
+		border-bottom: 1px solid #f3f4f6;
+		min-width: 0;
+	}
+
+	.filter-dropdown-item:hover {
+		background-color: #f9fafb;
+	}
+
+	.filter-dropdown-item:last-child {
+		border-bottom: none;
+	}
+
+	.filter-dropdown-item-text {
+		font-size: 0.9rem;
+		color: #374151;
+		flex: 1;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.filter-input:focus {
