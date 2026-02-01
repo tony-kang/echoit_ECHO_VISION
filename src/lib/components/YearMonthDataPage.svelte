@@ -361,9 +361,12 @@
 			// 하위 코드 목록 생성 (상위 코드 제외, 하위 코드만)
 			childCodes = allChildCodes.map((code) => {
 				const codeData = (data || []).find((/** @type {any} */ c) => c.code === code);
+				// 해당 코드의 직접 자식이 있는지 확인
+				const hasChildren = (data || []).some((/** @type {any} */ c) => c.parent_code === code);
 				return {
 					value: code,
-					label: codeData ? `${code} - ${codeData.title}` : code
+					label: codeData ? `${code} - ${codeData.title}` : code,
+					hasChildren
 				};
 			});
 
@@ -580,6 +583,57 @@
 	}
 
 	/**
+	 * Breadcrumb 텍스트 생성
+	 * @returns {string}
+	 */
+	const breadcrumbText = $derived.by(() => {
+		// allSettings가 로드되지 않았으면 빈 문자열 반환
+		if (!allSettings || allSettings.length === 0) {
+			return '';
+		}
+
+		/** @type {string[]} */
+		const parts = [];
+
+		// 년도
+		if (filters.year) {
+			parts.push(`${filters.year}년`);
+		}
+
+		// 상위 코드
+		if (filters.parentCode) {
+			const parentTitle = getCodeTitle(filters.parentCode);
+			if (parentTitle) {
+				parts.push(parentTitle);
+			}
+		}
+
+		// 하위 코드
+		const currentSelectedCodes = Array.isArray(filters.selectedCodes) ? filters.selectedCodes : [];
+		if (currentSelectedCodes.length > 0) {
+			const selectedTitles = currentSelectedCodes
+				.map(code => getCodeTitle(code))
+				.filter(title => title);
+			if (selectedTitles.length > 0) {
+				parts.push(selectedTitles.join(', '));
+			}
+		}
+
+		// 하위 코드의 하위 코드
+		const currentSelectedCodes2 = Array.isArray(filters.selectedCodes2) ? filters.selectedCodes2 : [];
+		if (currentSelectedCodes2.length > 0) {
+			const selectedTitles2 = currentSelectedCodes2
+				.map(code => getCodeTitle(code))
+				.filter(title => title);
+			if (selectedTitles2.length > 0) {
+				parts.push(selectedTitles2.join(', '));
+			}
+		}
+
+		return parts.join(' > ');
+	});
+
+	/**
 	 * 금액 포맷팅 (천단위 콤마만, ₩ 기호 제거)
 	 * @param {number} amount - 금액
 	 * @returns {string}
@@ -627,6 +681,16 @@
 									<h1 class="text-2xl font-bold text-gray-900">{title}</h1>
 								</div>
 							</div>
+							{#if breadcrumbText && breadcrumbText.trim() !== ''}
+								<div class="breadcrumb-container">
+									{#each breadcrumbText.split(' > ') as part, index}
+										{#if index > 0}
+											<span class="breadcrumb-separator"> > </span>
+										{/if}
+										<span class="breadcrumb-item">{part}</span>
+									{/each}
+								</div>
+							{/if}
 						</div>
 
 						<!-- 필터 영역 -->
@@ -743,6 +807,33 @@
 <style>
 	.admin-content-page {
 		width: 100%;
+	}
+
+	.breadcrumb-container {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 4px;
+		margin-top: 8px;
+		font-size: 0.9rem;
+		color: #374151;
+	}
+
+	.breadcrumb-item {
+		color: #374151;
+	}
+
+	.breadcrumb-separator {
+		color: #ffffff;
+		font-weight: 700;
+		margin: 0 2px;
+		background-color: #2563eb;
+		padding: 0 2px 2px 2px;
+		border-radius: 8px;
+		height: 14px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.data-table {

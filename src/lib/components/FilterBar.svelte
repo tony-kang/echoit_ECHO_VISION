@@ -114,6 +114,26 @@
 	}
 
 	/**
+	 * 하위코드 확장 아이콘 클릭 핸들러 (체크하고 dropdown 닫기)
+	 * @param {string} fieldKey - 필드 키
+	 * @param {string} value - 옵션 값
+	 * @param {MouseEvent} event - 마우스 이벤트
+	 */
+	function handleExpandClick(fieldKey, value, event) {
+		event.preventDefault();
+		event.stopPropagation();
+		
+		// 체크박스를 체크 상태로 변경
+		const currentValues = Array.isArray(filters[fieldKey]) ? filters[fieldKey] : [];
+		if (!currentValues.includes(value)) {
+			handleCheckboxChange(fieldKey, value, true);
+		}
+		
+		// dropdown 닫기
+		closeDropdown(fieldKey);
+	}
+
+	/**
 	 * 전체 선택/해제 핸들러
 	 * @param {string} fieldKey - 필드 키
 	 * @param {Array<{value: string, label: string}>} options - 옵션 목록
@@ -211,14 +231,28 @@
 								<div class="filter-dropdown-list">
 									{#each options as option}
 										{@const isChecked = selectedValues.includes(option.value)}
+										{@const hasChildren = option.hasChildren || false}
 										<label class="filter-dropdown-item">
 											<input
 												type="checkbox"
 												checked={isChecked}
 												onchange={(e) => handleCheckboxChange(field.key, option.value, e.target.checked)}
+												onclick={(e) => e.stopPropagation()}
 												class="filter-dropdown-checkbox"
 											/>
 											<span class="filter-dropdown-item-text">{option.label}</span>
+											{#if hasChildren}
+												<button
+													type="button"
+													onclick={(e) => handleExpandClick(field.key, option.value, e)}
+													class="filter-dropdown-expand-btn"
+													title="하위코드 선택"
+												>
+													<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+													</svg>
+												</button>
+											{/if}
 										</label>
 									{/each}
 								</div>
@@ -422,6 +456,31 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	.filter-dropdown-expand-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 24px;
+		padding: 0;
+		border: none;
+		background: transparent;
+		color: #6b7280;
+		cursor: pointer;
+		border-radius: 4px;
+		transition: all 0.15s;
+		flex-shrink: 0;
+	}
+
+	.filter-dropdown-expand-btn:hover {
+		background-color: #e5e7eb;
+		color: #374151;
+	}
+
+	.filter-dropdown-expand-btn:active {
+		background-color: #d1d5db;
 	}
 
 	.filter-input:focus {
