@@ -166,22 +166,51 @@
 	/* 반응형 디자인 */
 	@media (max-width: 768px) {
 		.slogan-wrapper {
-			top: 1rem;
-			left: 1rem;
-			padding: 1rem;
-			max-width: calc(100% - 2rem);
+			top: 0.5rem;
+			left: 0.5rem;
+			padding: 0.5rem;
+			max-width: calc(100% - 1rem);
 		}
 
 		.slogan-main {
-			font-size: 2.5rem;
+			font-size: 1.25rem;
+			margin-bottom: 0.375rem;
+			letter-spacing: -0.01em;
 		}
 
 		.slogan-sub {
-			font-size: 1.25rem;
+			font-size: 0.875rem;
+			margin-bottom: 0.25rem;
 		}
 
 		.slogan-desc {
+			font-size: 0.75rem;
+			line-height: 1.3;
+		}
+	}
+
+	/* 작은 모바일 디바이스 */
+	@media (max-width: 480px) {
+		.slogan-wrapper {
+			top: 0.375rem;
+			left: 0.375rem;
+			padding: 0.375rem;
+			max-width: calc(100% - 0.75rem);
+		}
+
+		.slogan-main {
 			font-size: 1rem;
+			margin-bottom: 0.25rem;
+		}
+
+		.slogan-sub {
+			font-size: 0.75rem;
+			margin-bottom: 0.125rem;
+		}
+
+		.slogan-desc {
+			font-size: 0.625rem;
+			line-height: 1.25;
 		}
 	}
 </style>

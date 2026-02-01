@@ -47,4 +47,17 @@
 	.logo-image {
 		height: 60px;
 	}
+
+	/* 모바일에서 로고 크기 축소 */
+	@media (max-width: 768px) {
+		.logo-image {
+			height: 40px;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.logo-image {
+			height: 32px;
+		}
+	}
 </style>

@@ -17,7 +17,7 @@
 	let authLoading = $state(true);
 	let userProfile = $state(null);
 	let activeDropdown = $state(null);
-	const showHamburgerIcon = false;
+	const showHamburgerIcon = true;
 
 	// 관리자 권한 확인
 	const isAdminUser = $derived.by(() => {
@@ -164,8 +164,8 @@
 			<!-- Logo -->
 			<div class="flex items-center shrink-0">
 				{#if showHamburgerIcon}
-				<button onclick={toggleMenu} class="mobile-menu-toggle md:hidden mr-4" aria-label="메뉴 열기" type="button">
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<button onclick={toggleMenu} class="mobile-menu-toggle md:hidden mr-2" aria-label="메뉴 열기" type="button">
+					<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
 					</svg>
 				</button>
@@ -528,6 +528,36 @@
 		to {
 			transform: translateX(0);
 			opacity: 1;
+		}
+	}
+
+	/* 모바일 스타일 */
+	@media (max-width: 768px) {
+		header {
+			padding: 0.5rem 0.75rem;
+		}
+
+		.mobile-menu-toggle {
+			padding: 0.5rem;
+			margin-right: 0.5rem;
+		}
+
+		.mobile-menu-toggle svg {
+			width: 1.5rem;
+			height: 1.5rem;
+		}
+
+		/* 모바일 메뉴 컨테이너 스타일 개선 */
+		.mobile-menu-container {
+			position: fixed;
+			top: 60px;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: white;
+			z-index: 40;
+			overflow-y: auto;
+			box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 		}
 	}
 </style>

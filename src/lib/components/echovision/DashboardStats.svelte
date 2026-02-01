@@ -47,7 +47,9 @@
 							d={stat.icon}
 						></path>
 					</svg>
+					<span class="text-sm text-white mt-2">{stat.label}</span>
 				</div>
+				<div class="text-3xl font-bold text-gray-800 mb-1">{stat.value}</div>
 				<svg
 					class="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors"
 					fill="none"
@@ -62,8 +64,6 @@
 					></path>
 				</svg>
 			</div>
-			<div class="text-3xl font-bold text-gray-800 mb-1">{stat.value}</div>
-			<div class="text-sm text-gray-600">{stat.label}</div>
 		</button>
 	{/each}
 </div>
