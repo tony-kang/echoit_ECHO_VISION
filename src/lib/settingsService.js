@@ -52,7 +52,7 @@ export async function getSettings(options = {}) {
 			query = query.order('created_at', { ascending: false });
 		}
 
-		console.log('getSettings query:');
+		// console.log('getSettings query:');
 		const { data, error } = await query;
 		
 		// if (error) {

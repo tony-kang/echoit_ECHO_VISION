@@ -165,19 +165,11 @@
 		// 상위 코드가 변경되었고, 사용자가 로그인했고, 설정이 로드되었을 때만 실행
 		if (user && !authLoading && allSettings.length > 0 && currentParentCode && currentParentCode !== previousParentCode && !isLoadingChildCodes) {
 			previousParentCode = currentParentCode;
+			console.log('updateChildCodes 1 >>>>>', allSettings.length, currentParentCode, previousParentCode, isLoadingChildCodes);
 			updateChildCodes();
 		} else if (!currentParentCode) {
 			// 상위 코드가 없으면 이전 값도 초기화
 			previousParentCode = null;
-		}
-	});
-
-	/**
-	 * 초기 로드 시 SUM_000 기본 선택 및 하위 코드 로드
-	 */
-	$effect(() => {
-		if (user && !authLoading && allSettings.length > 0 && filters.parentCode === 'SUM_000' && childCodes.length === 0 && !isLoadingChildCodes) {
-			updateChildCodes();
 		}
 	});
 
