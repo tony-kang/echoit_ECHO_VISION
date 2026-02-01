@@ -128,19 +128,31 @@
 		filters = { ...filters };
 	}
 
-</script>
+	/**
+	 * 외부 클릭 감지 핸들러
+	 * @param {MouseEvent} event - 마우스 이벤트
+	 */
+	function handleClickOutside(event) {
+		const target = event.target;
+		if (!target || !(target instanceof Element)) return;
 
-<div class="filter-bar" onclick={(e) => {
-	// 외부 클릭 시 드롭다운 닫기
-	for (const fieldKey in dropdownOpen) {
-		if (dropdownOpen[fieldKey]) {
-			const wrapper = e.target.closest(`[data-dropdown="${fieldKey}"]`);
-			if (!wrapper) {
-				closeDropdown(fieldKey);
+		// 모든 열린 드롭다운 확인
+		for (const fieldKey in dropdownOpen) {
+			if (dropdownOpen[fieldKey]) {
+				// 클릭된 요소가 해당 드롭다운 내부에 있는지 확인
+				const wrapper = target.closest(`[data-dropdown="${fieldKey}"]`);
+				if (!wrapper) {
+					closeDropdown(fieldKey);
+				}
 			}
 		}
 	}
-}}>
+
+</script>
+
+<svelte:window onclick={handleClickOutside} />
+
+<div class="filter-bar">
 	{#if fields && fields.length > 0}
 		<div class="filter-grid">
 			{#each fields as field}

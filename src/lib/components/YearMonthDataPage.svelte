@@ -240,6 +240,10 @@
 			// 최상위 코드들의 자식 코드들을 가져옴
 			const secondLevelCodes = [];
 			for (const topCode of topLevelData || []) {
+				secondLevelCodes.push({
+					value: topCode.code,
+					label: `🔸 ${topCode.code} - ${topCode.title}`
+				});
 				const { data: childrenData, error: childrenError } = await getSettings({
 					category: 'organization',
 					parentCode: topCode.code,
@@ -250,7 +254,7 @@
 					for (const child of childrenData) {
 						secondLevelCodes.push({
 							value: child.code,
-							label: `${child.code} - ${child.title}`
+							label: `◾ ${child.code} - ${child.title}`
 						});
 					}
 				}
@@ -632,6 +636,9 @@
 		border: 1px solid #e5e7eb;
 		font-size: 0.875rem;
 		color: #374151;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.data-table tbody tr:hover {
