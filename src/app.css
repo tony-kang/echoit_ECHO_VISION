@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+/* 실제 터치 기기 감지 (모바일/태블릿) */
+/* hover: none - 호버 불가능한 기기 (터치 기기) */
+/* pointer: coarse - 거친 포인터 (터치스크린) */
+@media (hover: none), (pointer: coarse) {
+	:global(.mobile-only) {
+		display: block !important;
+	}
+
+	:global(.desktop-only) {
+		display: none !important;
+	}
+}
+
+/* 데스크톱 (hover 가능하고 정밀한 포인터) */
+@media (hover: hover) and (pointer: fine) {
+	:global(.mobile-only) {
+		display: none !important;
+	}
+
+	:global(.desktop-only) {
+		display: block !important;
+	}
+}
+
 /* svelte-sonner 성공 toast 녹색 배경 */
 [data-sonner-toast][data-type="success"],
 [data-sonner-toast].success,

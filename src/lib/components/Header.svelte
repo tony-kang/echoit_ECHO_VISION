@@ -164,7 +164,7 @@
 			<!-- Logo -->
 			<div class="flex items-center shrink-0">
 				{#if showHamburgerIcon}
-				<button onclick={toggleMenu} class="mobile-menu-toggle xl:hidden mr-2" aria-label="메뉴 열기" type="button">
+				<button onclick={toggleMenu} class="mobile-menu-toggle mobile-only mr-2" aria-label="메뉴 열기" type="button">
 					<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
 					</svg>
@@ -176,7 +176,7 @@
 			</div>
 
 			<!-- Desktop Navigation (가운데) - PC에서 표시 -->
-			<nav class="hidden xl:flex grow justify-center items-center space-x-4 xl:space-x-6">
+			<nav class="desktop-only flex grow justify-center items-center space-x-4 xl:space-x-6">
 				<!-- 경영지표 관리 아이콘 -->
 				<button
 					onclick={goToLogistics}
@@ -293,7 +293,7 @@
 
 	<!-- Mobile Menu -->
 	{#if isMenuOpen}
-		<div class="mobile-menu-container xl:hidden bg-white border-t">
+		<div class="mobile-menu-container mobile-only bg-white border-t">
 			<nav class="px-4 py-4 space-y-3">
 				<!-- 아이콘 메뉴 -->
 				<div class="flex items-center justify-center space-x-6 py-4">
