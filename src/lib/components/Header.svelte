@@ -48,14 +48,29 @@
 		isUserMenuOpen = !isUserMenuOpen;
 	}
 
-	async function handleLogout() {
+	/**
+	 * 로그아웃 처리
+	 * @param {MouseEvent} event
+	 */
+	async function handleLogout(event) {
+		if (event) {
+			event.preventDefault();
+			event.stopPropagation();
+		}
+		isUserMenuOpen = false;
 		const { error } = await authStore.signOut();
 		if (error) {
 			console.error('로그아웃 실패:', error);
 		} else {
-			isUserMenuOpen = false;
 			goto('/');
 		}
+	}
+	
+	/**
+	 * 사용자 메뉴 링크 클릭 핸들러
+	 */
+	function handleUserMenuLinkClick() {
+		isUserMenuOpen = false;
 	}
 
 	// 외부 클릭 시 메뉴 닫기
@@ -74,10 +89,15 @@
 			return;
 		}
 		
-		// 사용자 메뉴 외부 클릭 시 닫기
-		if (!target.closest('.user-menu-container')) {
-			isUserMenuOpen = false;
+		// 사용자 메뉴 컨테이너 내부 클릭은 제외 (드롭다운 내부 클릭 허용)
+		const userMenuContainer = target.closest('.user-menu-container');
+		if (userMenuContainer) {
+			// 사용자 메뉴 버튼이 아닌 드롭다운 내부 클릭인 경우는 허용 (링크/버튼 클릭은 각각의 핸들러에서 처리)
+			return;
 		}
+		
+		// 사용자 메뉴 외부 클릭 시 닫기
+		isUserMenuOpen = false;
 		
 		// 데스크톱 드롭다운 외부 클릭 시 닫기
 		if (!target.closest('.dropdown-container')) {
@@ -177,7 +197,7 @@
 			</div>
 
 			<!-- Desktop Navigation (가운데) - PC에서 표시 -->
-			{#if !authLoading}
+			{#if !authLoading && user}
 				<nav class="desktop-only flex grow justify-center items-center space-x-4 xl:space-x-6">
 					<!-- 경영지표 관리 아이콘 -->
 					<button
@@ -249,6 +269,7 @@
 								<!-- 메뉴 항목 -->
 								<a 
 									href="/mypage" 
+									onclick={handleUserMenuLinkClick}
 									class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
 								>
 									👤 마이페이지
@@ -257,6 +278,7 @@
 								{#if isAdminUser}
 									<a 
 										href="/admin/dashboard" 
+										onclick={handleUserMenuLinkClick}
 										class="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition font-medium"
 									>
 										🔐 관리자 대시보드
@@ -264,6 +286,7 @@
 								{/if}
 								
 								<button 
+									type="button"
 									onclick={handleLogout}
 									class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition"
 								>
