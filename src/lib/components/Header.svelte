@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import Logo from '$lib/components/Logo.svelte';
 	import InquiryForm from '$lib/components/InquiryForm.svelte';
 	import { supabase } from '$lib/supabaseClient';
@@ -163,129 +164,125 @@
 		<div class="flex items-center justify-between">
 			<!-- Logo -->
 			<div class="flex items-center shrink-0">
-				{#if showHamburgerIcon}
+				<!-- {#if showHamburgerIcon}
 				<button onclick={toggleMenu} class="mobile-menu-toggle mobile-only mr-2" aria-label="메뉴 열기" type="button">
 					<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
 					</svg>
 				</button>
-				{/if}
+				{/if} -->
 				<a href="/" class="flex items-center">
 					<Logo size="sm" />
 				</a>
 			</div>
 
 			<!-- Desktop Navigation (가운데) - PC에서 표시 -->
-			<nav class="desktop-only flex grow justify-center items-center space-x-4 xl:space-x-6">
-				<!-- 경영지표 관리 아이콘 -->
-				<button
-					onclick={goToLogistics}
-					class="flex items-center justify-center p-2 text-gray-700 hover:text-blue-600 transition-colors"
-					aria-label="경영지표 관리"
-				>
-					<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-					</svg>
-				</button>
+			{#if !authLoading}
+				<nav class="desktop-only flex grow justify-center items-center space-x-4 xl:space-x-6">
+					<!-- 경영지표 관리 아이콘 -->
+					<button
+						onclick={goToLogistics}
+						class="flex items-center justify-center p-2 text-gray-700 hover:text-blue-600 transition-colors"
+						aria-label="경영지표 관리"
+					>
+						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+						</svg>
+					</button>
 
-				<!-- 주요일정 아이콘 -->
-				<button
-					onclick={goToSchedules}
-					class="flex items-center justify-center p-2 text-gray-700 hover:text-blue-600 transition-colors"
-					aria-label="주요일정"
-				>
-					<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-					</svg>
-				</button>
+					<!-- 주요일정 아이콘 -->
+					<button
+						onclick={goToSchedules}
+						class="flex items-center justify-center p-2 text-gray-700 hover:text-blue-600 transition-colors"
+						aria-label="주요일정"
+					>
+						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+						</svg>
+					</button>
 
-				<!-- 게시판 아이콘 -->
-				<!-- <a 
-					href="/board" 
-					class="flex items-center justify-center p-2 text-gray-700 hover:text-blue-600 transition-colors" 
-					aria-label="게시판"
-				>
-					<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-					</svg>
-				</a> -->
+					<!-- 게시판 아이콘 -->
+					<!-- <a 
+						href="/board" 
+						class="flex items-center justify-center p-2 text-gray-700 hover:text-blue-600 transition-colors" 
+						aria-label="게시판"
+					>
+						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+						</svg>
+					</a> -->
 
-				<!-- 문의 아이콘 -->
-				<button 
-					class="flex items-center justify-center p-2 text-gray-700 hover:text-blue-600 transition-colors" 
-					onclick={handleInquiryClick}
-					aria-label="문의"
-				>
-					<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-					</svg>
-				</button>
-			</nav>
+					<!-- 문의 아이콘 -->
+					<button 
+						class="flex items-center justify-center p-2 text-gray-700 hover:text-blue-600 transition-colors" 
+						onclick={handleInquiryClick}
+						aria-label="문의"
+					>
+						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+						</svg>
+					</button>
+				</nav>
+			{/if}
 
 			<!-- Right Icons -->
 			<div class="flex items-center space-x-4 shrink-0">
-				{#if !authLoading}
-					{#if user}
-						<!-- 사용자 드롭다운 메뉴 -->
-						<div class="relative user-menu-container">
-							<button 
-								onclick={toggleUserMenu}
-								class="flex items-center space-x-2 hover:opacity-80 transition" 
-								aria-label="사용자 메뉴"
-							>
-								<span class="text-2xl" style="color: #3b82f6;">👤</span>
-							</button>
-							
-							{#if isUserMenuOpen}
-								<div class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-									<!-- 사용자 정보 -->
-									<div class="px-4 py-3 border-b border-gray-200">
-										<p class="text-sm font-semibold text-gray-900">{user.user_metadata?.full_name || '사용자'}</p>
-										<p class="text-xs text-gray-500 truncate">{user.email}</p>
-									</div>
-									
-									<!-- 메뉴 항목 -->
-									<a 
-										href="/mypage" 
-										class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
-									>
-										👤 마이페이지
-									</a>
-									
-									{#if isAdminUser}
-										<a 
-											href="/admin/dashboard" 
-											class="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition font-medium"
-										>
-											🔐 관리자 대시보드
-										</a>
-									{/if}
-									
-									<button 
-										onclick={handleLogout}
-										class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition"
-									>
-										🚪 로그아웃
-									</button>
-									<hr class="my-2 border-gray-200" />
-									<span class="block px-4 py-2 text-sm text-gray-500">Version {___prjConst.VERSION}</span>
-									<hr class="my-2 border-gray-200" />
-									<span class="block px-4 py-2 text-sm text-gray-500">{isDevDomain() ? `개발 환경` : `프로덕션 환경`}({window.location.hostname})</span>
+				{#if !authLoading && user}
+					<!-- 사용자 드롭다운 메뉴 -->
+					<div class="relative user-menu-container">
+						<button 
+							onclick={toggleUserMenu}
+							class="flex items-center space-x-2 hover:opacity-80 transition" 
+							aria-label="사용자 메뉴"
+						>
+							<span class="text-2xl" style="color: #3b82f6;">👤</span>
+						</button>
+						
+						{#if isUserMenuOpen}
+							<div class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+								<!-- 사용자 정보 -->
+								<div class="px-4 py-3 border-b border-gray-200">
+									<p class="text-sm font-semibold text-gray-900">{user.user_metadata?.full_name || '사용자'}</p>
+									<p class="text-xs text-gray-500 truncate">{user.email}</p>
 								</div>
-							{/if}
-						</div>
-					{:else}
-						<a href="/login" class="flex items-center space-x-2 hover:text-blue-600 transition" aria-label="로그인">
-							<svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-							</svg>
-						</a>
-					{/if}
+								
+								<!-- 메뉴 항목 -->
+								<a 
+									href="/mypage" 
+									class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
+								>
+									👤 마이페이지
+								</a>
+								
+								{#if isAdminUser}
+									<a 
+										href="/admin/dashboard" 
+										class="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition font-medium"
+									>
+										🔐 관리자 대시보드
+									</a>
+								{/if}
+								
+								<button 
+									onclick={handleLogout}
+									class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition"
+								>
+									🚪 로그아웃
+								</button>
+								<hr class="my-2 border-gray-200" />
+								<span class="block px-4 py-2 text-sm text-gray-500">Version {___prjConst.VERSION}</span>
+								<hr class="my-2 border-gray-200" />
+								<span class="block px-4 py-2 text-sm text-gray-500">{isDevDomain() ? `개발 환경` : `프로덕션 환경`}({window.location.hostname})</span>
+							</div>
+						{/if}
+					</div>
 				{:else}
-					<!-- 로딩 중: 자리 확보용 투명 요소 -->
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-					</svg>
+					<!-- 로그인 링크 (로딩 중이거나 사용자가 없을 때, 단 로그인 페이지에서는 제외) -->
+					<a href="/login" class="flex items-center space-x-2 hover:text-blue-600 transition" aria-label="로그인">
+						<svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+						</svg>
+					</a>
 				{/if}
 			</div>
 		</div>
