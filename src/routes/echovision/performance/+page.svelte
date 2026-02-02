@@ -21,14 +21,14 @@
 		{
 			org_alias_name: 'SAP 사업부문',
 			org_code: ['209100', '201100', '202100', '203100'],
-			sales_code: ['SUM_000'],
-			cost_code: ['SUM_000']
+			sales_code: ['SALES_0100'],
+			cost_code: ['COST_0100']
 		},
 		{
 			org_alias_name: 'ERP 사업부문',
 			org_code: ['309100', '301100'],
-			sales_code: ['SUM_000'],
-			cost_code: ['SUM_000']
+			sales_code: ['SALES_0100'],
+			cost_code: ['COST_0100']
 		}
 	];
 
@@ -157,9 +157,13 @@
 	async function loadData() {
 		isLoading = true;
 		try {
+			// 선택된 조직의 org_code 배열을 evCodeItems로 전달
+			const evCodeItems = selectedOrg.org_code;
+			
 			// 매출 데이터 로드
 			const salesResult = await getSales({
 				year: selectedYear,
+				evCodeItems: evCodeItems,
 				orderByYear: true,
 				orderByMonth: true
 			});
@@ -167,6 +171,7 @@
 			// 비용 데이터 로드
 			const costResult = await getCosts({
 				year: selectedYear,
+				evCodeItems: evCodeItems,
 				orderByYear: true,
 				orderByMonth: true
 			});
@@ -178,6 +183,9 @@
 			if (costResult.data) {
 				costData = costResult.data;
 			}
+
+			console.log('Performance loadData salesData:',selectedYear, $state.snapshot(salesData));
+			console.log('Performance loadData costData:',selectedYear, $state.snapshot(costData));
 		} catch (error) {
 			console.error('데이터 로드 실패:', error);
 		} finally {
@@ -212,6 +220,7 @@
 	// 연도 또는 조직 변경 시 데이터 로드
 	$effect(() => {
 		if (!authLoading && user) {
+            console.log('Performance loadData');
 			loadData();
 		}
 	});
