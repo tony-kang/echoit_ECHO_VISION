@@ -132,8 +132,8 @@
 		
 		.data-table {
 			font-size: 0.8em;
-			min-width: 600px;
-			width: max-content;
+			/* min-width: 600px;
+			width: max-content; */
 		}
 		
 		.data-table th {
