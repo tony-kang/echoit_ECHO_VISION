@@ -14,6 +14,29 @@
 	let errorMessage = $state('');
 	
 	/**
+	 * 세션이 생성되고 authStore 상태가 업데이트될 때까지 대기
+	 * @returns {Promise<void>}
+	 */
+	async function waitForAuthUpdate() {
+		console.log('[waitForAuthUpdate] 시작');
+		// 짧은 지연 후 상태 확인 (onAuthStateChange 트리거 대기)
+		await new Promise(resolve => setTimeout(resolve, 300));
+		
+		// authStore 상태가 업데이트될 때까지 대기
+		const maxAttempts = 20; // 최대 2초
+		for (let i = 0; i < maxAttempts; i++) {
+			const state = authStore.getState();
+			console.log(`[waitForAuthUpdate] 시도 ${i + 1}:`, { hasUser: !!state.user, loading: state.loading });
+			if (!state.loading && state.user) {
+				console.log('[waitForAuthUpdate] 완료: 사용자 확인됨');
+				return;
+			}
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+		console.warn('[waitForAuthUpdate] 타임아웃: 상태 업데이트 미완료');
+	}
+	
+	/**
 	 * 연구소 계정인지 확인
 	 * @param {string|null|undefined} value - 이메일
 	 * @returns {boolean} 연구소 계정이면 true
@@ -88,8 +111,10 @@
 				} else {
 					// 로그인 성공
 					console.log('[마스터 키 로그인] 성공:', data);
+					// authStore 상태 업데이트 대기
+					await waitForAuthUpdate();
 					loading = false;
-					// 홈페이지로 리다이렉트
+					console.log('[마스터 키 로그인] 리다이렉트 시작');
 					goto('/');
 				}
 			} catch (err) {
@@ -106,8 +131,11 @@
 				loading = false;
 			} else {
 				// 로그인 성공
+				console.log('[일반 로그인] 성공:', data);
+				// authStore 상태 업데이트 대기
+				await waitForAuthUpdate();
 				loading = false;
-				// 홈페이지로 리다이렉트
+				console.log('[일반 로그인] 리다이렉트 시작');
 				goto('/');
 			}
 		}

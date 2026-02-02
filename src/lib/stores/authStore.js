@@ -41,6 +41,19 @@ function createAuthStore() {
     subscribe,
     
     /**
+     * 현재 상태 가져오기 (동기)
+     * @returns {AuthState}
+     */
+    getState() {
+      let currentState;
+      const unsubscribe = subscribe(state => {
+        currentState = state;
+      });
+      unsubscribe();
+      return currentState;
+    },
+    
+    /**
      * 인증 상태 초기화 (앱 시작 시 호출, 한 번만 실행)
      */
     async initialize() {
@@ -77,9 +90,25 @@ function createAuthStore() {
          * @returns {Promise<void>}
          */
         const handleInvalidSession = async () => {
-          // 로컬 스토리지 정리
-          await supabase.auth.signOut();
+          console.log('🔔 handleInvalidSession 호출됨');
+          
           lastLoadedUserId = null;
+          
+          // 로컬 스토리지 완전 클리어
+          try {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('sb-')) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            console.log('🔔 로컬 스토리지 클리어 완료:', keysToRemove);
+          } catch (e) {
+            console.warn('로컬 스토리지 클리어 실패:', e);
+          }
+          
           set({
             user: null,
             session: null,
@@ -87,22 +116,25 @@ function createAuthStore() {
             userProfile: null,
             profileLoading: false
           });
+          console.log('🔔 상태 초기화 완료');
+          
           // 로그인 페이지로 이동 (클라이언트 사이드에서만)
           if (typeof window !== 'undefined') {
-            // Store 내부에서 네비게이션은 클라이언트 사이드에서만 실행됨
-            // onAuthStateChange는 클라이언트 사이드에서만 실행되므로 goto 사용 가능
-            // eslint-disable-next-line svelte/no-ignored-unsubscribe
+            console.log('🔔 /login으로 리다이렉트');
             goto('/login');
           }
         };
 
         // 인증 상태 변화 감지 리스너 등록
         supabase.auth.onAuthStateChange(async (event, newSession) => {
+          console.log('🔔 onAuthStateChange 이벤트:', event, { hasSession: !!newSession, hasUser: !!newSession?.user });
           const newUser = newSession?.user ?? null;
           
           // 세션이 무효한 경우 처리 (로그아웃 또는 토큰 갱신 실패)
           if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !newSession)) {
+            console.log('🔔 SIGNED_OUT 이벤트 처리 시작');
             await handleInvalidSession();
+            console.log('🔔 SIGNED_OUT 이벤트 처리 완료');
             return;
           }
           
@@ -123,6 +155,7 @@ function createAuthStore() {
             }
           }
           
+          console.log('🔔 상태 업데이트 중...', { hasUser: !!newUser, event });
           update(state => ({
             ...state,
             user: newUser,
@@ -130,10 +163,13 @@ function createAuthStore() {
             loading: false,
             userProfile: newUser ? state.userProfile : null // 로그아웃 시 프로필 초기화
           }));
+          console.log('🔔 상태 업데이트 완료');
 
           // 사용자가 있으면 프로필 로드
           if (newUser) {
+            console.log('🔔 프로필 로드 시작');
             await this.loadUserProfile();
+            console.log('🔔 프로필 로드 완료');
           }
         });
       } catch (error) {
@@ -323,29 +359,14 @@ function createAuthStore() {
       try {
         console.log('📤 authStore.signOut 호출됨');
         
-        // Supabase 로그아웃 시도
-        const { error } = await supabase.auth.signOut();
-        
-        console.log('📤 supabase.auth.signOut 응답:', { error });
-        
-        // AuthSessionMissingError는 무시하고 진행
-        if (error && error.name !== 'AuthSessionMissingError') {
-          console.error('❌ Supabase 로그아웃 에러:', error);
-          // 다른 에러는 throw
-          throw error;
-        }
-        
-        if (error && error.name === 'AuthSessionMissingError') {
-          console.warn('⚠️ 세션이 없지만 로컬 상태는 클리어합니다');
-        }
-        
-        console.log('✅ Store 상태 초기화 중...');
-        lastLoadedUserId = null; // 프로필 캐시 초기화
+        // 먼저 상태를 초기화하여 즉시 UI 업데이트
+        console.log('📤 상태 즉시 초기화 중...');
+        lastLoadedUserId = null;
         set({ user: null, session: null, loading: false, userProfile: null, profileLoading: false });
+        console.log('📤 상태 초기화 완료');
         
         // 로컬 스토리지 완전 클리어
         try {
-          // Supabase 관련 키만 삭제
           const keysToRemove = [];
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -354,19 +375,32 @@ function createAuthStore() {
             }
           }
           keysToRemove.forEach(key => localStorage.removeItem(key));
-          console.log('✅ 로컬 스토리지 클리어 완료:', keysToRemove);
+          console.log('📤 로컬 스토리지 클리어 완료:', keysToRemove);
         } catch (e) {
           console.warn('로컬 스토리지 클리어 실패:', e);
+        }
+        
+        // Supabase 로그아웃 시도 (onAuthStateChange 트리거)
+        console.log('📤 supabase.auth.signOut 호출 중...');
+        const { error } = await supabase.auth.signOut();
+        console.log('📤 supabase.auth.signOut 응답:', { error });
+        
+        // AuthSessionMissingError는 무시하고 진행
+        if (error && error.name !== 'AuthSessionMissingError') {
+          console.error('❌ Supabase 로그아웃 에러:', error);
+        }
+        
+        if (error && error.name === 'AuthSessionMissingError') {
+          console.warn('⚠️ 세션이 없지만 로컬 상태는 클리어됨');
         }
         
         console.log('✅ 로그아웃 완료');
         return { error: null };
       } catch (error) {
         console.error('❌ authStore.signOut 실패:', error);
-        console.error('에러 상세:', JSON.stringify(error, null, 2));
         
         // 에러가 나도 로컬 상태는 클리어
-        lastLoadedUserId = null; // 프로필 캐시 초기화
+        lastLoadedUserId = null;
         set({ user: null, session: null, loading: false, userProfile: null, profileLoading: false });
         
         return { error };

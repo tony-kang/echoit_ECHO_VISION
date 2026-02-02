@@ -11,6 +11,7 @@
 	let { children } = $props();
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
+	let authStateVersion = $state(0); // 상태 변경 추적용
 
 	// Footer를 숨길 페이지 목록
 	const hideFooterPaths = ['/schedules', '/admin', '/echovision'];
@@ -29,11 +30,25 @@
 	});
 
 	onMount(async () => {
+		console.log('+layout: onMount 시작');
 		// 초기화를 완료할 때까지 기다림
 		await authStore.initialize();
+		console.log('+layout: initialize 완료');
+		
+		// authStore 구독 (onMount 내부에서 한 번만 설정)
 		const unsubscribe = authStore.subscribe((state) => {
+			const prevUser = user;
 			user = state.user;
+			// 사용자 상태가 실제로 변경되었을 때만 로그 출력
+			if (prevUser?.id !== user?.id) {
+				console.log('+layout: user changed', { 
+					from: prevUser?.email || 'null', 
+					to: user?.email || 'null' 
+				});
+				authStateVersion++; // 상태 변경 추적
+			}
 		});
+		
 		return () => {
 			unsubscribe();
 		};
