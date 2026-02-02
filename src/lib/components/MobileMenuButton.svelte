@@ -1,16 +1,22 @@
 <script>
+	import { sidebarStore } from '$lib/stores/sidebarStore';
+	
 	/**
-	 * 컴포넌트 Props
-	 * @type {{ isOpen: boolean }}
+	 * 사이드바 열기
 	 */
-	let { isOpen = $bindable() } = $props();
+	function openSidebar() {
+		console.log('🍔 햄버거 버튼 클릭됨');
+		sidebarStore.open();
+		console.log('🍔 sidebarStore.open() 호출 완료');
+	}
 </script>
 
-<!-- 모바일 햄버거 버튼 -->
+<!-- 햄버거 버튼 (모든 기기에서 표시) -->
 <button
-	onclick={() => (isOpen = true)}
-	class="mobile-only p-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
+	onclick={openSidebar}
+	class="p-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
 	aria-label="메뉴 열기"
+	type="button"
 >
 	<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 		<path
@@ -21,23 +27,3 @@
 		/>
 	</svg>
 </button>
-
-<style>
-	/* 실제 터치 기기에서만 표시 (hover: none은 터치 기기, pointer: coarse는 터치스크린) */
-	.mobile-only {
-		display: none;
-	}
-
-	@media (hover: none), (pointer: coarse) {
-		.mobile-only {
-			display: block;
-		}
-	}
-
-	/* 데스크톱에서는 숨김 (hover 가능하고 정밀한 포인터) */
-	@media (hover: hover) and (pointer: fine) {
-		.mobile-only {
-			display: none;
-		}
-	}
-</style>

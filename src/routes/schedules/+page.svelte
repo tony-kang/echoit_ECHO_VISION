@@ -4,7 +4,6 @@
 	import { page } from '$app/state';
 	import ScheduleForm from '$lib/components/ScheduleForm.svelte';
 	import ScheduleSidebar from '$lib/components/ScheduleSidebar.svelte';
-	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import {
 		getAllSchedules,
@@ -32,8 +31,6 @@
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
 	let authLoading = $state(true);
-	/** @type {boolean} 모바일 사이드바 열림 상태 */
-	let isSidebarOpen = $state(false);
 	/** @type {Array<any>} */
 	let schedules = $state([]);
 	/** @type {Array<any>} */
@@ -464,17 +461,13 @@
 			bind:selectedCategories
 			bind:searchQuery
 			onCategoryToggle={handleCategoryToggle}
-			bind:isOpen={isSidebarOpen}
 		/>
 
 		<!-- 메인 콘텐츠 영역 -->
 		<div class="flex-1 flex flex-col w-full px-4 py-4 overflow-hidden">
 			<!-- 헤더 -->
 			<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 shrink-0">
-				<div class="flex items-center gap-3 mb-4 md:mb-0">
-					<MobileMenuButton bind:isOpen={isSidebarOpen} />
-					<h1 class="text-3xl font-bold text-gray-900">주요일정</h1>
-				</div>
+				<h1 class="text-3xl font-bold text-gray-900 mb-4 md:mb-0">주요일정</h1>
 				<div class="flex gap-2">
 					<button
 						onclick={() => viewMode = 'month'}

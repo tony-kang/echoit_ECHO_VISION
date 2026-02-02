@@ -2,14 +2,11 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
-	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import { authStore } from '$lib/stores/authStore'; 
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
 	let authLoading = $state(true);
-	/** @type {boolean} 모바일 사이드바 열림 상태 */
-	let isSidebarOpen = $state(false);
 
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
@@ -30,7 +27,7 @@
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
 		<!-- Left Sidebar -->
-		<PrjMainSidebar bind:isOpen={isSidebarOpen} />
+		<PrjMainSidebar />
 
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
@@ -47,10 +44,7 @@
 					<div class="admin-content-page">
 						<!-- 헤더 -->
 						<div class="mb-6">
-							<div class="flex items-center gap-3 mb-2">
-								<MobileMenuButton bind:isOpen={isSidebarOpen} />
-								<h1 class="text-3xl font-bold text-gray-800">시스템 설정</h1>
-							</div>
+							<h1 class="text-3xl font-bold text-gray-800">시스템 설정</h1>
 							<p class="text-gray-600">시스템 환경설정을 관리합니다</p>
 						</div>
 

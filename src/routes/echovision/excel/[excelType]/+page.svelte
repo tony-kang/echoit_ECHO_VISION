@@ -6,7 +6,6 @@
 	import { authStore } from '$lib/stores/authStore';
 	import { supabase } from '$lib/supabaseClient';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
-	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import ExcelUploadViewer from '$lib/components/excel/ExcelUploadViewer.svelte';
@@ -15,8 +14,6 @@
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
 	let authLoading = $state(true);
-	/** @type {boolean} 모바일 사이드바 열림 상태 */
-	let isSidebarOpen = $state(false);
 
 	/** @type {Array<any>} 엑셀 파일 목록 */
 	let excelFiles = $state([]);
@@ -508,7 +505,7 @@
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
 		<!-- Left Sidebar -->
-		<PrjMainSidebar bind:isOpen={isSidebarOpen} />
+		<PrjMainSidebar />
 
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
@@ -525,10 +522,7 @@
 					<div class="admin-content-page">
 						<!-- 헤더 -->
 						<div class="mb-6">
-							<div class="flex items-center gap-3 mb-2">
-								<MobileMenuButton bind:isOpen={isSidebarOpen} />
-								<h1 class="text-2xl font-bold text-gray-900">{getExcelTypeLabel(excelTypeParam) || '엑셀'} 파일 관리</h1>
-							</div>
+							<h1 class="text-2xl font-bold text-gray-900">{getExcelTypeLabel(excelTypeParam) || '엑셀'} 파일 관리</h1>
 						</div>
 
 						<!-- 검색 필터 및 업로드 버튼 -->

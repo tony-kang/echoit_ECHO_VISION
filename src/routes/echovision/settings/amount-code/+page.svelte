@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
-	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import { authStore } from '$lib/stores/authStore';
@@ -12,8 +11,6 @@
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
 	let authLoading = $state(true);
-	/** @type {boolean} 모바일 사이드바 열림 상태 */
-	let isSidebarOpen = $state(false);
 	/** @type {Array<any>} ev_code 목록 */
 	let evCodes = $state([]);
 	/** @type {Record<string, any>} 필터 객체 */
@@ -616,7 +613,7 @@
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
 		<!-- Left Sidebar -->
-		<PrjMainSidebar bind:isOpen={isSidebarOpen} />
+		<PrjMainSidebar />
 
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
@@ -633,10 +630,7 @@
 					<div class="admin-content-page">
 						<!-- 헤더 -->
 						<div class="mb-6">
-							<div class="flex items-center gap-3 mb-2">
-								<MobileMenuButton bind:isOpen={isSidebarOpen} />
-								<h1 class="text-3xl font-bold text-gray-800">매출/비용 코드 관리</h1>
-							</div>
+							<h1 class="text-3xl font-bold text-gray-800">매출/비용 코드 관리</h1>
 							<p class="text-gray-600">매출과 비용의 세부항목(코드)을 관리합니다.</p>
 						</div>
 

@@ -1,9 +1,28 @@
 <script>
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { sidebarStore } from '$lib/stores/sidebarStore';
 
 	/** @type {boolean} 사이드바 열림 상태 (모바일용) */
-	let { isOpen = $bindable(false) } = $props();
+	let isOpen = $state(false);
+	
+	// sidebarStore 구독
+	onMount(() => {
+		console.log('🎯 PrjMainSidebar onMount');
+		const unsubscribe = sidebarStore.subscribe((state) => {
+			console.log('🎯 PrjMainSidebar 상태 변경:', state);
+			isOpen = state.isOpen;
+		});
+		return unsubscribe;
+	});
+	
+	/**
+	 * 사이드바 닫기
+	 */
+	function closeSidebar() {
+		sidebarStore.close();
+	}
 
 	/** @type {string | null} */
 	let expandedMenu = $state(null);
@@ -118,8 +137,8 @@
 		if (menuItem.subMenus && menuItem.subMenus.length > 0) {
 			toggleMenu(menuItem.id);
 		} else {
-			// 모바일에서 메뉴 클릭 시 사이드바 닫기
-			isOpen = false;
+			// 메뉴 클릭 시 사이드바 닫기
+			closeSidebar();
 			goto(menuItem.path);
 		}
 	}
@@ -130,8 +149,8 @@
 	 * @returns {void}
 	 */
 	function handleSubMenuClick(path) {
-		// 모바일에서 메뉴 클릭 시 사이드바 닫기
-		isOpen = false;
+		// 메뉴 클릭 시 사이드바 닫기
+		closeSidebar();
 		goto(path);
 	}
 
@@ -147,12 +166,12 @@
 	});
 </script>
 
-<!-- 모바일 오버레이 -->
+<!-- 오버레이 (사이드바가 열렸을 때만 표시) -->
 {#if isOpen}
 	<button
 		type="button"
-		class="fixed inset-0 bg-black bg-opacity-50 z-40 mobile-only"
-		onclick={() => (isOpen = false)}
+		class="fixed inset-0 z-40"
+		onclick={closeSidebar}
 		aria-label="사이드바 닫기"
 	></button>
 {/if}
@@ -166,11 +185,12 @@
 	<!-- 사이드바 헤더 -->
 	<div class="p-4 border-b border-gray-200 flex items-center justify-between">
 		<h2 class="text-lg font-semibold text-gray-800">경영지표 관리</h2>
-		<!-- 모바일 닫기 버튼 -->
+		<!-- 닫기 버튼 -->
 		<button
-			onclick={() => (isOpen = false)}
-			class="mobile-only p-1 text-gray-500 hover:text-gray-700"
+			onclick={closeSidebar}
+			class="p-1 text-gray-500 hover:text-gray-700"
 			aria-label="사이드바 닫기"
+			type="button"
 		>
 			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
@@ -262,12 +282,5 @@
 		top: 100px;
 	}
 
-	/* 데스크톱에서는 정적 위치로 변경 */
-	@media (hover: hover) and (pointer: fine) {
-		.sidebar-container {
-			position: static;
-			z-index: auto;
-			transform: translateX(0) !important;
-		}
-	}
+	/* 모바일 전용 스타일 제거 - 이제 모든 기기에서 동일하게 작동 */
 </style>

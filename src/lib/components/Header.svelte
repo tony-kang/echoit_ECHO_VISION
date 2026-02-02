@@ -4,8 +4,10 @@
 	import { page } from '$app/state';
 	import Logo from '$lib/components/Logo.svelte';
 	import InquiryForm from '$lib/components/InquiryForm.svelte';
+	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { authStore } from '$lib/stores/authStore';
+	import { sidebarStore } from '$lib/stores/sidebarStore';
 	import { isAdmin } from '$lib/userService';
 	import { isDevDomain } from '$lib/utils/domainUtils';
 	import ___prjConst from '$prj/prjConst';
@@ -18,7 +20,18 @@
 	let authLoading = $state(true);
 	let userProfile = $state(null);
 	let activeDropdown = $state(null);
+	let isSidebarOpen = $state(false); // 사이드바 열림 상태
 	const showHamburgerIcon = true;
+	
+	// sidebarStore 구독
+	onMount(() => {
+		const unsubscribeSidebar = sidebarStore.subscribe((state) => {
+			isSidebarOpen = state.isOpen;
+		});
+		return () => {
+			unsubscribeSidebar();
+		};
+	});
 
 	// 관리자 권한 확인
 	const isAdminUser = $derived.by(() => {
@@ -182,15 +195,12 @@
 <header class="p-3 fixed top-0 w-full bg-white z-50 shadow-sm">
 	<div class="max-w-7xl mx-auto py-1">
 		<div class="flex items-center justify-between">
-			<!-- Logo -->
-			<div class="flex items-center shrink-0">
-				<!-- {#if showHamburgerIcon}
-				<button onclick={toggleMenu} class="mobile-menu-toggle mobile-only mr-2" aria-label="메뉴 열기" type="button">
-					<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-					</svg>
-				</button>
-				{/if} -->
+			<!-- Logo with Hamburger Button -->
+			<div class="flex items-center shrink-0 gap-2">
+				<!-- 햄버거 버튼 (로그인 상태일 때만 표시) -->
+				{#if !authLoading && user}
+					<MobileMenuButton />
+				{/if}
 				<a href="/" class="flex items-center">
 					<Logo size="sm" />
 				</a>
@@ -555,16 +565,6 @@
 	@media (max-width: 1024px) {
 		header {
 			padding: 0.5rem 0.75rem;
-		}
-
-		.mobile-menu-toggle {
-			padding: 0.5rem;
-			margin-right: 0.5rem;
-		}
-
-		.mobile-menu-toggle svg {
-			width: 1.5rem;
-			height: 1.5rem;
 		}
 
 		/* 모바일 메뉴 컨테이너 스타일 개선 */

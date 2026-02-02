@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
-	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import {
 		getAllUsers,
@@ -23,8 +22,6 @@
 	let userProfile = $state(null);
 	let userProfileLoading = $state(true);
 	let profileChecked = $state(false);
-	/** @type {boolean} 모바일 사이드바 열림 상태 */
-	let isSidebarOpen = $state(false);
 
 	/** @type {Array<any>} 사용자 목록 */
 	let users = $state([]);
@@ -414,7 +411,7 @@
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
 		<!-- Left Sidebar -->
-		<PrjMainSidebar bind:isOpen={isSidebarOpen} />
+		<PrjMainSidebar />
 
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
@@ -435,10 +432,7 @@
 					<div class="admin-content-page">
 						<!-- 헤더 -->
 						<div class="mb-6">
-							<div class="flex items-center gap-3 mb-2">
-								<MobileMenuButton bind:isOpen={isSidebarOpen} />
-								<h1 class="text-3xl font-bold text-gray-800">사용자 관리</h1>
-							</div>
+							<h1 class="text-3xl font-bold text-gray-800">사용자 관리</h1>
 							<p class="text-gray-600">사용자 역할 변경, 상태 관리 등 사용자 관리 기능을 제공합니다</p>
 						</div>
 

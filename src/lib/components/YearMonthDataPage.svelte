@@ -3,7 +3,6 @@
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
-	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import { getSettings, getEvCodes } from '$lib/settingsService';
 
@@ -32,8 +31,6 @@
 	let authLoading = $state(true);
 	/** @type {Object | null} */
 	let userProfile = $state(null);
-	/** @type {boolean} 모바일 사이드바 열림 상태 */
-	let isSidebarOpen = $state(false);
 
 	/** @type {Array<any>} 전체 환경설정 코드 목록 */
 	let allSettings = $state([]);
@@ -660,7 +657,7 @@
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
 		<!-- Left Sidebar -->
-		<PrjMainSidebar bind:isOpen={isSidebarOpen} />
+		<PrjMainSidebar />
 
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
@@ -677,12 +674,7 @@
 					<div class="admin-content-page">
 						<!-- 헤더 -->
 						<div class="mb-6">
-							<div class="flex items-center justify-between gap-3 mb-2">
-								<div class="flex items-center gap-3">
-									<MobileMenuButton bind:isOpen={isSidebarOpen} />
-									<h1 class="text-2xl font-bold text-gray-900">{title}</h1>
-								</div>
-							</div>
+							<h1 class="text-2xl font-bold text-gray-900">{title}</h1>
 							{#if breadcrumbText && breadcrumbText.trim() !== ''}
 								<div class="breadcrumb-container">
 									{#each breadcrumbText.split(' > ') as part, index}

@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
-	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import YearMonthCodeFilter from '$lib/components/YearMonthCodeFilter.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import { getSettingsHierarchy, getSettings } from '$lib/settingsService';
@@ -14,8 +13,6 @@
 	let authLoading = $state(true);
 	/** @type {Object | null} */
 	let userProfile = $state(null);
-	/** @type {boolean} 모바일 사이드바 열림 상태 */
-	let isSidebarOpen = $state(false);
 	
 	/** @type {Array<any>} 전체 환경설정 코드 목록 (평면 구조) */
 	let allSettings = $state([]);
@@ -441,7 +438,7 @@
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
 		<!-- Left Sidebar -->
-		<PrjMainSidebar bind:isOpen={isSidebarOpen} />
+		<PrjMainSidebar />
 
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
@@ -459,10 +456,7 @@
 						<!-- 헤더 -->
 						<div class="mb-6">
 							<div class="flex items-center justify-between gap-3 mb-2">
-								<div class="flex items-center gap-3">
-									<MobileMenuButton bind:isOpen={isSidebarOpen} />
-									<h1 class="text-2xl font-bold text-gray-900">수익 정보</h1>
-								</div>
+								<h1 class="text-2xl font-bold text-gray-900">수익 정보</h1>
 								{#if userProfile}
 									{@const topLevelCodes = Array.isArray(userProfile.top_level_codes) ? userProfile.top_level_codes : []}
 									{#if topLevelCodes.length > 0}
