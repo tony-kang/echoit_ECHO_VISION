@@ -631,7 +631,7 @@
 
 						<!-- 년도/월 수정 다이얼로그 -->
 						{#if editingFile}
-							<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="edit-dialog-title">
+							<div class="fixed inset-0 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="edit-dialog-title">
 								<div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
 									<h2 id="edit-dialog-title" class="text-xl font-bold mb-4">년도/월 수정</h2>
 									<div class="mb-4">

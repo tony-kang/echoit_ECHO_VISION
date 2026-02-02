@@ -51,7 +51,7 @@
 {#if isOpen}
 	<button
 		type="button"
-		class="fixed inset-0 bg-black bg-opacity-50 z-40"
+		class="fixed inset-0 z-40"
 		onclick={closeSidebar}
 		aria-label="사이드바 닫기"
 	></button>

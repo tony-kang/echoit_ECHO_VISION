@@ -82,18 +82,7 @@
 						<!-- 헤더 -->
 						<div class="mb-6">
 							<div class="flex items-center gap-3 mb-2">
-									<!-- <button
-										onclick={() => goto('/echovision/settings/code')}
-										class="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-									>
-										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-										</svg>
-										카테고리 목록
-									</button>
-									<span class="text-gray-400">/</span> -->
 									<h1 class="text-3xl font-bold text-gray-800">{categoryLabel} 컬럼 관리</h1>
-								</div>
 							</div>
 							<!-- <p class="text-gray-600">카테고리: {category}</p> -->
 						</div>
