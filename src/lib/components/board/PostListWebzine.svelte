@@ -23,7 +23,7 @@
 		gap: 2rem;
 	}
 
-	@media (min-width: 768px) {
+	@media (min-width: 1024px) {
 		.webzine-list {
 			gap: 2.5rem;
 		}

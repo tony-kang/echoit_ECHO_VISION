@@ -558,7 +558,7 @@
 		gap: 12px;
 	}
 	
-	@media (max-width: 768px) {
+	@media (max-width: 1024px) {
 		
 		.data-table {
 			font-size: 0.85em;

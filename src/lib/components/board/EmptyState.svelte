@@ -104,8 +104,8 @@
 		background-color: #2563eb;
 	}
 
-	/* 반응형 */
-	@media (max-width: 768px) {
+	/* 반응형 (아이패드 포함) */
+	@media (max-width: 1024px) {
 		.empty-state {
 			padding: 3rem 1.5rem;
 		}

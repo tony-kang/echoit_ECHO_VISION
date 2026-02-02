@@ -121,7 +121,7 @@
 		position: relative;
 	}
 
-	@media (min-width: 768px) {
+	@media (min-width: 1024px) {
 		.webzine-image-container {
 			height: 400px;
 		}
@@ -142,7 +142,7 @@
 		padding: 1.5rem;
 	}
 
-	@media (min-width: 768px) {
+	@media (min-width: 1024px) {
 		.webzine-content {
 			padding: 2rem;
 		}
@@ -177,7 +177,7 @@
 		flex: 1;
 	}
 
-	@media (min-width: 768px) {
+	@media (min-width: 1024px) {
 		.webzine-title {
 			font-size: 1.75rem;
 		}
@@ -190,7 +190,7 @@
 		margin: 0 0 1.25rem 0;
 	}
 
-	@media (min-width: 768px) {
+	@media (min-width: 1024px) {
 		.webzine-excerpt {
 			font-size: 1rem;
 		}

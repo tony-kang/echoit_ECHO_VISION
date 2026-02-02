@@ -32,7 +32,7 @@
 {#if isOpen}
 	<button
 		type="button"
-		class="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+		class="fixed inset-0 bg-black bg-opacity-50 z-40 xl:hidden"
 		onclick={() => (isOpen = false)}
 		aria-label="사이드바 닫기"
 	></button>
@@ -40,9 +40,9 @@
 
 <!-- 사이드바 -->
 <div
-	class="sidebar-container fixed md:static inset-y-0 left-0 z-50 md:z-auto w-64 bg-white border-r border-gray-200 flex flex-col h-full transform transition-transform duration-300 ease-in-out {isOpen
+	class="sidebar-container fixed xl:static inset-y-0 left-0 z-50 xl:z-auto w-64 bg-white border-r border-gray-200 flex flex-col h-full transform transition-transform duration-300 ease-in-out {isOpen
 		? 'translate-x-0'
-		: '-translate-x-full md:translate-x-0'}"
+		: '-translate-x-full xl:translate-x-0'}"
 >
 	<!-- 사이드바 헤더 -->
 	<div class="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -50,7 +50,7 @@
 		<!-- 모바일 닫기 버튼 -->
 		<button
 			onclick={() => (isOpen = false)}
-			class="md:hidden p-1 text-gray-500 hover:text-gray-700"
+			class="xl:hidden p-1 text-gray-500 hover:text-gray-700"
 			aria-label="사이드바 닫기"
 		>
 			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

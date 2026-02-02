@@ -1192,7 +1192,7 @@
 		background: #e5e7eb;
 	}
 
-	@media (max-width: 768px) {
+	@media (max-width: 1024px) {
 		.stats-grid {
 			grid-template-columns: 1fr;
 		}

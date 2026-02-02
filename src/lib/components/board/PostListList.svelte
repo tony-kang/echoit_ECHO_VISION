@@ -10,7 +10,7 @@
 <!-- 목록형: 전통적인 테이블 형태 -->
 <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
 	<!-- 모바일: 카드 형태 -->
-	<div class="md:hidden space-y-2 p-2">
+	<div class="xl:hidden space-y-2 p-2">
 		{#each posts as post (post.id)}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -36,7 +36,7 @@
 	</div>
 
 	<!-- 데스크톱: 테이블 형태 -->
-	<table class="hidden md:table w-full">
+	<table class="hidden xl:table w-full">
 		<thead class="bg-gray-50 border-b border-gray-200">
 			<tr>
 				<th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider w-12" title="고정">📌</th>

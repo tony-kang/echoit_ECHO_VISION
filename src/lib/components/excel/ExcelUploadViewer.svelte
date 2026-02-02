@@ -803,7 +803,7 @@
 		background: white;
 	}
 
-	@media (max-width: 768px) {
+	@media (max-width: 1024px) {
 		.viewer-header {
 			padding: 1rem;
 		}

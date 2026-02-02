@@ -734,7 +734,7 @@
 		box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 	}
 
-	@media (max-width: 768px) {
+	@media (max-width: 1024px) {
 		.modal-overlay {
 			padding: 10px;
 		}

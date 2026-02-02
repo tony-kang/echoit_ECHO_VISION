@@ -246,7 +246,7 @@
 		100% { transform: rotate(360deg); }
 	}
 	
-	@media (max-width: 768px) {
+	@media (max-width: 1024px) {
 		.menu-grid {
 			grid-template-columns: 1fr;
 		}

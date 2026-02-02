@@ -48,8 +48,8 @@
 		height: 60px;
 	}
 
-	/* 모바일에서 로고 크기 축소 */
-	@media (max-width: 768px) {
+	/* 모바일 및 태블릿에서 로고 크기 축소 (아이패드 포함) */
+	@media (max-width: 1024px) {
 		.logo-image {
 			height: 40px;
 		}

@@ -163,8 +163,8 @@
 		}
 	}
 
-	/* 반응형 디자인 */
-	@media (max-width: 768px) {
+	/* 반응형 디자인 (아이패드 포함) */
+	@media (max-width: 1024px) {
 		.slogan-wrapper {
 			top: 0.5rem;
 			left: 0.5rem;

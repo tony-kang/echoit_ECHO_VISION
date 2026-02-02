@@ -9,7 +9,7 @@
 <!-- 모바일 햄버거 버튼 -->
 <button
 	onclick={() => (isOpen = true)}
-	class="md:hidden p-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
+	class="xl:hidden p-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50"
 	aria-label="메뉴 열기"
 >
 	<svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">

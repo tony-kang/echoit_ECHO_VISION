@@ -86,7 +86,7 @@
 
 		<!-- 사이드바 (라벨) -->
 		{#if showSidebar}
-			<div class="hidden md:block w-64 shrink-0">
+			<div class="hidden xl:block w-64 shrink-0">
 				<LabelSidebar categoryId={category.id} />
 			</div>
 		{/if}

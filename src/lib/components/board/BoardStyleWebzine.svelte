@@ -124,7 +124,7 @@
 		}
 	}
 
-	@media (min-width: 768px) {
+	@media (min-width: 1024px) {
 		.header-title {
 			font-size: 2.5rem;
 		}
@@ -143,7 +143,7 @@
 		}
 	}
 
-	@media (min-width: 768px) {
+	@media (min-width: 1024px) {
 		.header-description {
 			font-size: 1.125rem;
 		}

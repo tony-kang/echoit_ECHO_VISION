@@ -122,7 +122,7 @@
 		font-style: italic;
 	}
 	
-	@media (max-width: 768px) {
+	@media (max-width: 1024px) {
 		.table-container {
 			width: 100%;
 			max-width: 100vw;
