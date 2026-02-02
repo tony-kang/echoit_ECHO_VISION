@@ -270,7 +270,7 @@
 	}
 
 	/**
-	 * 매칭되지 않은 컬럼 수 계산 (제외된 컬럼은 제외)
+	 * 매칭되지 않은 가로 컬럼 수 계산 (제외된 컬럼은 제외)
 	 */
 	const unmatchedColumnsCount = $derived.by(() => {
 		if (headers.length === 0) return 0;
@@ -285,6 +285,62 @@
 			// 'excluded'는 제외하고, null인 경우만 카운트
 			return matchResult === null;
 		}).length;
+	});
+
+	/**
+	 * 매칭되지 않은 가로 컬럼 이름 목록
+	 */
+	const unmatchedColumnNames = $derived.by(() => {
+		if (headers.length === 0) return [];
+		if (envCodes.length === 0) {
+			return headers.filter(header => header && header.trim() !== '');
+		}
+		
+		return headers.filter(header => {
+			if (!header || header.trim() === '') return false;
+			const matchResult = findMatchingCode(header);
+			return matchResult === null;
+		});
+	});
+
+	/**
+	 * 매칭되지 않은 세로 컬럼(첫 번째 열) 수 계산 (제외된 셀은 제외)
+	 */
+	const unmatchedVerticalColumnsCount = $derived.by(() => {
+		if (rows.length === 0) return 0;
+		// envCodes가 로드되지 않았으면 모든 첫 번째 열 셀을 매칭 안됨으로 카운트
+		if (envCodes.length === 0) {
+			return rows.filter(row => row[0] && String(row[0]).trim() !== '').length;
+		}
+		
+		return rows.filter(row => {
+			const cellValue = row[0];
+			if (!cellValue || String(cellValue).trim() === '') return false; // 빈 셀은 제외
+			const matchResult = findMatchingCodeForFirstColumn(String(cellValue));
+			// 'excluded'는 제외하고, null인 경우만 카운트
+			return matchResult === null;
+		}).length;
+	});
+
+	/**
+	 * 매칭되지 않은 세로 컬럼 이름 목록
+	 */
+	const unmatchedVerticalColumnNames = $derived.by(() => {
+		if (rows.length === 0) return [];
+		if (envCodes.length === 0) {
+			return rows
+				.filter(row => row[0] && String(row[0]).trim() !== '')
+				.map(row => String(row[0]));
+		}
+		
+		return rows
+			.filter(row => {
+				const cellValue = row[0];
+				if (!cellValue || String(cellValue).trim() === '') return false;
+				const matchResult = findMatchingCodeForFirstColumn(String(cellValue));
+				return matchResult === null;
+			})
+			.map(row => String(row[0]));
 	});
 
 	/**
@@ -350,25 +406,6 @@
 		return String(trimmedValue);
 	}
 
-	/**
-	 * 매칭되지 않은 컬럼명 목록 (제외된 컬럼은 제외)
-	 */
-	const unmatchedColumnNames = $derived.by(() => {
-		if (headers.length === 0) return [];
-		// envCodes가 로드되지 않았으면 모든 헤더를 매칭 안됨으로 표시
-		if (envCodes.length === 0) {
-			return headers.filter(header => header && header.trim() !== '');
-		}
-		
-		const unmatched = headers.filter(header => {
-			if (!header || header.trim() === '') return false; // 빈 헤더는 제외
-			const matchResult = findMatchingCode(header);
-			// 'excluded'는 제외하고, null인 경우만 포함
-			return matchResult === null;
-		});
-		
-		return unmatched;
-	});
 
 	/**
 	 * 엑셀 파일 다운로드 및 읽기
@@ -1039,19 +1076,27 @@
 							</div>
 						{/if}
 						
-						{#if headers.length > 0}
-							<div class="data-info">
-								컬럼: {headers.length}개 | 행: {rows.length}개
-								{#if unmatchedColumnsCount > 0}
-									<span class="unmatched-badge">매칭 안됨: {unmatchedColumnsCount}개</span>
-								{/if}
-								<!-- {#if unmatchedColumnNames && unmatchedColumnNames.length > 0}
-									<div class="unmatched-names">
-										매칭 안된 컬럼: {unmatchedColumnNames.join(', ')}
-									</div>
-								{/if} -->
-							</div>
-						{/if}
+					{#if headers.length > 0}
+						<div class="data-info">
+							<div>컬럼: {headers.length}개 | 행: {rows.length}개</div>
+							{#if unmatchedColumnsCount > 0}
+								<div class="unmatched-badge">
+									조직코드 매칭 안됨: {unmatchedColumnsCount}개
+									{#if unmatchedColumnNames.length > 0}
+										<span class="unmatched-names-inline">({unmatchedColumnNames.slice(0, 5).join(', ')}{unmatchedColumnNames.length > 5 ? '...' : ''})</span>
+									{/if}
+								</div>
+							{/if}
+							{#if unmatchedVerticalColumnsCount > 0}
+								<div class="unmatched-badge">
+									{excelType === 'sales' ? '매출' : '비용'}코드 매칭 안됨: {unmatchedVerticalColumnsCount}개
+									{#if unmatchedVerticalColumnNames.length > 0}
+										<span class="unmatched-names-inline">({unmatchedVerticalColumnNames.slice(0, 5).join(', ')}{unmatchedVerticalColumnNames.length > 5 ? '...' : ''})</span>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{/if}
 						
 						{#if sheetNames.length > 1}
 							<div class="sheet-selector">
@@ -1072,11 +1117,11 @@
 								{:else if hasDataSaved}
 									<div class="data-status-message data-saved-message">데이터가 추가된 상태 입니다.</div>
 								{:else}
-									<button
-										class="data-input-btn"
-										onclick={handleSaveColumnData}
-										disabled={isSavingData || headers.length === 0 || rows.length === 0 || unmatchedColumnsCount > 0}
-									>
+								<button
+									class="data-input-btn"
+									onclick={handleSaveColumnData}
+									disabled={isSavingData || headers.length === 0 || rows.length === 0 || unmatchedColumnsCount > 0 || unmatchedVerticalColumnsCount > 0}
+								>
 										{isSavingData 
 											? '저장 중...' 
 											: (() => {
@@ -1090,9 +1135,19 @@
 												}
 											})()}
 									</button>
-									{#if unmatchedColumnsCount > 0}
-										<span class="data-input-hint">매칭되지 않은 컬럼이 있어 저장할 수 없습니다.</span>
-									{/if}
+								{#if unmatchedColumnsCount > 0 || unmatchedVerticalColumnsCount > 0}
+									<span class="data-input-hint">
+										매칭되지 않은 
+										{#if unmatchedColumnsCount > 0 && unmatchedVerticalColumnsCount > 0}
+											가로/세로 컬럼
+										{:else if unmatchedColumnsCount > 0}
+											가로 컬럼
+										{:else}
+											세로 컬럼
+										{/if}
+										이 있어 저장할 수 없습니다.
+									</span>
+								{/if}
 								{/if}
 							</div>
 						{/if}
@@ -1205,7 +1260,7 @@
 					</div>
 				{:else if fileName && !isLoading}
 					<div class="empty-message">
-						<p>엑셀 파일에 데이터가 없습니다.</p>
+						<p>데이터 확인 중...</p>
 					</div>
 				{/if}
 			</div>
@@ -1637,10 +1692,18 @@
 	.unmatched-badge {
 		background-color: #dc2626;
 		color: white;
-		padding: 2px 10px;
+		padding: 4px 12px;
 		border-radius: 0.5rem;
 		font-size: 0.85rem;
 		font-weight: 600;
+		display: inline-block;
+	}
+
+	.unmatched-names-inline {
+		font-size: 0.8rem;
+		font-weight: 400;
+		margin-left: 0.5rem;
+		opacity: 0.9;
 	}
 
 	.unmatched-names {
