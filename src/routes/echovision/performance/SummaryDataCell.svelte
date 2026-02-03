@@ -10,12 +10,13 @@
 	let { type, value, bgColor = 'blue' } = $props();
 
 	/**
-	 * 금액 포맷팅
-	 * @param {number} val - 금액
+	 * 금액 포맷팅 (천원 단위)
+	 * @param {number} val - 금액 (원 단위)
 	 * @returns {string}
 	 */
 	function formatCurrency(val) {
-		return new Intl.NumberFormat('ko-KR').format(Math.round(val));
+		const thousandValue = val / 1000; // 천원 단위로 변환
+		return new Intl.NumberFormat('ko-KR').format(Math.round(thousandValue));
 	}
 
 	/**

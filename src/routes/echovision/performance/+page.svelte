@@ -8,6 +8,9 @@
 	import { authStore } from '$lib/stores/authStore';
 	import { getSales } from '$lib/salesService';
 	import { getCosts } from '$lib/costService';
+	import { getGoals } from '$lib/goalService';
+	import { getPerformance, upsertPerformanceBulk, upsertPerformance } from '$lib/performanceService';
+	import { toast } from 'svelte-sonner';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
@@ -16,15 +19,17 @@
 	/** @type {number} 선택된 연도 */
 	let selectedYear = $state(new Date().getFullYear());
 
-	/** @type {Array<{org_alias_name: string, org_code: string[], sales_code: string[], cost_code: string[]}>} 조직 정보 */
+	/** @type {Array<{org_alias_id: string, org_alias_name: string, org_code: string[], sales_code: string[], cost_code: string[]}>} 조직 정보 */
 	const orgInfo = [
 		{
+			org_alias_id: 'sap',
 			org_alias_name: 'SAP 사업부문',
 			org_code: ['209100', '201100', '202100', '203100'],
 			sales_code: ['SALES_0100'],
 			cost_code: ['COST_0100']
 		},
 		{
+			org_alias_id: 'erp',
 			org_alias_name: 'ERP 사업부문',
 			org_code: ['309100', '301100'],
 			sales_code: ['SALES_0100'],
@@ -46,8 +51,18 @@
 	let salesData = $state([]);
 	/** @type {Array<any>} 비용 데이터 */
 	let costData = $state([]);
+	/** @type {Array<any>} 목표 데이터 */
+	let goalData = $state([]);
+	/** @type {Array<any>} 경영실적 데이터 */
+	let performanceData = $state([]);
 	/** @type {boolean} 데이터 로딩 중 */
 	let isLoading = $state(false);
+	/** @type {boolean} 입력 모달 표시 여부 */
+	let showInputModal = $state(false);
+	/** @type {boolean} 저장 중 */
+	let isSaving = $state(false);
+	/** @type {Array<{month: number, p_revenue: number, f_revenue: number, p_expenses: number, f_expenses: number}>} 입력 데이터 */
+	let inputData = $state([]);
 
 	/**
 	 * 선택된 조직 정보 가져오기
@@ -55,16 +70,53 @@
 	const selectedOrg = $derived(orgInfo[selectedOrgIndex]);
 
 	/**
+	 * 특정 월의 경영실적 데이터 가져오기
+	 * @param {number} month - 월 (1~12)
+	 * @returns {any | null}
+	 */
+	function getPerformanceData(month) {
+		return performanceData.find(
+			perf => perf.month === month && 
+			perf.year === selectedYear && 
+			perf.org_alias_id === selectedOrg.org_alias_id
+		) || null;
+	}
+
+	/**
+	 * 해당 년도/조직의 경영실적 데이터 존재 여부
+	 */
+	const hasPerformanceData = $derived.by(() => {
+		return performanceData.some(
+			perf => perf.year === selectedYear && perf.org_alias_id === selectedOrg.org_alias_id
+		);
+	});
+
+	/**
 	 * 월별 데이터 계산
 	 * @param {number} month - 월 (1~12)
-	 * @returns {{sales: number, cost: number, profit: number}}
+	 * @returns {{sales: number, cost: number, profit: number, plannedSales: number, forecastSales: number, plannedCost: number, forecastCost: number}}
 	 */
 	function getMonthData(month) {
 		const sales = calculateMonthValue(salesData, month, selectedOrg.org_code, selectedOrg.sales_code);
 		const cost = calculateMonthValue(costData, month, selectedOrg.org_code, selectedOrg.cost_code);
 		const profit = sales - cost;
 		
-		return { sales, cost, profit };
+		// 경영실적 데이터에서 계획/예상 값 가져오기 (원 단위로 저장되어 있음)
+		const perf = getPerformanceData(month);
+		const plannedSales = perf?.p_revenue || 100000000; // 기본값 (원 단위)
+		const forecastSales = perf?.f_revenue || 90000000; // 기본값 (원 단위)
+		const plannedCost = perf?.p_expenses || 100000000; // 기본값 (원 단위)
+		const forecastCost = perf?.f_expenses || 90000000; // 기본값 (원 단위)
+		
+		return { 
+			sales, 
+			cost, 
+			profit,
+			plannedSales,
+			forecastSales,
+			plannedCost,
+			forecastCost
+		};
 	}
 
 	/**
@@ -183,9 +235,22 @@
 			if (costResult.data) {
 				costData = costResult.data;
 			}
+			
+			// 경영실적 데이터 로드
+			const performanceResult = await getPerformance({
+				year: selectedYear,
+				org_alias_id: selectedOrg.org_alias_id,
+				orderByYear: true,
+				orderByMonth: true
+			});
+			
+			if (performanceResult.data) {
+				performanceData = performanceResult.data;
+			}
 
 			console.log('Performance loadData salesData:',selectedYear, $state.snapshot(salesData));
 			console.log('Performance loadData costData:',selectedYear, $state.snapshot(costData));
+			console.log('Performance loadData performanceData:',selectedYear, $state.snapshot(performanceData));
 		} catch (error) {
 			console.error('데이터 로드 실패:', error);
 		} finally {
@@ -194,12 +259,152 @@
 	}
 
 	/**
-	 * 금액 포맷팅
-	 * @param {number} value - 금액
+	 * 금액 포맷팅 (천원 단위)
+	 * @param {number} value - 금액 (원 단위)
 	 * @returns {string}
 	 */
 	function formatCurrency(value) {
-		return new Intl.NumberFormat('ko-KR').format(Math.round(value));
+		const thousandValue = value / 1000; // 천원 단위로 변환
+		return new Intl.NumberFormat('ko-KR').format(Math.round(thousandValue));
+	}
+
+	/**
+	 * 숫자 문자열을 천단위 콤마가 포함된 문자열로 변환
+	 * @param {string | number} value - 숫자 값
+	 * @returns {string}
+	 */
+	function formatNumberWithComma(value) {
+		if (value === null || value === undefined || value === '') return '';
+		const numStr = String(value).replace(/,/g, '');
+		const num = parseFloat(numStr);
+		if (isNaN(num)) return '';
+		return new Intl.NumberFormat('ko-KR').format(num);
+	}
+
+	/**
+	 * 천단위 콤마가 포함된 문자열을 숫자로 변환
+	 * @param {string} value - 콤마가 포함된 문자열
+	 * @returns {number}
+	 */
+	function parseNumberFromComma(value) {
+		if (!value) return 0;
+		const numStr = String(value).replace(/,/g, '');
+		const num = parseFloat(numStr);
+		return isNaN(num) ? 0 : num;
+	}
+
+	/**
+	 * 입력 모달 열기 (기존 데이터가 있으면 불러오기)
+	 */
+	function openInputModal() {
+		// 1~12월 데이터 초기화 (기존 데이터가 있으면 불러오고, 없으면 기본값 사용)
+		inputData = Array.from({ length: 12 }, (_, i) => {
+			const month = i + 1;
+			const perf = getPerformanceData(month);
+			
+			// 기존 데이터가 있으면 천원 단위로 변환하여 사용, 없으면 기본값 사용
+			const p_revenue = perf?.p_revenue ? perf.p_revenue / 1000 : 100000; // 원 -> 천원
+			const f_revenue = perf?.f_revenue ? perf.f_revenue / 1000 : 90000; // 원 -> 천원
+			const p_expenses = perf?.p_expenses ? perf.p_expenses / 1000 : 100000; // 원 -> 천원
+			const f_expenses = perf?.f_expenses ? perf.f_expenses / 1000 : 90000; // 원 -> 천원
+			
+			return {
+				month: month,
+				p_revenue: p_revenue,
+				f_revenue: f_revenue,
+				p_expenses: p_expenses,
+				f_expenses: f_expenses,
+				p_revenue_display: formatNumberWithComma(p_revenue),
+				f_revenue_display: formatNumberWithComma(f_revenue),
+				p_expenses_display: formatNumberWithComma(p_expenses),
+				f_expenses_display: formatNumberWithComma(f_expenses)
+			};
+		});
+		showInputModal = true;
+	}
+
+	/**
+	 * 입력 모달 닫기
+	 */
+	function closeInputModal() {
+		showInputModal = false;
+		inputData = [];
+	}
+
+	/**
+	 * 경영실적 데이터 저장
+	 */
+	async function savePerformanceData() {
+		isSaving = true;
+		try {
+			// 입력된 값은 천원 단위이므로 원 단위로 변환하여 저장
+			const dataToSave = inputData.map(item => ({
+				year: selectedYear,
+				month: item.month,
+				org_alias_id: selectedOrg.org_alias_id,
+				p_revenue: (item.p_revenue || 0) * 1000, // 천원 -> 원 변환
+				f_revenue: (item.f_revenue || 0) * 1000, // 천원 -> 원 변환
+				p_expenses: (item.p_expenses || 0) * 1000, // 천원 -> 원 변환
+				f_expenses: (item.f_expenses || 0) * 1000, // 천원 -> 원 변환
+				a_revenue: 0, // 실제 매출은 ev_sales에서 계산
+				a_expenses: 0 // 실제 비용은 ev_cost에서 계산
+			}));
+
+			const result = await upsertPerformanceBulk(dataToSave);
+			
+			if (result.error) {
+				toast.error('경영실적 데이터 저장 실패');
+				console.error('저장 실패:', result.error);
+			} else {
+				toast.success('경영실적 데이터가 저장되었습니다');
+				closeInputModal();
+				await loadData(); // 데이터 다시 로드
+			}
+		} catch (error) {
+			console.error('저장 중 오류:', error);
+			toast.error('저장 중 오류가 발생했습니다');
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	/**
+	 * 특정 월의 경영실적 데이터 업데이트
+	 * @param {number} month - 월
+	 * @param {number} p_revenue - 계획 매출 (천원 단위)
+	 * @param {number} f_revenue - 예상 매출 (천원 단위)
+	 * @param {number} p_expenses - 계획 비용 (천원 단위)
+	 * @param {number} f_expenses - 예상 비용 (천원 단위)
+	 */
+	async function updateMonthPerformance(month, p_revenue, f_revenue, p_expenses, f_expenses) {
+		try {
+			const perf = getPerformanceData(month);
+			// 입력된 값은 천원 단위이므로 원 단위로 변환하여 저장
+			const dataToSave = {
+				year: selectedYear,
+				month: month,
+				org_alias_id: selectedOrg.org_alias_id,
+				p_revenue: (p_revenue || 0) * 1000, // 천원 -> 원 변환
+				f_revenue: (f_revenue || 0) * 1000, // 천원 -> 원 변환
+				p_expenses: (p_expenses || 0) * 1000, // 천원 -> 원 변환
+				f_expenses: (f_expenses || 0) * 1000, // 천원 -> 원 변환
+				a_revenue: perf?.a_revenue || 0,
+				a_expenses: perf?.a_expenses || 0
+			};
+
+			const result = await upsertPerformance(dataToSave);
+			
+			if (result.error) {
+				toast.error('경영실적 데이터 수정 실패');
+				console.error('수정 실패:', result.error);
+			} else {
+				toast.success('경영실적 데이터가 수정되었습니다');
+				await loadData(); // 데이터 다시 로드
+			}
+		} catch (error) {
+			console.error('수정 중 오류:', error);
+			toast.error('수정 중 오류가 발생했습니다');
+		}
 	}
 
 	onMount(() => {
@@ -271,9 +476,40 @@
 
 						{#if isLoading}
 							<div class="ml-auto text-sm text-gray-500">데이터 로딩 중...</div>
+						{:else if hasPerformanceData}
+							<button
+								onclick={openInputModal}
+								class="ml-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+								type="button"
+							>
+								예상실적 수정
+							</button>
 						{/if}
 					</div>
 				</div>
+
+				<!-- 경영실적 데이터 없음 메시지 -->
+				{#if !isLoading && !hasPerformanceData}
+					<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+						<div class="flex items-center justify-between">
+							<div>
+								<h3 class="text-lg font-semibold text-yellow-800 mb-2">
+									{selectedYear}년 {selectedOrg.org_alias_name}의 경영실적 데이터가 없습니다
+								</h3>
+								<p class="text-yellow-700 text-sm">
+									계획 및 예상 매출/비용을 입력하여 경영실적을 관리할 수 있습니다.
+								</p>
+							</div>
+							<button
+								onclick={openInputModal}
+								class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium"
+								type="button"
+							>
+								예상실적 입력
+							</button>
+						</div>
+					</div>
+				{/if}
 
 				<!-- 실적 테이블 -->
 				<div class="bg-white rounded-lg shadow-sm overflow-x-auto">
@@ -297,11 +533,27 @@
 							<tr class="border-b border-gray-200 hover:bg-gray-50">
 								<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
 								{#each [1, 2, 3] as month}
-									<MonthDataCell type="sales" planned={100000000} expected={90000000} actual={getMonthData(month).sales} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="sales" 
+										planned={monthData.plannedSales} 
+										expected={monthData.forecastSales} 
+										actual={monthData.sales}
+										{month}
+										onUpdate={(m, p, e) => updateMonthPerformance(m, p, e, monthData.plannedCost, monthData.forecastCost)}
+									/>
 								{/each}
 								<SummaryDataCell type="sales" value={getQuarterData(1).sales} bgColor="blue" />
 								{#each [4, 5, 6] as month}
-									<MonthDataCell type="sales" planned={100000000} expected={90000000} actual={getMonthData(month).sales} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="sales" 
+										planned={monthData.plannedSales} 
+										expected={monthData.forecastSales} 
+										actual={monthData.sales}
+										{month}
+										onUpdate={(m, p, e) => updateMonthPerformance(m, p, e, monthData.plannedCost, monthData.forecastCost)}
+									/>
 								{/each}
 								<SummaryDataCell type="sales" value={getQuarterData(2).sales} bgColor="green" />
 								<SummaryDataCell type="sales" value={getHalfData(1).sales} bgColor="yellow" />
@@ -311,11 +563,27 @@
 							<tr class="border-b border-gray-200 hover:bg-gray-50">
 								<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
 								{#each [1, 2, 3] as month}
-									<MonthDataCell type="cost" planned={100000000} expected={90000000} actual={getMonthData(month).cost} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="cost" 
+										planned={monthData.plannedCost} 
+										expected={monthData.forecastCost} 
+										actual={monthData.cost}
+										{month}
+										onUpdate={(m, p, e) => updateMonthPerformance(m, monthData.plannedSales, monthData.forecastSales, p, e)}
+									/>
 								{/each}
 								<SummaryDataCell type="cost" value={getQuarterData(1).cost} bgColor="blue" />
 								{#each [4, 5, 6] as month}
-									<MonthDataCell type="cost" planned={100000000} expected={90000000} actual={getMonthData(month).cost} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="cost" 
+										planned={monthData.plannedCost} 
+										expected={monthData.forecastCost} 
+										actual={monthData.cost}
+										{month}
+										onUpdate={(m, p, e) => updateMonthPerformance(m, monthData.plannedSales, monthData.forecastSales, p, e)}
+									/>
 								{/each}
 								<SummaryDataCell type="cost" value={getQuarterData(2).cost} bgColor="green" />
 								<SummaryDataCell type="cost" value={getHalfData(1).cost} bgColor="yellow" />
@@ -325,11 +593,25 @@
 							<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
 								<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
 								{#each [1, 2, 3] as month}
-									<MonthDataCell type="profit" planned={0} expected={0} actual={getMonthData(month).profit} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="profit" 
+										planned={monthData.plannedSales - monthData.plannedCost} 
+										expected={monthData.forecastSales - monthData.forecastCost} 
+										actual={monthData.profit}
+										{month}
+									/>
 								{/each}
 								<SummaryDataCell type="profit" value={getQuarterData(1).profit} bgColor="blue-dark" />
 								{#each [4, 5, 6] as month}
-									<MonthDataCell type="profit" planned={0} expected={0} actual={getMonthData(month).profit} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="profit" 
+										planned={monthData.plannedSales - monthData.plannedCost} 
+										expected={monthData.forecastSales - monthData.forecastCost} 
+										actual={monthData.profit}
+										{month}
+									/>
 								{/each}
 								<SummaryDataCell type="profit" value={getQuarterData(2).profit} bgColor="green-dark" />
 								<SummaryDataCell type="profit" value={getHalfData(1).profit} bgColor="yellow-dark" />
@@ -358,11 +640,27 @@
 							<tr class="border-b border-gray-200 hover:bg-gray-50">
 								<td class="px-4 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
 								{#each [7, 8, 9] as month}
-									<MonthDataCell type="sales" planned={100000000} expected={90000000} actual={getMonthData(month).sales} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="sales" 
+										planned={monthData.plannedSales} 
+										expected={monthData.forecastSales} 
+										actual={monthData.sales}
+										{month}
+										onUpdate={(m, p, e) => updateMonthPerformance(m, p, e, monthData.plannedCost, monthData.forecastCost)}
+									/>
 								{/each}
 								<SummaryDataCell type="sales" value={getQuarterData(3).sales} bgColor="blue" />
 								{#each [10, 11, 12] as month}
-									<MonthDataCell type="sales" planned={100000000} expected={90000000} actual={getMonthData(month).sales} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="sales" 
+										planned={monthData.plannedSales} 
+										expected={monthData.forecastSales} 
+										actual={monthData.sales}
+										{month}
+										onUpdate={(m, p, e) => updateMonthPerformance(m, p, e, monthData.plannedCost, monthData.forecastCost)}
+									/>
 								{/each}
 								<SummaryDataCell type="sales" value={getQuarterData(4).sales} bgColor="green" />
 								<SummaryDataCell type="sales" value={getHalfData(2).sales} bgColor="yellow" />
@@ -372,11 +670,27 @@
 							<tr class="border-b border-gray-200 hover:bg-gray-50">
 								<td class="px-4 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
 								{#each [7, 8, 9] as month}
-									<MonthDataCell type="cost" planned={100000000} expected={90000000} actual={getMonthData(month).cost} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="cost" 
+										planned={monthData.plannedCost} 
+										expected={monthData.forecastCost} 
+										actual={monthData.cost}
+										{month}
+										onUpdate={(m, p, e) => updateMonthPerformance(m, monthData.plannedSales, monthData.forecastSales, p, e)}
+									/>
 								{/each}
 								<SummaryDataCell type="cost" value={getQuarterData(3).cost} bgColor="blue" />
 								{#each [10, 11, 12] as month}
-									<MonthDataCell type="cost" planned={100000000} expected={90000000} actual={getMonthData(month).cost} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="cost" 
+										planned={monthData.plannedCost} 
+										expected={monthData.forecastCost} 
+										actual={monthData.cost}
+										{month}
+										onUpdate={(m, p, e) => updateMonthPerformance(m, monthData.plannedSales, monthData.forecastSales, p, e)}
+									/>
 								{/each}
 								<SummaryDataCell type="cost" value={getQuarterData(4).cost} bgColor="green" />
 								<SummaryDataCell type="cost" value={getHalfData(2).cost} bgColor="yellow" />
@@ -386,11 +700,25 @@
 							<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
 								<td class="px-4 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
 								{#each [7, 8, 9] as month}
-									<MonthDataCell type="profit" planned={0} expected={0} actual={getMonthData(month).profit} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="profit" 
+										planned={monthData.plannedSales - monthData.plannedCost} 
+										expected={monthData.forecastSales - monthData.forecastCost} 
+										actual={monthData.profit}
+										{month}
+									/>
 								{/each}
 								<SummaryDataCell type="profit" value={getQuarterData(3).profit} bgColor="blue-dark" />
 								{#each [10, 11, 12] as month}
-									<MonthDataCell type="profit" planned={0} expected={0} actual={getMonthData(month).profit} />
+									{@const monthData = getMonthData(month)}
+									<MonthDataCell 
+										type="profit" 
+										planned={monthData.plannedSales - monthData.plannedCost} 
+										expected={monthData.forecastSales - monthData.forecastCost} 
+										actual={monthData.profit}
+										{month}
+									/>
 								{/each}
 								<SummaryDataCell type="profit" value={getQuarterData(4).profit} bgColor="green-dark" />
 								<SummaryDataCell type="profit" value={getHalfData(2).profit} bgColor="yellow-dark" />
@@ -428,3 +756,131 @@
 		</main>
 	</div>
 </div>
+
+<!-- 입력 모달 -->
+{#if showInputModal}
+	<div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+		<div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+			<!-- 모달 헤더 -->
+			<div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+				<h2 class="text-xl font-bold text-gray-800">
+					{selectedYear}년 {selectedOrg.org_alias_name} 경영실적 {hasPerformanceData ? '수정' : '입력'}
+				</h2>
+				<button
+					onclick={closeInputModal}
+					class="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+					type="button"
+					aria-label="닫기"
+				>
+					×
+				</button>
+			</div>
+
+			<!-- 모달 본문 -->
+			<div class="p-6">
+				<div class="mb-4 text-sm text-gray-600">
+					각 월별로 계획 및 예상 매출/비용을 입력해주세요. (단위: 천원)
+				</div>
+
+				<div class="overflow-x-auto">
+					<table class="w-full border-collapse">
+						<thead>
+							<tr class="bg-gray-50 border-b border-gray-200">
+								<th class="w-[10%] text-right px-4 py-3 text-sm font-semibold text-gray-700">{selectedYear} 년</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">계획 매출</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">예상 매출</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">계획 비용</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">예상 비용</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each inputData as item, index}
+								<tr class="hover:bg-gray-50">
+									<td class="w-[10%] text-right px-4 py-1 text-sm font-medium text-gray-700">{item.month} 월</td>
+									<td class="px-4 py-1">
+										<input
+											type="text"
+											bind:value={item.p_revenue_display}
+											oninput={(e) => {
+												const num = parseNumberFromComma(e.target.value);
+												item.p_revenue = num;
+												item.p_revenue_display = formatNumberWithComma(num);
+											}}
+											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
+											placeholder="계획 매출"
+										/>
+									</td>
+									<td class="px-4 py-1">
+										<input
+											type="text"
+											bind:value={item.f_revenue_display}
+											oninput={(e) => {
+												const num = parseNumberFromComma(e.target.value);
+												item.f_revenue = num;
+												item.f_revenue_display = formatNumberWithComma(num);
+											}}
+											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
+											placeholder="예상 매출"
+										/>
+									</td>
+									<td class="px-4 py-1">
+										<input
+											type="text"
+											bind:value={item.p_expenses_display}
+											oninput={(e) => {
+												const num = parseNumberFromComma(e.target.value);
+												item.p_expenses = num;
+												item.p_expenses_display = formatNumberWithComma(num);
+											}}
+											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
+											placeholder="계획 비용"
+										/>
+									</td>
+									<td class="px-4 py-1">
+										<input
+											type="text"
+											bind:value={item.f_expenses_display}
+											oninput={(e) => {
+												const num = parseNumberFromComma(e.target.value);
+												item.f_expenses = num;
+												item.f_expenses_display = formatNumberWithComma(num);
+											}}
+											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
+											placeholder="예상 비용"
+										/>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<!-- 모달 푸터 -->
+			<div class="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+				<button
+					onclick={closeInputModal}
+					class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+					type="button"
+					disabled={isSaving}
+				>
+					취소
+				</button>
+				<button
+					onclick={savePerformanceData}
+					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+					type="button"
+					disabled={isSaving}
+				>
+					{isSaving ? '저장 중...' : '저장'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<style>
+	.main-content-page {
+		width: 100%;
+	}
+</style>
