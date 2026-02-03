@@ -28,19 +28,19 @@
 	const profitColorClass = $derived(type === 'profit' && actual >= 0 ? 'text-green-600' : type === 'profit' && actual < 0 ? 'text-red-600' : '');
 </script>
 
-<td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">
+<td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200 group">
 	<div class="space-y-1">
 		<div class="flex justify-between items-center">
-			<span class="text-gray-500 opacity-70">계획</span>
+			<span class="text-gray-500 {month === 1 || month === 7 ? 'opacity-70' : 'opacity-0 group-hover:opacity-70'}">계획</span>
 			<span class="text-gray-700">{formatCurrency(planned)}</span>
 		</div>
 		<div class="flex justify-between items-center">
-			<span class="text-blue-600 opacity-70">예상</span>
-			<span class="text-blue-700 font-medium">{formatCurrency(expected)}</span>
+			<span class="text-blue-600 {month === 1 || month === 7 ? 'opacity-70' : 'opacity-0 group-hover:opacity-70'}">예상</span>
+			<span class="text-blue-700">{formatCurrency(expected)}</span>
 		</div>
 		<div class="flex justify-between items-center">
-			<span class="{profitColorClass} opacity-70">실제</span>
-			<span class="{profitColorClass} font-medium">{formatCurrency(actual)}</span>
+			<span class="{profitColorClass} {month === 1 || month === 7 ? 'opacity-70' : 'opacity-0 group-hover:opacity-70'}">실제</span>
+			<span class="{profitColorClass}">{formatCurrency(actual)}</span>
 		</div>
 	</div>
 </td>

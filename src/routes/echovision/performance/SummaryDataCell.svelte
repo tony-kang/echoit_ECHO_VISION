@@ -13,9 +13,9 @@
 		blue: 'bg-cyan-100',
 		green: 'bg-lime-100',
 		yellow: 'bg-yellow-100',
-		'blue-dark': 'bg-cyan-500',
-		'green-dark': 'bg-lime-500',
-		'yellow-dark': 'bg-yellow-500'
+		'blue-dark': 'bg-cyan-300',
+		'green-dark': 'bg-lime-300',
+		'yellow-dark': 'bg-yellow-300'
 	};
 
 	/**
@@ -33,7 +33,7 @@
 	 * @returns {string}
 	 */
 	function bgColorClass() {
-		return colorMap[bgColor] || 'bg-blue-500';
+		return colorMap[bgColor] || 'bg-blue-300';
 	}
 
 	/**
