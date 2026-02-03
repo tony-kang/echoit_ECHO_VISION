@@ -726,7 +726,7 @@
 								label: function(context) {
 									let label = context.dataset.label || '';
 									if (label) label += ': ';
-									label += new Intl.NumberFormat('ko-KR').format(context.parsed.y) + '천원';
+									label += new Intl.NumberFormat('ko-KR').format(context.parsed.y) + ' 천원';
 									return label;
 								}
 							}
@@ -737,7 +737,7 @@
 							beginAtZero: false,
 							ticks: {
 								callback: function(value) {
-									return new Intl.NumberFormat('ko-KR').format(value) + '천원';
+									return new Intl.NumberFormat('ko-KR').format(value) + ' 천원';
 								},
 								font: { size: 9 }
 							},
