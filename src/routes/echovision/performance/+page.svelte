@@ -5,12 +5,16 @@
 	import MonthDataCell from './MonthDataCell.svelte';
 	import SummaryDataCell from './SummaryDataCell.svelte';
 	import MonthHeaderCell from './MonthHeaderCell.svelte';
+	import PerformanceInputModal from './PerformanceInputModal.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import { getSales } from '$lib/salesService';
 	import { getCosts } from '$lib/costService';
 	import { getGoals } from '$lib/goalService';
 	import { getPerformance, upsertPerformanceBulk, upsertPerformance } from '$lib/performanceService';
 	import { toast } from 'svelte-sonner';
+	import { Chart, registerables } from 'chart.js';
+	
+	Chart.register(...registerables);
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
@@ -24,8 +28,8 @@
 		{
 			org_alias_id: 'sap',
 			org_alias_name: 'SAP 사업부문',
-			org_code: ['209100', '201100', '202100', '203100'],
-			sales_code: ['SALES_0100'],
+			org_code: ['209100', '201100', '202100', '203100', '204100', '205100'],
+			sales_code: ['SALES_0100', 'SALES_0200', 'SALES_0300', 'SALES_0400', 'SALES_0500', 'SALES_0600'],
 			cost_code: ['COST_0100']
 		},
 		{
@@ -63,11 +67,24 @@
 	let isSaving = $state(false);
 	/** @type {Array<{month: number, p_revenue: number, f_revenue: number, p_expenses: number, f_expenses: number}>} 입력 데이터 */
 	let inputData = $state([]);
+	/** @type {HTMLCanvasElement | null} 매출/이익 차트 캔버스 요소 */
+	let salesProfitChartCanvas = $state(null);
+	/** @type {Chart | null} 매출/이익 차트 인스턴스 */
+	let salesProfitChartInstance = $state(null);
+	/** @type {HTMLCanvasElement | null} 매출/비용 차트 캔버스 요소 */
+	let salesCostChartCanvas = $state(null);
+	/** @type {Chart | null} 매출/비용 차트 인스턴스 */
+	let salesCostChartInstance = $state(null);
 
 	/**
 	 * 선택된 조직 정보 가져오기
 	 */
 	const selectedOrg = $derived(orgInfo[selectedOrgIndex]);
+
+	/**
+	 * 연간 합계 데이터 (derived)
+	 */
+	const yearTotal = $derived(getYearTotal());
 
 	/**
 	 * 특정 월의 경영실적 데이터 가져오기
@@ -190,17 +207,34 @@
 
 	/**
 	 * 연간 합계 데이터 계산
-	 * @returns {{sales: number, cost: number, profit: number}}
+	 * @returns {{sales: number, cost: number, profit: number, plannedSales: number, forecastSales: number, plannedCost: number, forecastCost: number, plannedProfit: number, forecastProfit: number}}
 	 */
 	function getYearTotal() {
 		let sales = 0, cost = 0;
+		let plannedSales = 0, forecastSales = 0;
+		let plannedCost = 0, forecastCost = 0;
+		
 		for (let month = 1; month <= 12; month++) {
 			const monthData = getMonthData(month);
 			sales += monthData.sales;
 			cost += monthData.cost;
+			plannedSales += monthData.plannedSales;
+			forecastSales += monthData.forecastSales;
+			plannedCost += monthData.plannedCost;
+			forecastCost += monthData.forecastCost;
 		}
 		
-		return { sales, cost, profit: sales - cost };
+		return { 
+			sales, 
+			cost, 
+			profit: sales - cost,
+			plannedSales,
+			forecastSales,
+			plannedCost,
+			forecastCost,
+			plannedProfit: plannedSales - plannedCost,
+			forecastProfit: forecastSales - forecastCost
+		};
 	}
 
 	/**
@@ -407,6 +441,320 @@
 		}
 	}
 
+	/**
+	 * 매출/이익 차트 생성/업데이트
+	 */
+	function updateSalesProfitChart() {
+		if (!salesProfitChartCanvas) return;
+		
+		// 기존 차트가 있으면 제거
+		if (salesProfitChartInstance) {
+			salesProfitChartInstance.destroy();
+			salesProfitChartInstance = null;
+		}
+		
+		// 월별 데이터 수집
+		const months = Array.from({ length: 12 }, (_, i) => i + 1);
+		const monthLabels = months.map(m => `${m}월`);
+		
+		const plannedSalesData = months.map(m => {
+			const data = getMonthData(m);
+			return data.plannedSales / 1000; // 천원 단위로 변환
+		});
+		const forecastSalesData = months.map(m => {
+			const data = getMonthData(m);
+			return data.forecastSales / 1000; // 천원 단위로 변환
+		});
+		const actualSalesData = months.map(m => {
+			const data = getMonthData(m);
+			return data.sales / 1000; // 천원 단위로 변환
+		});
+		
+		const plannedProfitData = months.map(m => {
+			const data = getMonthData(m);
+			return (data.plannedSales - data.plannedCost) / 1000; // 천원 단위로 변환
+		});
+		const forecastProfitData = months.map(m => {
+			const data = getMonthData(m);
+			return (data.forecastSales - data.forecastCost) / 1000; // 천원 단위로 변환
+		});
+		const actualProfitData = months.map(m => {
+			const data = getMonthData(m);
+			return data.profit / 1000; // 천원 단위로 변환
+		});
+		
+		// 차트 생성
+		try {
+			salesProfitChartInstance = new Chart(salesProfitChartCanvas, {
+				type: 'line',
+				data: {
+					labels: monthLabels,
+					datasets: [
+						{
+							label: '계획 매출',
+							data: plannedSalesData,
+							borderColor: 'rgb(107, 114, 128)',
+							backgroundColor: 'rgba(107, 114, 128, 0.1)',
+							borderWidth: 2,
+							borderDash: [5, 5],
+							tension: 0.1
+						},
+						{
+							label: '예상 매출',
+							data: forecastSalesData,
+							borderColor: 'rgb(37, 99, 235)',
+							backgroundColor: 'rgba(37, 99, 235, 0.1)',
+							borderWidth: 2,
+							borderDash: [5, 5],
+							tension: 0.1
+						},
+						{
+							label: '실제 매출',
+							data: actualSalesData,
+							borderColor: 'rgb(59, 130, 246)',
+							backgroundColor: 'rgba(59, 130, 246, 0.1)',
+							borderWidth: 2,
+							tension: 0.1
+						},
+						{
+							label: '계획 이익',
+							data: plannedProfitData,
+							borderColor: 'rgb(75, 85, 99)',
+							backgroundColor: 'rgba(75, 85, 99, 0.1)',
+							borderWidth: 2,
+							borderDash: [5, 5],
+							tension: 0.1
+						},
+						{
+							label: '예상 이익',
+							data: forecastProfitData,
+							borderColor: 'rgb(34, 197, 94)',
+							backgroundColor: 'rgba(34, 197, 94, 0.1)',
+							borderWidth: 2,
+							borderDash: [5, 5],
+							tension: 0.1
+						},
+						{
+							label: '실제 이익',
+							data: actualProfitData,
+							borderColor: 'rgb(16, 185, 129)',
+							backgroundColor: 'rgba(16, 185, 129, 0.1)',
+							borderWidth: 2,
+							tension: 0.1
+						}
+					]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						title: {
+							display: true,
+							text: '매출 & 이익',
+							font: { size: 15, weight: 'bold' }
+						},
+						legend: {
+							display: true,
+							position: 'bottom',
+							labels: {
+								boxWidth: 12,
+								padding: 6,
+								font: { size: 9 }
+							}
+						},
+						tooltip: {
+							mode: 'index',
+							intersect: false,
+							callbacks: {
+								label: function(context) {
+									let label = context.dataset.label || '';
+									if (label) label += ': ';
+									label += new Intl.NumberFormat('ko-KR').format(context.parsed.y) + ' 천원';
+									return label;
+								}
+							}
+						}
+					},
+					scales: {
+						y: {
+							beginAtZero: false,
+							ticks: {
+								callback: function(value) {
+									return new Intl.NumberFormat('ko-KR').format(value) + ' 천원';
+								},
+								font: { size: 9 }
+							},
+							grid: { color: 'rgba(0, 0, 0, 0.05)' }
+						},
+						x: {
+							ticks: { font: { size: 9 } },
+							grid: { display: false }
+						}
+					}
+				}
+			});
+		} catch (error) {
+			console.error('매출/이익 차트 생성 실패:', error);
+		}
+	}
+
+	/**
+	 * 매출/비용 차트 생성/업데이트
+	 */
+	function updateSalesCostChart() {
+		if (!salesCostChartCanvas) return;
+		
+		// 기존 차트가 있으면 제거
+		if (salesCostChartInstance) {
+			salesCostChartInstance.destroy();
+			salesCostChartInstance = null;
+		}
+		
+		// 월별 데이터 수집
+		const months = Array.from({ length: 12 }, (_, i) => i + 1);
+		const monthLabels = months.map(m => `${m}월`);
+		
+		const plannedSalesData = months.map(m => {
+			const data = getMonthData(m);
+			return data.plannedSales / 1000; // 천원 단위로 변환
+		});
+		const forecastSalesData = months.map(m => {
+			const data = getMonthData(m);
+			return data.forecastSales / 1000; // 천원 단위로 변환
+		});
+		const actualSalesData = months.map(m => {
+			const data = getMonthData(m);
+			return data.sales / 1000; // 천원 단위로 변환
+		});
+		
+		const plannedCostData = months.map(m => {
+			const data = getMonthData(m);
+			return data.plannedCost / 1000; // 천원 단위로 변환
+		});
+		const forecastCostData = months.map(m => {
+			const data = getMonthData(m);
+			return data.forecastCost / 1000; // 천원 단위로 변환
+		});
+		const actualCostData = months.map(m => {
+			const data = getMonthData(m);
+			return data.cost / 1000; // 천원 단위로 변환
+		});
+		
+		// 차트 생성
+		try {
+			salesCostChartInstance = new Chart(salesCostChartCanvas, {
+				type: 'line',
+				data: {
+					labels: monthLabels,
+					datasets: [
+						{
+							label: '계획 매출',
+							data: plannedSalesData,
+							borderColor: 'rgb(107, 114, 128)',
+							backgroundColor: 'rgba(107, 114, 128, 0.1)',
+							borderWidth: 2,
+							borderDash: [5, 5],
+							tension: 0.1
+						},
+						{
+							label: '예상 매출',
+							data: forecastSalesData,
+							borderColor: 'rgb(37, 99, 235)',
+							backgroundColor: 'rgba(37, 99, 235, 0.1)',
+							borderWidth: 2,
+							borderDash: [5, 5],
+							tension: 0.1
+						},
+						{
+							label: '실제 매출',
+							data: actualSalesData,
+							borderColor: 'rgb(59, 130, 246)',
+							backgroundColor: 'rgba(59, 130, 246, 0.1)',
+							borderWidth: 2,
+							tension: 0.1
+						},
+						{
+							label: '계획 비용',
+							data: plannedCostData,
+							borderColor: 'rgb(156, 163, 175)',
+							backgroundColor: 'rgba(156, 163, 175, 0.1)',
+							borderWidth: 2,
+							borderDash: [5, 5],
+							tension: 0.1
+						},
+						{
+							label: '예상 비용',
+							data: forecastCostData,
+							borderColor: 'rgb(239, 68, 68)',
+							backgroundColor: 'rgba(239, 68, 68, 0.1)',
+							borderWidth: 2,
+							borderDash: [5, 5],
+							tension: 0.1
+						},
+						{
+							label: '실제 비용',
+							data: actualCostData,
+							borderColor: 'rgb(248, 113, 113)',
+							backgroundColor: 'rgba(248, 113, 113, 0.1)',
+							borderWidth: 2,
+							tension: 0.1
+						}
+					]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						title: {
+							display: true,
+							text: '매출 & 비용',
+							font: { size: 15, weight: 'bold' }
+						},
+						legend: {
+							display: true,
+							position: 'bottom',
+							labels: {
+								boxWidth: 12,
+								padding: 6,
+								font: { size: 9 }
+							}
+						},
+						tooltip: {
+							mode: 'index',
+							intersect: false,
+							callbacks: {
+								label: function(context) {
+									let label = context.dataset.label || '';
+									if (label) label += ': ';
+									label += new Intl.NumberFormat('ko-KR').format(context.parsed.y) + '천원';
+									return label;
+								}
+							}
+						}
+					},
+					scales: {
+						y: {
+							beginAtZero: false,
+							ticks: {
+								callback: function(value) {
+									return new Intl.NumberFormat('ko-KR').format(value) + '천원';
+								},
+								font: { size: 9 }
+							},
+							grid: { color: 'rgba(0, 0, 0, 0.05)' }
+						},
+						x: {
+							ticks: { font: { size: 9 } },
+							grid: { display: false }
+						}
+					}
+				}
+			});
+		} catch (error) {
+			console.error('매출/비용 차트 생성 실패:', error);
+		}
+	}
+
 	onMount(() => {
 		const unsubscribe = authStore.subscribe((state) => {
 			user = state.user;
@@ -417,8 +765,25 @@
 			}
 		});
 		
+		// canvas가 마운트된 후 차트 초기화 시도
+		setTimeout(() => {
+			if (!isLoading) {
+				updateSalesProfitChart();
+				updateSalesCostChart();
+			}
+		}, 200);
+		
 		return () => {
 			unsubscribe();
+			// 컴포넌트 언마운트 시 차트 정리
+			if (salesProfitChartInstance) {
+				salesProfitChartInstance.destroy();
+				salesProfitChartInstance = null;
+			}
+			if (salesCostChartInstance) {
+				salesCostChartInstance.destroy();
+				salesCostChartInstance = null;
+			}
 		};
 	});
 
@@ -427,6 +792,17 @@
 		if (!authLoading && user) {
             console.log('Performance loadData');
 			loadData();
+		}
+	});
+
+	// 데이터 로드 후 차트 업데이트
+	$effect(() => {
+		if (!isLoading && salesProfitChartCanvas && salesCostChartCanvas) {
+			// 약간의 지연을 두어 DOM이 완전히 렌더링된 후 차트 생성
+			setTimeout(() => {
+				updateSalesProfitChart();
+				updateSalesCostChart();
+			}, 100);
 		}
 	});
 </script>
@@ -446,7 +822,7 @@
 				</div>
 
 				<!-- 필터 영역 -->
-				<div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+				<div class="bg-whiteshadow-sm p-4">
 					<div class="flex gap-4 items-center">
 						<div class="flex items-center gap-2">
 							<label for="year-select" class="text-sm font-medium text-gray-700">연도</label>
@@ -540,7 +916,6 @@
 										expected={monthData.forecastSales} 
 										actual={monthData.sales}
 										{month}
-										onUpdate={(m, p, e) => updateMonthPerformance(m, p, e, monthData.plannedCost, monthData.forecastCost)}
 									/>
 								{/each}
 								<SummaryDataCell type="sales" value={getQuarterData(1).sales} bgColor="blue" />
@@ -552,7 +927,6 @@
 										expected={monthData.forecastSales} 
 										actual={monthData.sales}
 										{month}
-										onUpdate={(m, p, e) => updateMonthPerformance(m, p, e, monthData.plannedCost, monthData.forecastCost)}
 									/>
 								{/each}
 								<SummaryDataCell type="sales" value={getQuarterData(2).sales} bgColor="green" />
@@ -570,7 +944,6 @@
 										expected={monthData.forecastCost} 
 										actual={monthData.cost}
 										{month}
-										onUpdate={(m, p, e) => updateMonthPerformance(m, monthData.plannedSales, monthData.forecastSales, p, e)}
 									/>
 								{/each}
 								<SummaryDataCell type="cost" value={getQuarterData(1).cost} bgColor="blue" />
@@ -582,7 +955,6 @@
 										expected={monthData.forecastCost} 
 										actual={monthData.cost}
 										{month}
-										onUpdate={(m, p, e) => updateMonthPerformance(m, monthData.plannedSales, monthData.forecastSales, p, e)}
 									/>
 								{/each}
 								<SummaryDataCell type="cost" value={getQuarterData(2).cost} bgColor="green" />
@@ -647,7 +1019,6 @@
 										expected={monthData.forecastSales} 
 										actual={monthData.sales}
 										{month}
-										onUpdate={(m, p, e) => updateMonthPerformance(m, p, e, monthData.plannedCost, monthData.forecastCost)}
 									/>
 								{/each}
 								<SummaryDataCell type="sales" value={getQuarterData(3).sales} bgColor="blue" />
@@ -659,7 +1030,6 @@
 										expected={monthData.forecastSales} 
 										actual={monthData.sales}
 										{month}
-										onUpdate={(m, p, e) => updateMonthPerformance(m, p, e, monthData.plannedCost, monthData.forecastCost)}
 									/>
 								{/each}
 								<SummaryDataCell type="sales" value={getQuarterData(4).sales} bgColor="green" />
@@ -677,7 +1047,6 @@
 										expected={monthData.forecastCost} 
 										actual={monthData.cost}
 										{month}
-										onUpdate={(m, p, e) => updateMonthPerformance(m, monthData.plannedSales, monthData.forecastSales, p, e)}
 									/>
 								{/each}
 								<SummaryDataCell type="cost" value={getQuarterData(3).cost} bgColor="blue" />
@@ -689,7 +1058,6 @@
 										expected={monthData.forecastCost} 
 										actual={monthData.cost}
 										{month}
-										onUpdate={(m, p, e) => updateMonthPerformance(m, monthData.plannedSales, monthData.forecastSales, p, e)}
 									/>
 								{/each}
 								<SummaryDataCell type="cost" value={getQuarterData(4).cost} bgColor="green" />
@@ -727,26 +1095,80 @@
 					</table>
 
 					<!-- 연간 합계 -->
-					<table class="w-full border-collapse mt-4">
+					<table class="w-full border-collapse mt-4 text-sm font-semibold">
 						<thead>
 							<tr class="bg-gray-100 border-b border-gray-200">
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">합계</th>
+								<th class="w-[7%] px-4 py-3 text-center text-gray-700 border-r border-gray-200">구분</th>
+								<th class="w-[15%] px-4 py-3 text-center text-gray-700">합계</th>
+								<th class="w-[78%] px-4 py-3 text-center text-gray-700"></th>
 							</tr>
 						</thead>
 						<tbody>
 							<tr class="border-b border-gray-200">
-								<td class="px-4 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
-								<td class="px-4 py-3 text-right text-sm font-bold text-gray-900">{formatCurrency(getYearTotal().sales)}</td>
+								<td class="px-4 py-3 text-center text-gray-700 border-r border-gray-200">매출</td>
+								<td class="px-4 py-3 text-gray-900 border-r border-gray-200">
+									<div class="space-y-1">
+										<div class="flex justify-between items-center">
+											<span class="text-gray-500 opacity-70">계획</span>
+											<span class="text-gray-700">{formatCurrency(yearTotal.plannedSales)}</span>
+										</div>
+										<div class="flex justify-between items-center">
+											<span class="text-blue-600 opacity-70">예상</span>
+											<span class="text-blue-700">{formatCurrency(yearTotal.forecastSales)}</span>
+										</div>
+										<div class="flex justify-between items-center">
+											<span class="text-gray-500 opacity-70">실제</span>
+											<span class="text-gray-700">{formatCurrency(yearTotal.sales)}</span>
+										</div>
+									</div>
+								</td>
+								<td rowspan="3" class="px-4 py-3 align-top">
+									<div class="flex flex-row gap-4 w-full min-w-[800px]">
+										<div class="flex-1 h-[280px] relative">
+											<canvas bind:this={salesProfitChartCanvas} class="w-full h-full"></canvas>
+										</div>
+										<div class="flex-1 h-[280px] relative">
+											<canvas bind:this={salesCostChartCanvas} class="w-full h-full"></canvas>
+										</div>
+									</div>
+								</td>
 							</tr>
 							<tr class="border-b border-gray-200">
-								<td class="px-4 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
-								<td class="px-4 py-3 text-right text-sm font-bold text-gray-900">{formatCurrency(getYearTotal().cost)}</td>
+								<td class="px-4 py-3 text-center text-gray-700 border-r border-gray-200">비용</td>
+								<td class="px-4 py-3 text-gray-900 border-r border-gray-200">
+									<div class="space-y-1">
+										<div class="flex justify-between items-center">
+											<span class="text-gray-500 opacity-70">계획</span>
+											<span class="text-gray-700">{formatCurrency(yearTotal.plannedCost)}</span>
+										</div>
+										<div class="flex justify-between items-center">
+											<span class="text-blue-600 opacity-70">예상</span>
+											<span class="text-blue-700">{formatCurrency(yearTotal.forecastCost)}</span>
+										</div>
+										<div class="flex justify-between items-center">
+											<span class="text-gray-500 opacity-70">실제</span>
+											<span class="text-gray-700">{formatCurrency(yearTotal.cost)}</span>
+										</div>
+									</div>
+								</td>
 							</tr>
 							<tr class="bg-blue-50">
-								<td class="px-4 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
-								<td class="px-4 py-3 text-right text-sm font-bold {getYearTotal().profit >= 0 ? 'text-green-600' : 'text-red-600'}">
-									{formatCurrency(getYearTotal().profit)}
+								<td class="px-4 py-3 text-center text-gray-700 border-r border-gray-200">이익</td>
+								<td class="px-4 py-3 text-gray-900 border-r border-gray-200">
+									<div class="space-y-1">
+										<div class="flex justify-between items-center">
+											<span class="text-gray-500 opacity-70">계획</span>
+											<span class="text-gray-700">{formatCurrency(yearTotal.plannedProfit)}</span>
+										</div>
+										<div class="flex justify-between items-center">
+											<span class="text-blue-600 opacity-70">예상</span>
+											<span class="text-blue-700">{formatCurrency(yearTotal.forecastProfit)}</span>
+										</div>
+										<div class="flex justify-between items-center">
+											<span class="{yearTotal.profit >= 0 ? 'text-green-600' : 'text-red-600'} opacity-70">실제</span>
+											<span class="{yearTotal.profit >= 0 ? 'text-green-600' : 'text-red-600'}">{formatCurrency(yearTotal.profit)}</span>
+										</div>
+									</div>
 								</td>
 							</tr>
 						</tbody>
@@ -758,126 +1180,18 @@
 </div>
 
 <!-- 입력 모달 -->
-{#if showInputModal}
-	<div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-		<div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-			<!-- 모달 헤더 -->
-			<div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-				<h2 class="text-xl font-bold text-gray-800">
-					{selectedYear}년 {selectedOrg.org_alias_name} 경영실적 {hasPerformanceData ? '수정' : '입력'}
-				</h2>
-				<button
-					onclick={closeInputModal}
-					class="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-					type="button"
-					aria-label="닫기"
-				>
-					×
-				</button>
-			</div>
-
-			<!-- 모달 본문 -->
-			<div class="p-6">
-				<div class="mb-4 text-sm text-gray-600">
-					각 월별로 계획 및 예상 매출/비용을 입력해주세요. (단위: 천원)
-				</div>
-
-				<div class="overflow-x-auto">
-					<table class="w-full border-collapse">
-						<thead>
-							<tr class="bg-gray-50 border-b border-gray-200">
-								<th class="w-[10%] text-right px-4 py-3 text-sm font-semibold text-gray-700">{selectedYear} 년</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">계획 매출</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">예상 매출</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">계획 비용</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">예상 비용</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each inputData as item, index}
-								<tr class="hover:bg-gray-50">
-									<td class="w-[10%] text-right px-4 py-1 text-sm font-medium text-gray-700">{item.month} 월</td>
-									<td class="px-4 py-1">
-										<input
-											type="text"
-											bind:value={item.p_revenue_display}
-											oninput={(e) => {
-												const num = parseNumberFromComma(e.target.value);
-												item.p_revenue = num;
-												item.p_revenue_display = formatNumberWithComma(num);
-											}}
-											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
-											placeholder="계획 매출"
-										/>
-									</td>
-									<td class="px-4 py-1">
-										<input
-											type="text"
-											bind:value={item.f_revenue_display}
-											oninput={(e) => {
-												const num = parseNumberFromComma(e.target.value);
-												item.f_revenue = num;
-												item.f_revenue_display = formatNumberWithComma(num);
-											}}
-											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
-											placeholder="예상 매출"
-										/>
-									</td>
-									<td class="px-4 py-1">
-										<input
-											type="text"
-											bind:value={item.p_expenses_display}
-											oninput={(e) => {
-												const num = parseNumberFromComma(e.target.value);
-												item.p_expenses = num;
-												item.p_expenses_display = formatNumberWithComma(num);
-											}}
-											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
-											placeholder="계획 비용"
-										/>
-									</td>
-									<td class="px-4 py-1">
-										<input
-											type="text"
-											bind:value={item.f_expenses_display}
-											oninput={(e) => {
-												const num = parseNumberFromComma(e.target.value);
-												item.f_expenses = num;
-												item.f_expenses_display = formatNumberWithComma(num);
-											}}
-											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
-											placeholder="예상 비용"
-										/>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</div>
-
-			<!-- 모달 푸터 -->
-			<div class="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
-				<button
-					onclick={closeInputModal}
-					class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-					type="button"
-					disabled={isSaving}
-				>
-					취소
-				</button>
-				<button
-					onclick={savePerformanceData}
-					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-					type="button"
-					disabled={isSaving}
-				>
-					{isSaving ? '저장 중...' : '저장'}
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
+<PerformanceInputModal
+	open={showInputModal}
+	selectedYear={selectedYear}
+	orgAliasName={selectedOrg.org_alias_name}
+	hasPerformanceData={hasPerformanceData}
+	{inputData}
+	{isSaving}
+	onClose={closeInputModal}
+	onSave={savePerformanceData}
+	{formatNumberWithComma}
+	{parseNumberFromComma}
+/>
 
 <style>
 	.main-content-page {
