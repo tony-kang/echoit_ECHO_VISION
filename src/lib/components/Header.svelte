@@ -23,6 +23,21 @@
 	let isSidebarOpen = $state(false); // 사이드바 열림 상태
 	const showHamburgerIcon = true;
 	
+	/**
+	 * 햄버거 버튼을 숨겨야 할 페이지 경로 목록
+	 * @type {string[]}
+	 */
+	const hideHamburgerPaths = ['/'];
+	
+	/**
+	 * 현재 페이지에서 햄버거 버튼을 표시할지 여부
+	 */
+	const shouldShowHamburger = $derived.by(() => {
+		if (!user || authLoading) return false;
+		const currentPath = page.url.pathname;
+		return !hideHamburgerPaths.includes(currentPath);
+	});
+	
 	// sidebarStore 구독
 	onMount(() => {
 		const unsubscribeSidebar = sidebarStore.subscribe((state) => {
@@ -197,8 +212,8 @@
 		<div class="flex items-center justify-between">
 			<!-- Logo with Hamburger Button -->
 			<div class="flex items-center shrink-0 gap-2">
-				<!-- 햄버거 버튼 (로그인 상태일 때만 표시) -->
-				{#if !authLoading && user}
+				<!-- 햄버거 버튼 (로그인 상태이고 특정 페이지가 아닐 때만 표시) -->
+				{#if shouldShowHamburger}
 					<MobileMenuButton />
 				{/if}
 				<a href="/" class="flex items-center">
