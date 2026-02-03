@@ -1,7 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import { getSettings, getEvCodes } from '$lib/settingsService';
@@ -654,149 +653,141 @@
 	});
 </script>
 
-<div class="main-content-page">
-	<div class="flex h-[calc(100vh-100px)]">
-		<!-- Left Sidebar -->
-		<PrjMainSidebar />
-
-		<!-- Main Content -->
-		<main class="flex-1 overflow-y-auto bg-gray-50">
-			<div class="p-3">
-				{#if authLoading}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로딩 중...</div>
-					</div>
-				{:else if !user}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로그인이 필요합니다.</div>
-					</div>
-				{:else}
-					<div class="admin-content-page">
-						<!-- 헤더 -->
-						<div class="mb-6">
-							<h1 class="text-2xl font-bold text-gray-900">{title}</h1>
-							{#if breadcrumbText && breadcrumbText.trim() !== ''}
-								<div class="breadcrumb-container">
-									{#each breadcrumbText.split(' > ') as part, index}
-										{#if index > 0}
-											<span class="breadcrumb-separator"> > </span>
-										{/if}
-										<span class="breadcrumb-item">{part}</span>
-									{/each}
-								</div>
-							{/if}
-						</div>
-
-						<!-- 필터 영역 -->
-						<FilterBar
-							bind:filters={filters}
-							fields={[
-								{
-									key: 'year',
-									type: 'select',
-									label: '년도',
-									options: [
-										{ value: new Date().getFullYear().toString(), label: `${new Date().getFullYear()}년` },
-										{ value: (new Date().getFullYear() - 1).toString(), label: `${new Date().getFullYear() - 1}년` },
-										{ value: (new Date().getFullYear() - 2).toString(), label: `${new Date().getFullYear() - 2}년` }
-									]
-								},
-								{
-									key: 'parentCode',
-									type: 'select',
-									label: '상위 코드',
-									options: secondLevelOrgCodes
-								},
-								{
-									key: 'selectedCodes',
-									type: 'select-multiple',
-									label: '하위 코드',
-									options: childCodes
-								},
-								{
-									key: 'selectedCodes2',
-									type: 'select-multiple',
-									label: '하위 코드의 하위 코드',
-									options: grandChildCodes
-								}
-							]}
-							onReset={() => {
-								filters = { 
-									year: new Date().getFullYear().toString(),
-									parentCode: 'SUM_000',
-									selectedCodes: [],
-									selectedCodes2: []
-								};
-								displayData = [];
-								evCodeItems = [];
-								childCodes = [];
-								grandChildCodes = [];
-								previousParentCode = 'SUM_000';
-								previousSelectedCodes = [];
-								previousSelectedCodes2 = [];
-								previousYear = new Date().getFullYear().toString();
-							}}
-						/>
-
-						<!-- 데이터 테이블 -->
-						<div class="bg-white rounded-lg shadow-md overflow-hidden">
-							{#if isLoading}
-								<div class="flex items-center justify-center py-12">
-									<div class="text-gray-500">데이터 로딩 중...</div>
-								</div>
-							{:else if displayData.length === 0}
-								<div class="flex flex-col items-center justify-center py-12">
-									<div class="text-gray-500 mb-2">{emptyMessage}</div>
-									{#if !filters.year}
-										<div class="text-xs text-gray-400">년도를 선택해주세요.</div>
-									{/if}
-									<div class="text-xs text-gray-400">
-										{#if isLoading}
-											데이터를 불러오는 중...
-										{/if}
-									</div>
-								</div>
-							{:else}
-								<div class="overflow-x-auto">
-									<table class="data-table">
-										<thead>
-											<tr>
-												<th class="w-60 !text-left">항목</th>
-												<!-- <th class="w-8 !text-center">년도</th> -->
-												{#each months as month}
-													<th class="!text-right">{month}월</th>
-												{/each}
-												<th class="!text-right">합계</th>
-											</tr>
-										</thead>
-										<tbody>
-											{#each displayData as item}
-												<tr>
-													<td class="!text-blue-500">{item.evCode.title}</td>
-													<!-- <td class="!text-blue-500">{item.year}</td> -->
-													{#each months as month}
-														<td class="w-40 !text-right">
-															{formatAmount(item.monthData[month] || 0)}
-														</td>
-													{/each}
-													<td class="w-40 !text-right !text-blue-500">
-														{formatAmount(
-															months.reduce((sum, month) => sum + (item.monthData[month] || 0), 0)
-														)}
-													</td>
-												</tr>
-											{/each}
-										</tbody>
-									</table>
-								</div>
-							{/if}
-						</div>
-					</div>
-				{/if}
+<main class="flex-1 overflow-y-auto bg-gray-50">
+	<div class="p-3">
+		{#if authLoading}
+			<div class="flex items-center justify-center h-full">
+				<div class="text-gray-500">로딩 중...</div>
 			</div>
-		</main>
+		{:else if !user}
+			<div class="flex items-center justify-center h-full">
+				<div class="text-gray-500">로그인이 필요합니다.</div>
+			</div>
+		{:else}
+			<div class="admin-content-page">
+				<!-- 헤더 -->
+				<div class="mb-6">
+					<h1 class="text-2xl font-bold text-gray-900">{title}</h1>
+					{#if breadcrumbText && breadcrumbText.trim() !== ''}
+						<div class="breadcrumb-container">
+							{#each breadcrumbText.split(' > ') as part, index}
+								{#if index > 0}
+									<span class="breadcrumb-separator"> > </span>
+								{/if}
+								<span class="breadcrumb-item">{part}</span>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				<!-- 필터 영역 -->
+				<FilterBar
+					bind:filters={filters}
+					fields={[
+						{
+							key: 'year',
+							type: 'select',
+							label: '년도',
+							options: [
+								{ value: new Date().getFullYear().toString(), label: `${new Date().getFullYear()}년` },
+								{ value: (new Date().getFullYear() - 1).toString(), label: `${new Date().getFullYear() - 1}년` },
+								{ value: (new Date().getFullYear() - 2).toString(), label: `${new Date().getFullYear() - 2}년` }
+							]
+						},
+						{
+							key: 'parentCode',
+							type: 'select',
+							label: '상위 코드',
+							options: secondLevelOrgCodes
+						},
+						{
+							key: 'selectedCodes',
+							type: 'select-multiple',
+							label: '하위 코드',
+							options: childCodes
+						},
+						{
+							key: 'selectedCodes2',
+							type: 'select-multiple',
+							label: '하위 코드의 하위 코드',
+							options: grandChildCodes
+						}
+					]}
+					onReset={() => {
+						filters = { 
+							year: new Date().getFullYear().toString(),
+							parentCode: 'SUM_000',
+							selectedCodes: [],
+							selectedCodes2: []
+						};
+						displayData = [];
+						evCodeItems = [];
+						childCodes = [];
+						grandChildCodes = [];
+						previousParentCode = 'SUM_000';
+						previousSelectedCodes = [];
+						previousSelectedCodes2 = [];
+						previousYear = new Date().getFullYear().toString();
+					}}
+				/>
+
+				<!-- 데이터 테이블 -->
+				<div class="bg-white rounded-lg shadow-md overflow-hidden">
+					{#if isLoading}
+						<div class="flex items-center justify-center py-12">
+							<div class="text-gray-500">데이터 로딩 중...</div>
+						</div>
+					{:else if displayData.length === 0}
+						<div class="flex flex-col items-center justify-center py-12">
+							<div class="text-gray-500 mb-2">{emptyMessage}</div>
+							{#if !filters.year}
+								<div class="text-xs text-gray-400">년도를 선택해주세요.</div>
+							{/if}
+							<div class="text-xs text-gray-400">
+								{#if isLoading}
+									데이터를 불러오는 중...
+								{/if}
+							</div>
+						</div>
+					{:else}
+						<div class="overflow-x-auto">
+							<table class="data-table">
+								<thead>
+									<tr>
+										<th class="w-60 !text-left">항목</th>
+										<!-- <th class="w-8 !text-center">년도</th> -->
+										{#each months as month}
+											<th class="!text-right">{month}월</th>
+										{/each}
+										<th class="!text-right">합계</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each displayData as item}
+										<tr>
+											<td class="!text-blue-500">{item.evCode.title}</td>
+											<!-- <td class="!text-blue-500">{item.year}</td> -->
+											{#each months as month}
+												<td class="w-40 !text-right">
+													{formatAmount(item.monthData[month] || 0)}
+												</td>
+											{/each}
+											<td class="w-40 !text-right !text-blue-500">
+												{formatAmount(
+													months.reduce((sum, month) => sum + (item.monthData[month] || 0), 0)
+												)}
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					{/if}
+				</div>
+			</div>
+		{/if}
 	</div>
-</div>
+</main>
 
 <style>
 	.admin-content-page {

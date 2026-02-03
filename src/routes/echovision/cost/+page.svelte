@@ -1,5 +1,7 @@
 <script>
-	import YearMonthDataPage from '$lib/components/YearMonthDataPage.svelte';
+	import YearMonthData from '$lib/components/YearMonthData.svelte';
+	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
+
 	import { getCosts } from '$lib/costService';
 
 	/**
@@ -93,11 +95,16 @@
 	}
 </script>
 
-<YearMonthDataPage
-	title="원가 정보"
-	category="cost"
-	loadData={loadCostData}
-	organizeData={organizeCostDataByOrgCode}
-	emptyMessage="원가 데이터가 없습니다."
-	tableName="ev_cost"
-/>
+<div class="main-content-page">
+	<div class="flex h-[calc(100vh-100px)]">
+		<PrjMainSidebar />
+		<YearMonthData
+			title="원가 정보"
+			category="cost"
+			loadData={loadCostData}
+			organizeData={organizeCostDataByOrgCode}
+			emptyMessage="원가 데이터가 없습니다."
+			tableName="ev_cost"
+		/>
+	</div>
+</div>

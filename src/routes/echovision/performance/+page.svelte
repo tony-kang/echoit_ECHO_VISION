@@ -428,9 +428,3 @@
 		</main>
 	</div>
 </div>
-
-<style>
-	.main-content-page {
-		width: 100%;
-	}
-</style>
