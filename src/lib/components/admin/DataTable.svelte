@@ -18,7 +18,7 @@
 		<thead>
 			<tr>
 				{#each headers as header}
-					<th class:align-right={header.align === 'right'} class:align-center={header.align === 'center'}>
+					<th class:align-right={header.align === 'right'} class:align-center={header.align === 'center'} title="{header.description}">
 						{header.label}
 					</th>
 				{/each}
