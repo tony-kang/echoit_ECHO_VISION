@@ -27,7 +27,7 @@
 	 * 햄버거 버튼을 숨겨야 할 페이지 경로 목록
 	 * @type {string[]}
 	 */
-	const hideHamburgerPaths = ['/'];
+	const hideHamburgerPaths = ['/', '/mypage'];
 	
 	/**
 	 * 현재 페이지에서 햄버거 버튼을 표시할지 여부
