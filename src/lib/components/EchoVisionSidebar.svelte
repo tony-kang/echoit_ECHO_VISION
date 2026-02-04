@@ -9,9 +9,9 @@
 	
 	// sidebarStore 구독
 	onMount(() => {
-		console.log('🎯 PrjMainSidebar onMount');
+		console.log('🎯 EchoVisionSidebar onMount');
 		const unsubscribe = sidebarStore.subscribe((state) => {
-			console.log('🎯 PrjMainSidebar 상태 변경:', state);
+			console.log('🎯 EchoVisionSidebar 상태 변경:', state);
 			isOpen = state.isOpen;
 		});
 		return unsubscribe;

@@ -5,7 +5,7 @@
 	import { getExcelFileUrl, listExcelFiles, deleteExcelFile, updateExcelFileYearMonth } from '$lib/excelUploadService';
 	import { authStore } from '$lib/stores/authStore';
 	import { supabase } from '$lib/supabaseClient';
-	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
+	import EchoVisionSidebar from '$src/lib/components/EchoVisionSidebar.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import ExcelUploadViewer from '$lib/components/excel/ExcelUploadViewer.svelte';
@@ -505,7 +505,7 @@
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
 		<!-- Left Sidebar -->
-		<PrjMainSidebar />
+		<EchoVisionSidebar />
 
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">

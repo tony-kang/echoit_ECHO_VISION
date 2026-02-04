@@ -1,6 +1,6 @@
 <script>
 	import YearMonthData from '$lib/components/YearMonthData.svelte';
-	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
+	import EchoVisionSidebar from '$src/lib/components/EchoVisionSidebar.svelte';
 
 	import { getCosts } from '$lib/costService';
 
@@ -97,7 +97,7 @@
 
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
-		<PrjMainSidebar />
+		<EchoVisionSidebar />
 		<YearMonthData
 			title="원가 정보"
 			category="cost"

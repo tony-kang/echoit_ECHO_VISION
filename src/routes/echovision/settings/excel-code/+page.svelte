@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import PrjMainSidebar from '$lib/components/PrjMainSidebar.svelte';
+	import EchoVisionSidebar from '$src/lib/components/EchoVisionSidebar.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import { getSettings } from '$lib/settingsService'; 
 
@@ -128,7 +128,7 @@
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
 		<!-- Left Sidebar -->
-		<PrjMainSidebar />
+		<EchoVisionSidebar />
 
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
