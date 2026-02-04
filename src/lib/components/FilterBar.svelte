@@ -5,10 +5,10 @@
 	/**
 	 * @typedef {Object} FilterField
 	 * @property {string} key - 필터 키
-	 * @property {'select' | 'select-multiple' | 'input' | 'date'} type - 필터 타입
+	 * @property {'select' | 'select-multiple' | 'input' | 'date' | 'checkbox'} type - 필터 타입
 	 * @property {string} [label] - 라벨
 	 * @property {string} [placeholder] - placeholder (input 타입용)
-	 * @property {Array<{value: string, label: string}> | Record<string, string>} [options] - 옵션 (select 타입용)
+	 * @property {Array<{value: string, label: string, hasChildren?: boolean}> | Record<string, string>} [options] - 옵션 (select 타입용)
 	 */
 	
 	/** @type {Record<string, boolean>} 각 필드별 드롭다운 열림 상태 */
@@ -20,6 +20,7 @@
 	 * @property {Function} onClick - 클릭 핸들러
 	 * @property {'primary' | 'secondary'} [variant] - 버튼 스타일 (기본값: 'primary')
 	 * @property {string} [icon] - 아이콘 (이모지 또는 텍스트)
+	 * @property {boolean} [disabled] - 버튼 비활성화 여부
 	 */
 
 	/**
@@ -167,7 +168,6 @@
 			}
 		}
 	}
-
 </script>
 
 <svelte:window onclick={handleClickOutside} />
@@ -179,8 +179,8 @@
 				{#if field.type === 'select'}
 					<select 
 						bind:value={filters[field.key]} 
-						onchange={handleApply}
 						class="filter-input"
+						onchange={handleApply}
 					>
 						<option value="">{field.label || '전체'}</option>
 						{#each normalizeOptions(field.options) as option}
@@ -273,6 +273,16 @@
 						bind:value={filters[field.key]}
 						class="filter-input"
 					/>
+				{:else if field.type === 'checkbox'}
+					<label class="filter-checkbox">
+						<input
+							type="checkbox"
+							bind:checked={filters[field.key]}
+							onchange={handleApply}
+							class="filter-checkbox-input"
+						/>
+						<span class="filter-checkbox-label">{field.label || ''}</span>
+					</label>
 				{/if}
 			{/each}
 		</div>
@@ -305,7 +315,8 @@
 		{#each actions as action}
 			<button
 				onclick={action.onClick}
-				class="action-btn action-btn-{action.variant || 'primary'}"
+				disabled={action.disabled || false}
+				class="action-btn action-btn-{action.variant || 'primary'} {action.disabled ? 'action-btn-disabled' : ''}"
 				title={action.label}
 				aria-label={action.label}
 			>
@@ -380,6 +391,10 @@
 		flex-shrink: 0;
 		transition: transform 0.2s;
 		color: #6b7280;
+	}
+
+	.filter-dropdown-icon.rotate-180 {
+		transform: rotate(180deg);
 	}
 
 	.filter-dropdown-menu {
@@ -483,6 +498,34 @@
 		background-color: #d1d5db;
 	}
 
+	.filter-checkbox {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		cursor: pointer;
+		user-select: none;
+		padding: 8px 12px;
+		border-radius: 6px;
+		transition: background 0.2s;
+	}
+
+	.filter-checkbox:hover {
+		background: #f9fafb;
+	}
+
+	.filter-checkbox-input {
+		width: 18px;
+		height: 18px;
+		cursor: pointer;
+		accent-color: #667eea;
+	}
+
+	.filter-checkbox-label {
+		font-size: 0.9rem;
+		color: #374151;
+		font-weight: 500;
+	}
+
 	.filter-input:focus {
 		outline: none;
 		border-color: #667eea;
@@ -583,6 +626,17 @@
 		border-color: #9ca3af;
 	}
 
+	.action-btn-disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		pointer-events: none;
+	}
+
+	.action-btn-disabled:hover {
+		transform: none;
+		box-shadow: none;
+	}
+
 	.action-btn:active {
 		transform: scale(0.98);
 	}
@@ -632,4 +686,3 @@
 		}
 	}
 </style>
-
