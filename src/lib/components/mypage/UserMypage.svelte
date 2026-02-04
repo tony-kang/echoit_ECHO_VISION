@@ -26,8 +26,8 @@
 	 * @type {Array<{id: string, label: string, icon: string, href?: string}>}
 	 */
 	const menuItems = $derived([
-		{ id: 'profile', label: 'C-프로필', icon: '👤' },
-		{ id: 'settings', label: 'C-설정', icon: '⚙️' }
+		{ id: 'profile', label: '개인-프로필', icon: '👤' },
+		{ id: 'settings', label: '개인-설정', icon: '⚙️' }
 	]);
 </script>
 

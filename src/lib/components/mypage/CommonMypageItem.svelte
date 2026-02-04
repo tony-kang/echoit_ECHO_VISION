@@ -105,7 +105,7 @@
 		<div class="flex-1">
 			<div class="bg-white rounded-lg shadow-md p-6">
 				{#if activeMenu === 'profile'}
-					<h1 class="text-3xl font-bold text-gray-900 mb-6">C-프로필</h1>
+					<h1 class="text-3xl font-bold text-gray-900 mb-6">개인-프로필</h1>
 					
 					<div class="space-y-6">
 						<div class="border-b pb-6">
