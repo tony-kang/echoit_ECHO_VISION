@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로젝트 비전 및 구축 계획</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #764ba2;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 5px solid #764ba2;
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .goal-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 4px solid #667eea;
+        }
+
+        .goal-section h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+
+        ul {
+            margin-left: 30px;
+            margin-top: 15px;
+        }
+
+        ul li {
+            margin-bottom: 12px;
+            line-height: 1.8;
+        }
+
+        ul ul {
+            margin-top: 10px;
+            margin-left: 25px;
+        }
+
+        .feature-list {
+            background: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .future-section {
+            background: #fff3cd;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .future-section h3 {
+            color: #856404;
+        }
+
+        .note {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .note strong {
+            color: #1976D2;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .meta-info {
+            text-align: right;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>에코비전(EchoVision) 프로젝트 구축 계획</h1>
+        <div class="section">
+            <h2>1차 구축 목표</h2>
+
+            <div class="goal-section">
+                <h3>1. 더존 월별 파일 업로드</h3>
+                <ul>
+                    <li>각 파일에 대해 엑셀 칼럼(조직코드 / 매출코드 / 비용코드) 매칭 기능</li>
+                    <li>각 파일에 대해
+                        <ul>
+                            <li>파일 업로드, 파일 삭제</li>
+                            <li>엑셀 데이터 입력 / 삭제 기능</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="goal-section">
+                <h3>2. 조직 구조 기준 데이터 분류 및 집계</h3>
+                <ul>
+                    <li>환경설정 - 조직코드(84개), 매출코드(110개), 비용코드(107개) 관리</li>
+                    <li>환경설정 - 금액코드 관리
+                        <ul>
+                            <li>매출 14개, 비용 14개</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="goal-section">
+                <h3>3. 로그인 및 권한 관리</h3>
+                <ul>
+                    <li>회원가입</li>
+                    <li>소셜 로그인(Google): 로그인 시 자동 회원가입 처리</li>
+                    <li>환경설정 - 사용자 관리
+                        <ul>
+                            <li>역할관리 (일반사용자 / 관리자)</li>
+                            <li>사용자별 조직 최상위 코드(Multiple) 지정</li>
+                            <li>접근권한(활성화)</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="goal-section">
+                <h3>4. 통합 조직 기준 전사/부서별 매출 목표 및 목표 대비 달성 현황, 손익 기본 조회</h3>
+                <ul>
+                    <li>년도별
+                        <ul>
+                            <li>조직(최상위 - 하위1 - 하위2) 선택 후 매출항목 / 비용항목에 대한 금액 조회</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="note">
+                <strong>현재 상태:</strong> <span class="status-badge">Site 기본기능 및 주요기능 테스트 완료</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>향후 확장 방향 (2차 구축 ~)</h2>
+
+            <div class="future-section">
+                <h3>0. 솔루션 검토</h3>
+                <p style="margin-bottom: 15px; color: #856404;">
+                    솔루션으로서의 가치를 지니고 확장을 위해 기본적으로 검토될 필요가 있는 항목
+                </p>
+                <ul>
+                    <li>추가적인 소셜 로그인(카카오, ...)</li>
+                    <li>민감정보(엑셀의 급여정보 등) 처리 관련</li>
+                    <li>엑셀파일 다운로드 권한(다운로드는 관리자만 가능하도록 처리)</li>
+                    <li>엑셀이 아닌 시스템 화면을 업무 미팅에 최적화시키는 방법</li>
+                    <li>관리자 업무 효율성</li>
+                </ul>
+            </div>
+
+            <div class="future-section">
+                <h3>1. 조직별 필요한 매출항목 / 비용항목에 대해 손익 조회</h3>
+                <ul>
+                    <li>월별, 분기별, 반기별, 년도별 데이터
+                        <ul>
+                            <li>계획, 예상, 실적</li>
+                        </ul>
+                    </li>
+                    <li>매출 / 비용 Chart, 매출 / 손익 Chart</li>
+                </ul>
+                <div class="note" style="margin-top: 15px;">
+                    <strong>진행 상태:</strong> 기본코드 작성 완료
+                </div>
+            </div>
+
+            <div class="future-section">
+                <h3>2. 년도별 모든 조직에 대한 손익 조회</h3>
+                <ul>
+                    <li>테이블 형태 표시 → 전사 경영계획 활용
+                        <ul>
+                            <li>달성현황: 보이는 데이터량이 방대하여 표현방법 추가 검토 필요</li>
+                        </ul>
+                    </li>
+                    <li>조직별 년도별 실적 조회 → 각 조직별 매출/비용 관리 및 활용
+                        <ul>
+                            <li>년도별 실적 비교</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="future-section">
+                <h3>3. Database 검토</h3>
+                <ul>
+                    <li>기능 검토 후 불필요한 데이터는 엑셀 단계에서 저장되지 않도록 할 필요 있음
+                        <ul>
+                            <li>현재 모든 데이터 저장
+                                <ul>
+                                    <li>엑셀 개수 × 조직코드 개수 = 84 × 2 = 168개씩 저장</li>
+                                    <li>각 1개의 데이터 내부에 매출코드 개수만큼의 데이터가 들어 추가로 들어 있음</li>
+                                </ul>
+                            </li>
+                            <li>불필요한 데이터는 줄여서 데이터베이스 크기를 줄일 수 있음</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="future-section">
+                <h3>4. 외부 시스템 연동</h3>
+                <ul>
+                    <li>더존 ??</li>
+                </ul>
+            </div>
+
+            <div class="future-section">
+                <h3>5. 전사 경영 관리 포털로 확장</h3>
+                <ul>
+                    <li>경영 계획 홈페이지 Design(Look & Feel)</li>
+                    <li>포털로 확장</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="meta-info">
+            <p>문서 작성일: 2026년 2월 8일</p>
+        </div>
+    </div>
+</body>
+</html>
