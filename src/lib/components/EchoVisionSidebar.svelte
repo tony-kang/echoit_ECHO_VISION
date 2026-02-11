@@ -4,8 +4,8 @@
 	import { page } from '$app/state';
 	import { sidebarStore } from '$lib/stores/sidebarStore';
 
-	/** @type {boolean} 사이드바 열림 상태 (모바일용) */
-	let isOpen = $state(false);
+	/** @type {boolean} 사이드바 열림 상태 */
+	let isOpen = $state(true);
 	
 	// sidebarStore 구독
 	onMount(() => {
@@ -138,8 +138,6 @@
 		if (menuItem.subMenus && menuItem.subMenus.length > 0) {
 			toggleMenu(menuItem.id);
 		} else {
-			// 메뉴 클릭 시 사이드바 닫기
-			closeSidebar();
 			goto(menuItem.path);
 		}
 	}
@@ -150,8 +148,6 @@
 	 * @returns {void}
 	 */
 	function handleSubMenuClick(path) {
-		// 메뉴 클릭 시 사이드바 닫기
-		closeSidebar();
 		goto(path);
 	}
 
@@ -167,22 +163,11 @@
 	});
 </script>
 
-<!-- 오버레이 (사이드바가 열렸을 때만 표시) -->
-{#if isOpen}
-	<button
-		type="button"
-		class="fixed inset-0 z-40"
-		onclick={closeSidebar}
-		aria-label="사이드바 닫기"
-	></button>
-{/if}
-
 <!-- 사이드바 -->
-<div
-	class="sidebar-container inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col h-full transform transition-transform duration-300 ease-in-out {isOpen
-		? 'translate-x-0'
-		: '-translate-x-full'}"
->
+{#if isOpen}
+	<div
+		class="sidebar-container w-64 bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0"
+	>
 	<!-- 사이드바 헤더 -->
 	<div class="p-4 border-b border-gray-200 flex items-center justify-between">
 		<h2 class="text-lg font-semibold text-gray-800">경영지표 관리</h2>
@@ -273,15 +258,5 @@
 			{/each}
 		</div>
 	</nav>
-</div>
-
-<style>
-	.sidebar-container {
-		position: fixed;
-		z-index: 50;
-		height: calc(100vh - 100px);
-		top: 100px;
-	}
-
-	/* 모바일 전용 스타일 제거 - 이제 모든 기기에서 동일하게 작동 */
-</style>
+	</div>
+{/if}

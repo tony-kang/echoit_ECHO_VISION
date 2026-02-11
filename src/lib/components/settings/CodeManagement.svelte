@@ -48,6 +48,8 @@
 	let parentOptions = $state([]);
 	/** @type {string|null|undefined} 현재 선택된 상위 코드 (undefined = 아직 초기화 안됨) */
 	let currentParentCode = $state(undefined);
+	/** @type {boolean} loadParentOptions 호출 여부 추적 */
+	let parentOptionsLoaded = $state(false);
 
 	/**
 	 * 사용자가 접근 가능한 최상위 코드 목록
@@ -105,14 +107,24 @@
 
 			if (!state.loading && !state.user) {
 				goto('/login');
-			} else if (state.user) {
-				loadParentOptions();
 			}
 		});
 
 		return () => {
 			unsubscribe();
 		};
+	});
+
+	/**
+	 * 사용자 인증 완료 후 loadParentOptions 호출 (한 번만)
+	 */
+	let i = 0;
+	$effect(() => {
+		if (!parentOptionsLoaded) {
+			console.log('CodeManagement loadParentOptions 호출', category, parentOptionsLoaded, user && !authLoading, i++);
+			parentOptionsLoaded = true;
+			loadParentOptions();
+		}
 	});
 
 	/**
@@ -123,9 +135,11 @@
 			// 'all' 카테고리는 폼 카테고리를 빈 문자열로 설정
 			formCategory = category === 'all' ? '' : category;
 			resetForm();
-			if (user && !authLoading) {
-				loadSettings();
-			}
+			// // 카테고리 변경 시 parentOptions 재로드를 위해 플래그 리셋
+			// parentOptionsLoaded = false;
+			// if (user && !authLoading) {
+			// 	loadSettings();
+			// }
 		}
 	});
 
@@ -263,6 +277,7 @@
 	 * @returns {Promise<void>}
 	 */
 	async function loadParentOptions() {
+		console.log('loadParentOptions', category);
 		if (!category) return;
 		
 		try {

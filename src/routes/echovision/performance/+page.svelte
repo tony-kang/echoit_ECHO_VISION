@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import EchoVisionSidebar from '$src/lib/components/EchoVisionSidebar.svelte';
+	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import MonthDataCell from './MonthDataCell.svelte';
 	import SummaryDataCell from './SummaryDataCell.svelte';
 	import MonthHeaderCell from './MonthHeaderCell.svelte';

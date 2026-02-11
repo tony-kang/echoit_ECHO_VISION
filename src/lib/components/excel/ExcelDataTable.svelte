@@ -546,6 +546,7 @@
 	 * @returns {Promise<void>}
 	 */
 	async function loadParentCodeOptions(category) {
+		console.log('loadParentCodeOptions', category);
 		if (!category) {
 			parentCodeOptions = [];
 			return;

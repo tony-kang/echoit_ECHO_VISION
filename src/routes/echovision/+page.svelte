@@ -1,7 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import EchoVisionSidebar from '$src/lib/components/EchoVisionSidebar.svelte';
+	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import DashboardStats from '$lib/components/echovision/DashboardStats.svelte';
 	import QuickAccess from '$lib/components/echovision/QuickAccess.svelte';
 	import { authStore } from '$lib/stores/authStore'; 

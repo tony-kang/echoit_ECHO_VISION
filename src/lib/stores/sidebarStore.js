@@ -16,7 +16,7 @@ import { writable } from 'svelte/store';
  */
 function createSidebarStore() {
 	const { subscribe, set, update } = writable({
-		isOpen: false
+		isOpen: true
 	});
 
 	return {

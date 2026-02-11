@@ -5,7 +5,7 @@
 	import { getExcelFileUrl, listExcelFiles, deleteExcelFile, updateExcelFileYearMonth } from '$lib/excelUploadService';
 	import { authStore } from '$lib/stores/authStore';
 	import { supabase } from '$lib/supabaseClient';
-	import EchoVisionSidebar from '$src/lib/components/EchoVisionSidebar.svelte';
+	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import ExcelUploadViewer from '$lib/components/excel/ExcelUploadViewer.svelte';

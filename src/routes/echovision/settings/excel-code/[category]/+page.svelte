@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import EchoVisionSidebar from '$src/lib/components/EchoVisionSidebar.svelte';
+	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import CodeManagement from '$lib/components/settings/CodeManagement.svelte';
 	import { authStore } from '$lib/stores/authStore';  
 

@@ -1,6 +1,6 @@
 <script>
 	import YearMonthData from '$lib/components/YearMonthData.svelte';
-	import EchoVisionSidebar from '$src/lib/components/EchoVisionSidebar.svelte';
+	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 
 	import { getCosts } from '$lib/costService';
 

@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import Header from '$lib/components/Header.svelte';
+	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import {
 		getActionLogs,
@@ -14,6 +14,8 @@
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
 	let loading = $state(true);
+	/** @type {boolean} 인증 로딩 상태 */
+	let authLoading = $state(true);
 	/** @type {Object | null} */
 	let userProfile = $state(null);
 	let userProfileLoading = $state(true);
@@ -64,6 +66,7 @@
 		const unsubscribe = authStore.subscribe(async (state) => {
 			user = state.user;
 			loading = state.loading;
+			authLoading = state.loading;
 			userProfile = state.userProfile;
 			userProfileLoading = state.profileLoading;
 
@@ -189,99 +192,67 @@
 	<title>액션 로그</title>
 </svelte:head>
 
-{#if loading || userProfileLoading}
-	<div class="loading-container">
-		<div class="spinner"></div>
-		<p>로딩 중...</p>
-	</div>
-{:else if user && isAdminUser()}
-	<div class="admin-page">
-		<Header />
-		
-		<main class="admin-main">
-			<div class="container">
-				<div class="page-header">
-					<h1>A-액션 로그</h1>
-					<p>시스템의 모든 액션 로그를 확인하고 분석할 수 있는 관리 기능을 제공합니다</p>
-				</div>
-				
-				{#if error}
-					<div class="error-message">{error}</div>
-				{/if}
-				
-				{#if loadingData}
-					<div class="loading-data">
-						<div class="spinner-small"></div>
-						<p>데이터 로딩 중...</p>
+<div class="main-content-page">
+	<div class="flex h-[calc(100vh-100px)]">
+		<!-- Left Sidebar -->
+		<EchoVisionSidebar />
+
+		<!-- Main Content -->
+		<main class="flex-1 overflow-y-auto bg-gray-50">
+			<div class="p-3">
+				{#if authLoading || userProfileLoading}
+					<div class="flex items-center justify-center h-full">
+						<div class="text-gray-500">로딩 중...</div>
+					</div>
+				{:else if !user}
+					<div class="flex items-center justify-center h-full">
+						<div class="text-gray-500">로그인이 필요합니다.</div>
+					</div>
+				{:else if !isAdminUser()}
+					<div class="flex items-center justify-center h-full">
+						<div class="text-gray-500">관리자 권한이 필요합니다.</div>
 					</div>
 				{:else}
-					<LogTab
-						logs={logs}
-						stats={logStats}
-						loading={loadingData}
-						filters={logFilters}
-						currentPage={logCurrentPage}
-						totalCount={logTotalCount}
-						pageSize={logPageSize}
-						onPageChange={handleLogPageChange}
-						onApplyFilters={applyLogFilters}
-						onResetFilters={resetLogFilters}
-					/>
+					<div class="admin-content-page">
+						<!-- 헤더 -->
+						<div class="mb-6">
+							<div class="flex items-center gap-3 mb-2">
+								<h1 class="text-3xl font-bold text-gray-800">액션 로그</h1>
+							</div>
+							<p class="text-gray-600">시스템의 모든 액션 로그를 확인하고 분석할 수 있는 관리 기능을 제공합니다</p>
+						</div>
+						
+						{#if error}
+							<div class="error-message">{error}</div>
+						{/if}
+						
+						{#if loadingData}
+							<div class="loading-data">
+								<div class="spinner-small"></div>
+								<p>데이터 로딩 중...</p>
+							</div>
+						{:else}
+							<LogTab
+								logs={logs}
+								stats={logStats}
+								loading={loadingData}
+								filters={logFilters}
+								currentPage={logCurrentPage}
+								totalCount={logTotalCount}
+								pageSize={logPageSize}
+								onPageChange={handleLogPageChange}
+								onApplyFilters={applyLogFilters}
+								onResetFilters={resetLogFilters}
+							/>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</main>
 	</div>
-{/if}
+</div>
 
 <style>
-	.admin-page {
-		min-height: 100vh;
-		background: #f5f7fa;
-	}
-	
-	.admin-main {
-		padding: 120px 20px 40px;
-	}
-	
-	.container {
-		max-width: 1400px;
-		margin: 0 auto;
-		padding: 0 20px;
-	}
-	
-	.page-header {
-		margin-bottom: 30px;
-	}
-	
-	.page-header h1 {
-		font-size: 2.5rem;
-		font-weight: 700;
-		color: #1a202c;
-		margin-bottom: 10px;
-	}
-	
-	.page-header p {
-		font-size: 1.1rem;
-		color: #718096;
-	}
-	
-	.loading-container {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		min-height: 100vh;
-	}
-	
-	.spinner {
-		width: 50px;
-		height: 50px;
-		border: 4px solid #e2e8f0;
-		border-top: 4px solid #667eea;
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-	}
-	
 	.spinner-small {
 		width: 30px;
 		height: 30px;

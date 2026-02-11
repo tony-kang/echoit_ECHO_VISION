@@ -24,6 +24,7 @@ import { logAction, ACTION_TYPES, ACTION_CATEGORIES } from './logService';
  */
 export async function getSettings(options = {}) {
 	try {
+		console.log('----->>> getSettings <<<-----', options);
 		const { orderByOrder = true, parentCode, category } = options;
 
 		let query = supabase
@@ -125,6 +126,7 @@ export async function getSettings(options = {}) {
  */
 export async function getSetting(code, category) {
 	try {
+		console.log('----- getSetting -----', code, category);
 		let query = supabase
 			.from('env_code')
 			.select('*')
@@ -421,6 +423,7 @@ export async function getChildSettings(parentCode) {
  */
 export async function getRootSettings(options = {}) {
 	try {
+		console.log('getRootSettings', options);
 		return await getSettings({ parentCode: null, orderByOrder: true, ...options });
 	} catch (error) {
 		console.error('최상위 환경설정 조회 실패:', error);
