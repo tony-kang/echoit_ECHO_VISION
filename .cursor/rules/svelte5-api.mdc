@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+---
+
+---
+description: Svelte 5 Auth 기반 API 호출 및 중복 방지 규칙
+globs: src/**/*.svelte, src/**/*.svelte.ts
+alwaysApply: false
+---
+
+# Svelte 5 API Rules
+
+## 1. Auth-Dependent Execution (필수 조건)
+- API 호출은 반드시 **Auth 세션 존재 여부**를 확인한 후 실행한다.
+- 패턴: `if (session?.user && !isLoaded)`
+
+## 2. Use 'untrack' for API Calls (중복 방지 핵심)
+- `$effect` 내에서 API 호출 함수를 실행할 때는 반드시 **`untrack()`**으로 감싼다.
+- 이는 API 함수 내부의 다른 상태값이 변경되어도 `$effect`가 무한 루프에 빠지거나 재실행되는 것을 방지한다.
+- API 호출 로직은 반드시 untrack으로 감싸서 부수 효과를 격리해줘.
+
+## 3. Loading State Management
+- API 중복 호출을 막기 위해 `let isFetching = false;` 또는 `let isLoaded = $state(false);` 같은 **플래그 변수**를 반드시 사용한다.
+
+## 4. Code Template (이 패턴을 따를 것)
+```typescript
+let isLoaded = $state(false);
+
+$effect(() => {
+  // 1. 세션 체크 + 중복 실행 방지 체크
+  if (session?.user && !isLoaded) {
+    // 2. untrack으로 격리하여 실행
+    untrack(async () => {
+      isLoaded = true; // API 시작 전/직후에 즉시 플래그 변경
+      await fetchData();
+    });
+  }
+});
