@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
@@ -602,10 +602,14 @@
 	// 사용자 변경 시 데이터 로드 (한 번만 실행)
 	$effect(() => {
 		if (user && !authLoading && !dataLoaded) {
-			dataLoaded = true;
-			loadEvCodes();
-			loadEnvCodeOptions();
-			loadTopLevelEnvCodes();
+			untrack(async () => {
+				dataLoaded = true;
+				await Promise.all([
+					loadEvCodes(),
+					loadEnvCodeOptions(),
+					loadTopLevelEnvCodes()
+				]);
+			});
 		}
 	});
 </script>

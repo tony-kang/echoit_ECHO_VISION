@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import MonthDataCell from './MonthDataCell.svelte';
@@ -787,11 +787,17 @@
 		};
 	});
 
+	/** @type {boolean} 성능 데이터 로드 완료 여부 */
+	let isPerformanceDataLoaded = $state(false);
+
 	// 연도 또는 조직 변경 시 데이터 로드
 	$effect(() => {
-		if (!authLoading && user) {
-            console.log('Performance loadData');
-			loadData();
+		if (!authLoading && user && !isPerformanceDataLoaded) {
+			untrack(async () => {
+				isPerformanceDataLoaded = true;
+				console.log('Performance loadData');
+				await loadData();
+			});
 		}
 	});
 

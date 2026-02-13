@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import { authStore } from '$lib/stores/authStore';
@@ -72,10 +72,16 @@
 		};
 	});
 
+	/** @type {boolean} 카테고리 개수 로드 완료 여부 */
+	let isCategoryCountsLoaded = $state(false);
+
 	// 사용자 변경 시 데이터 개수 다시 로드
 	$effect(() => {
-		if (user && !authLoading) {
-			loadCategoryCounts();
+		if (user && !authLoading && !isCategoryCountsLoaded) {
+			untrack(async () => {
+				isCategoryCountsLoaded = true;
+				await loadCategoryCounts();
+			});
 		}
 	});
 

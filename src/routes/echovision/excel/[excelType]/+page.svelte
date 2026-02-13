@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { getExcelFileUrl, listExcelFiles, deleteExcelFile, updateExcelFileYearMonth } from '$lib/excelUploadService';
@@ -231,20 +231,25 @@
 
 	/** @type {string | null} 이전 excelTypeParam 값 추적 */
 	let previousExcelTypeParam = $state(null);
+	/** @type {boolean} 파일 목록 로드 완료 여부 */
+	let isFilesLoaded = $state(false);
 
 	/**
 	 * excelType 변경 시 파일 목록 다시 로드
 	 */
 	$effect(() => {
-		if (user && !authLoading && excelTypeParam) {
-			// excelTypeParam이 변경되었으면 리스트 리셋 및 다시 로드
-			if (previousExcelTypeParam !== null && previousExcelTypeParam !== excelTypeParam) {
-				listLoaded = false;
-				excelFiles = [];
-				filters = { search: '' };
-			}
-			previousExcelTypeParam = excelTypeParam;
-			loadExcelFiles();
+		if (user && !authLoading && excelTypeParam && !isFilesLoaded) {
+			untrack(async () => {
+				isFilesLoaded = true;
+				// excelTypeParam이 변경되었으면 리스트 리셋 및 다시 로드
+				if (previousExcelTypeParam !== null && previousExcelTypeParam !== excelTypeParam) {
+					listLoaded = false;
+					excelFiles = [];
+					filters = { search: '' };
+				}
+				previousExcelTypeParam = excelTypeParam;
+				await loadExcelFiles();
+			});
 		}
 	});
 

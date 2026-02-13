@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import { authStore } from '$lib/stores/authStore';
@@ -153,17 +153,19 @@
 	 */
 	$effect(() => {
 		if (user && !authLoading && !userProfileLoading && userProfile && !profileChecked) {
-			profileChecked = true;
+			untrack(async () => {
+				profileChecked = true;
 
-			// 관리자 권한 체크
-			const profile = userProfile;
-			if (!profile?.role || !isAdmin(profile.role)) {
-				alert('관리자 권한이 필요합니다.');
-				goto('/echovision');
-				return;
-			}
+				// 관리자 권한 체크
+				const profile = userProfile;
+				if (!profile?.role || !isAdmin(profile.role)) {
+					alert('관리자 권한이 필요합니다.');
+					goto('/echovision');
+					return;
+				}
 
-			loadData();
+				await loadData();
+			});
 		}
 	});
 

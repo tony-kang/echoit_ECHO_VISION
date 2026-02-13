@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
 	import YearMonthCodeFilter from '$lib/components/YearMonthCodeFilter.svelte';
@@ -213,12 +213,18 @@
 		};
 	});
 
+	/** @type {boolean} 매출 데이터 로드 완료 여부 */
+	let isSalesDataLoaded = $state(false);
+
 	/**
 	 * 선택된 코드, 연도, 월 변경 시 매출 데이터 로드
 	 */
 	$effect(() => {
-		if (user && !authLoading && selectedTopLevelCode && allSettings.length > 0 && selectedCodes.length > 0 && initialSelectionDone && selectedYear) {
-			loadSalesData();
+		if (user && !authLoading && selectedTopLevelCode && allSettings.length > 0 && selectedCodes.length > 0 && initialSelectionDone && selectedYear && !isSalesDataLoaded) {
+			untrack(async () => {
+				isSalesDataLoaded = true;
+				await loadSalesData();
+			});
 		}
 	});
 
