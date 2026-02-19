@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
@@ -97,7 +97,9 @@
 		const expectedPage = pageFromUrl ? parseInt(pageFromUrl, 10) : 1;
 		if (!isNaN(expectedPage) && expectedPage >= 1 && expectedPage !== logCurrentPage) {
 			logCurrentPage = expectedPage;
-			loadData();
+			untrack(async () => {
+				await loadData();
+			});
 		}
 	});
 	

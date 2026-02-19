@@ -129,7 +129,7 @@ export async function getSetting(code, category) {
 		console.log('----- getSetting -----', code, category);
 		let query = supabase
 			.from('env_code')
-			.select('*')
+			.select('code, parent_code, order, value, title, comment, created_at, updated_at, category, param')
 			.eq('code', code);
 		
 		// 카테고리가 지정된 경우에만 필터링
@@ -443,7 +443,7 @@ export async function searchSettingsByTitle(options = {}) {
 		
 		let query = supabase
 			.from('env_code')
-			.select('*')
+			.select('code, parent_code, order, value, title, comment, created_at, updated_at, category, param')
 			.eq('category', 'organization');
 		
 		// 검색어가 있으면 title에 LIKE 검색 적용
@@ -482,7 +482,7 @@ export async function searchSettings(options = {}) {
 		
 		let query = supabase
 			.from('env_code')
-			.select('*');
+			.select('code, parent_code, order, value, title, comment, created_at, updated_at, category, param');
 		
 		// 카테고리 필터링 ('all'인 경우 필터링하지 않음)
 		if (category && category !== 'all') {
@@ -575,7 +575,7 @@ export async function getEvCodes(options = {}) {
 
 		let query = supabase
 			.from('ev_code')
-			.select('*')
+			.select('item_code, category, items, title, comment, display_order, created_at, updated_at')
 			.order('created_at', { ascending: false });
 		
 		// 카테고리 필터링
@@ -603,7 +603,7 @@ export async function getEvCode(code) {
 	try {
 		const { data, error } = await supabase
 			.from('ev_code')
-			.select('*')
+			.select('item_code, category, items, title, comment, display_order, created_at, updated_at')
 			.eq('item_code', code)
 			.single();
 

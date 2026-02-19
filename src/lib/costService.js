@@ -36,7 +36,7 @@ export async function getCosts(options = {}) {
 
 		let query = supabase
 			.from('ev_cost')
-			.select('*');
+			.select('id, year, month, notes, created_at, updated_at, excel_file_id, org_code, excel_file_data');
 
 		// 코드 필터링
 		// if (codes && codes.length > 0) {

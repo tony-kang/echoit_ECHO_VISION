@@ -39,7 +39,7 @@ export async function getGoals(options = {}) {
 
 		let query = supabase
 			.from('el_goal')
-			.select('*');
+			.select('id, year, month, org_alias_id, p_revenue, f_revenue, a_revenue, p_expenses, f_expenses, a_expenses, notes, created_at, updated_at');
 
 		// 연도 필터링
 		if (year !== undefined && year !== null) {

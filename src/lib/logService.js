@@ -264,7 +264,7 @@ export async function getActionLogs(options = {}) {
 			startDate,
 			endDate
 		});
-		const { count, error: countError } = await countQuery.select('*', { count: 'exact', head: true });
+		const { count, error: countError } = await countQuery.select('id', { count: 'exact', head: true });
 
 		if (countError) {
 			console.error('로그 개수 조회 쿼리 에러:', countError);
@@ -280,7 +280,7 @@ export async function getActionLogs(options = {}) {
 			startDate,
 			endDate
 		})
-			.select('*')
+			.select('id, user_id, action_category, action_type, result, action_details, error_message, created_at')
 			.order('created_at', { ascending: false })
 			.range((page - 1) * limit, page * limit - 1);
 

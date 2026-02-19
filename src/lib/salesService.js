@@ -36,7 +36,7 @@ export async function getSales(options = {}) {
 
 		let query = supabase
 			.from('ev_sales')
-			.select('*');
+			.select('id, year, month, notes, created_at, updated_at, excel_file_id, org_code, excel_file_data');
 
 		// 코드 필터링 (org_code 사용)
 		// if (codes && codes.length > 0) {

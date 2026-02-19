@@ -67,7 +67,7 @@ export async function getCurrentUserProfile(userId, userMetadata = null) {
 	try {
 		const { data, error } = await supabase
 			.from('user_profiles')
-			.select('*')
+			.select('id, email, role, full_name, banned, created_at, last_login_at, top_level_codes')
 			.eq('id', userId)
 			.maybeSingle();
 		
@@ -174,12 +174,12 @@ export async function getAllUsers(options = {}) {
 		// 전체 개수 조회용 쿼리
 		let countQuery = supabase
 			.from('user_profiles')
-			.select('*', { count: 'exact', head: true });
+			.select('id', { count: 'exact', head: true });
 
 		// 데이터 조회용 쿼리
 		let dataQuery = supabase
 			.from('user_profiles')
-			.select('*')
+			.select('id, email, role, full_name, banned, created_at, last_login_at, top_level_codes')
 			.order('created_at', { ascending: false });
 
 		// 필터 적용

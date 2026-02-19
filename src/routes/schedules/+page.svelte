@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import ScheduleForm from '$lib/components/ScheduleForm.svelte';
@@ -70,9 +70,11 @@
 	$effect(() => {
 		// 사용자가 있고 로딩이 완료되었으며, 아직 일정을 로드하지 않았을 때만 로드
 		if (user && !authLoading && !schedulesLoaded && !isLoading) {
-			schedulesLoaded = true;
-			loadSchedules();
-			loadCategories();
+			untrack(async () => {
+				schedulesLoaded = true;
+				await loadSchedules();
+				await loadCategories();
+			});
 		}
 	});
 

@@ -157,10 +157,6 @@
 	}
 </script>
 
-<svelte:head>
-	<title>로그인 처리 중 - {___prjConst.app.name}</title>
-</svelte:head>
-
 <div class="callback-page">
 	<div class="callback-container">
 		<Logo />

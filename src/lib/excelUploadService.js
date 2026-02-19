@@ -289,7 +289,7 @@ export async function listExcelFiles(excelType, searchQuery = '') {
 		// ev_excel_file 테이블에서 파일 목록 조회
 		let query = supabase
 			.from('ev_excel_file')
-			.select('*')
+			.select('id, storage_path, stored_file_name, original_file_name, excel_type, file_size, file_extension, file_path, uploaded_by, created_at, updated_at, year, month')
 			.eq('excel_type', excelType);
 		
 		// 검색어가 있으면 원본 파일명으로 LIKE 검색
