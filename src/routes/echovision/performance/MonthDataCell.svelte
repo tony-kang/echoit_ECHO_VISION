@@ -20,7 +20,7 @@
 	const profitColorClass = $derived(type === 'profit' && actual >= 0 ? 'text-green-600' : type === 'profit' && actual < 0 ? 'text-red-600' : '');
 </script>
 
-<td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200 group">
+<td class="px-1 py-1 text-sm text-gray-900 border-r border-gray-200 group">
 	<div class="space-y-1">
 		<div class="flex justify-between items-center">
 			<span class="text-gray-500 {month === 1 || month === 7 ? 'opacity-70' : 'opacity-0 group-hover:opacity-70'}">계획</span>
