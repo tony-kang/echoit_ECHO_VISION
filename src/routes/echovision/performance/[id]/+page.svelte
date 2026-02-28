@@ -36,8 +36,12 @@
 	let orgInfoLoading = $state(false);
 
 	/** sales_code, cost_code 고정값 */
-	const FIXED_SALES_CODES = ['SALES_0100', 'SALES_0200', 'SALES_0300', 'SALES_0400', 'SALES_0500', 'SALES_0600'];
-	const FIXED_COST_CODES = ['COST_0100'];
+	const FIXED_SALES_CODES = [
+		// 'SALES_0100', 'SALES_0200', 'SALES_0300', 'SALES_0400', 'SALES_0500', 'SALES_0600', 'SALES_0700',
+		// 'SALES_0800', 'SALES_0900', 'SALES_1000', 'SALES_1100', 'SALES_1200', 'SALES_1300', 'SALES_1400',
+		'SALES_0100'
+	];
+	const FIXED_COST_CODES = ['COST_1100'];
 
 	/** @type {Array<number>} 최근 3년 */
 	const recentYears = $state([
@@ -105,6 +109,7 @@
 	 */
 	const hasPerformanceData = $derived.by(() => {
 		if (!selectedOrg) return false;
+		// console.log('>>>> 1',selectedYear, selectedOrg.org_alias_id, performanceData);
 		return performanceData.some(
 			perf => perf.year === selectedYear && perf.org_alias_id === selectedOrg.org_alias_id
 		);
@@ -402,6 +407,7 @@
 			} else {
 				toast.success('경영실적 데이터가 저장되었습니다');
 				closeInputModal();
+				console.log('>>>> 1 >>>>');
 				await loadData(); // 데이터 다시 로드
 			}
 		} catch (error) {
@@ -443,6 +449,7 @@
 				console.error('수정 실패:', result.error);
 			} else {
 				toast.success('경영실적 데이터가 수정되었습니다');
+				console.log('>>>> 3 >>>>');
 				await loadData(); // 데이터 다시 로드
 			}
 		} catch (error) {
@@ -845,7 +852,7 @@
 		if (!user || !canAccessPerformance || !selectedOrg || isPerformanceDataLoaded) return;
 		untrack(async () => {
 			isPerformanceDataLoaded = true;
-			console.log('Performance loadData');
+			console.log('>>>> 2 >>>>');
 			await loadData();
 		});
 	});
@@ -890,7 +897,7 @@
 			<div class="mb-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 w-full min-w-0 bg-white shadow-sm p-4 rounded-lg">
 				<div class="min-w-0">
 					<h1 class="text-3xl font-bold text-gray-800">부서별 실적 (<span class="text-blue-600">{selectedOrg.org_alias_name}</span>)</h1>
-					<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다</p>
+					<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림 처리됨)</span></p>
 				</div>
 				<div class="flex justify-center items-center gap-2">
 					<label for="year-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">연도</label>
