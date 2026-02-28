@@ -887,15 +887,15 @@
 			{:else}
 			<!-- 헤더 -->
 			<div class="mb-6">
-				<h1 class="text-3xl font-bold text-gray-800">부서별 실적</h1>
+				<h1 class="text-3xl font-bold text-gray-800">부서별 실적 (<span class="text-blue-600">{selectedOrg.org_alias_name}</span>)</h1>
 				<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다</p>
 			</div>
 
-			<!-- 필터 영역 -->
-			<div class="bg-whiteshadow-sm p-4">
-				<div class="flex gap-4 items-center">
+			<!-- 필터 영역 (한 줄: 연도 선택 | 여백 | 로딩/버튼) -->
+			<div class="bg-white shadow-sm p-4">
+				<div class="grid grid-cols-[auto_1fr_auto] items-center gap-4 w-full min-w-0">
 					<div class="flex items-center gap-2">
-						<label for="year-select" class="text-sm font-medium text-gray-700">연도</label>
+						<label for="year-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">연도</label>
 						<select
 							id="year-select"
 							bind:value={selectedYear}
@@ -906,43 +906,31 @@
 							{/each}
 						</select>
 					</div>
-
+					<div class="min-w-0"></div>
 					{#if isLoading}
-						<div class="ml-auto text-sm text-gray-500">데이터 로딩 중...</div>
+						<div class="text-sm text-gray-500 whitespace-nowrap">데이터 로딩 중...</div>
 					{:else if hasPerformanceData}
 						<button
 							onclick={openInputModal}
-							class="ml-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+							class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium whitespace-nowrap"
 							type="button"
 						>
 							예상실적 수정
 						</button>
+					{:else}
+						<div class="flex items-center gap-3 justify-end min-w-0">
+							<span class="text-sm text-yellow-800 whitespace-nowrap">{selectedYear}년 {selectedOrg.org_alias_name} 경영실적 데이터 없음</span>
+							<button
+								onclick={openInputModal}
+								class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium whitespace-nowrap"
+								type="button"
+							>
+								예상실적 입력
+							</button>
+						</div>
 					{/if}
 				</div>
 			</div>
-
-			<!-- 경영실적 데이터 없음 메시지 -->
-			{#if !isLoading && !hasPerformanceData}
-				<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
-					<div class="flex items-center justify-between">
-						<div>
-							<h3 class="text-lg font-semibold text-yellow-800 mb-2">
-								{selectedYear}년 {selectedOrg.org_alias_name}의 경영실적 데이터가 없습니다
-							</h3>
-							<p class="text-yellow-700 text-sm">
-								계획 및 예상 매출/비용을 입력하여 경영실적을 관리할 수 있습니다.
-							</p>
-						</div>
-						<button
-							onclick={openInputModal}
-							class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium"
-							type="button"
-						>
-							예상실적 입력
-						</button>
-					</div>
-				</div>
-			{/if}
 
 			<!-- 실적 테이블 -->
 			<div class="bg-white rounded-lg shadow-sm overflow-x-auto">
