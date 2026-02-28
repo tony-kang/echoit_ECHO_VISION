@@ -254,7 +254,7 @@
 			<div class="mb-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 w-full min-w-0 bg-white shadow-sm p-4 rounded-lg">
 				<div class="min-w-0">
 					<h1 class="text-3xl font-bold text-gray-800">전사 실적</h1>
-					<p class="text-gray-600 mt-2">부서별 실적을 연도별로 확인합니다. (단위: 천원)</p>
+                    <p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림 처리됨)</span></p>
 				</div>
 				<div class="flex justify-center items-center gap-2">
 					<label for="company-year-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">연도</label>
@@ -303,9 +303,9 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each orgInfo as org (org.org_id)}
+							{#each orgInfo as org, orgIndex (org.org_id)}
 								{@const data = dataByDept[org.org_id]}
-								<tr class="border-b border-gray-200 hover:bg-gray-50">
+								<tr class="border-b border-gray-200 hover:bg-gray-50 {orgIndex >= 0 ? 'company-performance-dept-first' : ''}">
 									<td rowspan="3" class="px-4 py-3 text-center text-sm font-semibold text-gray-800 align-middle border-r border-gray-200 bg-gray-50">{org.org_alias_name}</td>
 									<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
 									{#each [1, 2, 3] as month}
@@ -392,3 +392,9 @@
 		{/if}
 	{/snippet}
 </MainContent>
+
+<style>
+	.company-performance-dept-first {
+		border-top: 2px solid black;
+	}
+</style>
