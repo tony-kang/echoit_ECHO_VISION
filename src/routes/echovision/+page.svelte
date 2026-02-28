@@ -2,8 +2,16 @@
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import DashboardStats from '$lib/components/echovision/DashboardStats.svelte';
 	import QuickAccess from '$lib/components/echovision/QuickAccess.svelte';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
+	import { getCurrentUserProfile } from '$lib/userService';
 
 	let evYear = $state(new Date().getFullYear());
+	/** @type {object | null} 페이지 진입 시 재조회한 프로필(권한 검사용) */
+	let permissionProfile = $state(null);
+	/** @type {boolean} 권한 프로필 로딩 중 */
+	let permissionProfileLoading = $state(false);
+	/** 대시보드 접근 가능 여부 (can_dashboard) */
+	let canAccessDashboard = $derived(permissionProfile?.can_dashboard === true);
 
 	/**
 	 * 대시보드 통계 데이터 타입
@@ -84,12 +92,23 @@
 		}
 	];
 
+	/** 페이지 진입 시 프로필 재조회하여 권한(can_dashboard) 검사 */
+	$effect(() => {
+		const userId = authStore.user?.id;
+		if (!userId) {
+			permissionProfile = null;
+			permissionProfileLoading = false;
+			return;
+		}
+		permissionProfileLoading = true;
+		permissionProfile = null;
+		getCurrentUserProfile(userId, authStore.user?.user_metadata)
+			.then(({ data }) => { permissionProfile = data ?? null; })
+			.catch(() => { permissionProfile = null; })
+			.finally(() => { permissionProfileLoading = false; });
+	});
+
 	// TODO: 실제 데이터를 가져오는 로직 추가 필요
-	// $effect(() => {
-	// 	if (user && !authLoading) {
-	// 		loadDashboardData();
-	// 	}
-	// });
 </script>
 
 <div class="main-content-page">
@@ -100,18 +119,28 @@
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
 			<div class="p-3">
-				<div class="admin-content-page">
-					<!-- 헤더 -->
-					<div class="mb-6">
-						<h1 class="text-3xl font-bold text-gray-800">{evYear} 경영지표</h1>
+				{#if permissionProfileLoading}
+					<div class="flex items-center justify-center min-h-[200px]">
+						<div class="text-gray-500">로딩 중...</div>
 					</div>
+				{:else if !canAccessDashboard}
+					<div class="flex items-center justify-center min-h-[50vh]">
+						<p class="text-lg text-gray-600">접근 권한이 없습니다.</p>
+					</div>
+				{:else}
+					<div class="admin-content-page">
+						<!-- 헤더 -->
+						<div class="mb-6">
+							<h1 class="text-3xl font-bold text-gray-800">{evYear} 경영지표</h1>
+						</div>
 
-					<!-- 통계 카드 -->
-					<DashboardStats bind:stats={stats} />
+						<!-- 통계 카드 -->
+						<DashboardStats bind:stats={stats} />
 
-					<!-- 빠른 액세스 -->
-					<QuickAccess items={quickAccessItems} />
-				</div>
+						<!-- 빠른 액세스 -->
+						<QuickAccess items={quickAccessItems} />
+					</div>
+				{/if}
 			</div>
 		</main>
 	</div>
