@@ -580,7 +580,7 @@
 																		type="checkbox"
 																		checked={usr[key] !== false}
 																		onchange={(e) => changePermission(usr, key, e.currentTarget.checked)}
-																		disabled={usr.id === user?.id}
+																		disabled={usr.role === USER_ROLES.MASTER}
 																	/>
 																	<span>{label}</span>
 																</label>
