@@ -30,7 +30,7 @@
 	/** @type {number} 선택된 연도 */
 	let selectedYear = $state(new Date().getFullYear());
 
-	/** @type {Array<{org_alias_id: string, org_alias_name: string, org_code: string[], sales_code: string[], cost_code: string[]}>} ev_department 기반 조직 정보 */
+	/** @type {Array<{org_id: string, org_alias_id: string, org_alias_name: string, org_code: string[], sales_code: string[], cost_code: string[]}>} ev_department 기반 조직 정보 (org_id = ev_department.id) */
 	let orgInfo = $state([]);
 	/** @type {boolean} 부서 목록 로딩 중 */
 	let orgInfoLoading = $state(false);
@@ -71,14 +71,14 @@
 	/** @type {Chart | null} 매출/비용 차트 인스턴스 */
 	let salesCostChartInstance = $state(null);
 
-	/** URL 부서 코드 (Performance/부서code) */
-	const departmentCode = $derived($page.params.id ?? '');
+	/** URL 부서 id (ev_department.id, 추측 불가하여 타 부서 접근 방지) */
+	const departmentId = $derived($page.params.id ?? '');
 	/**
-	 * 선택된 조직 정보 (라우트 부서 코드와 일치하는 부서, 없으면 null)
+	 * 선택된 조직 정보 (라우트 부서 id와 일치하는 부서, 없으면 null)
 	 */
 	const selectedOrg = $derived.by(() => {
-		if (!departmentCode) return null;
-		return orgInfo.find((o) => o.org_alias_id === departmentCode) ?? null;
+		if (!departmentId) return null;
+		return orgInfo.find((o) => o.org_id === departmentId) ?? null;
 	});
 
 	/**
@@ -787,6 +787,7 @@
 		getDepartments()
 			.then(({ data }) => {
 				const list = (data || []).map((d) => ({
+					org_id: d.id,
 					org_alias_id: d.code,
 					org_alias_name: d.title || d.code,
 					org_code: Array.isArray(d.param) ? d.param : [],
@@ -823,17 +824,17 @@
 
 	/** @type {boolean} 성능 데이터 로드 완료 여부 */
 	let isPerformanceDataLoaded = $state(false);
-	/** @type {string} 이전 URL 부서 코드 (재로드 트리거용) */
-	let prevDepartmentCode = $state('');
+	/** @type {string} 이전 URL 부서 id (재로드 트리거용) */
+	let prevDepartmentId = $state('');
 	/** @type {number} 이전 선택 연도 (재로드 트리거용) */
 	let prevSelectedYear = $state(0);
 
-	// 부서 코드 또는 연도 변경 시 재로드 플래그 초기화
+	// 부서 id 또는 연도 변경 시 재로드 플래그 초기화
 	$effect(() => {
-		const code = departmentCode;
+		const id = departmentId;
 		const year = selectedYear;
-		if (prevDepartmentCode !== code || prevSelectedYear !== year) {
-			prevDepartmentCode = code;
+		if (prevDepartmentId !== id || prevSelectedYear !== year) {
+			prevDepartmentId = id;
 			prevSelectedYear = year;
 			isPerformanceDataLoaded = false;
 		}
@@ -882,7 +883,7 @@
 		{:else}
 			{#if !selectedOrg}
 				<div class="flex items-center justify-center min-h-[200px]">
-					<p class="text-gray-600">해당 부서를 찾을 수 없습니다. (부서코드: {departmentCode})</p>
+					<p class="text-gray-600">해당 부서를 찾을 수 없습니다.</p>
 				</div>
 			{:else}
 			<!-- 헤더 -->

@@ -763,8 +763,7 @@
 	/** 페이지 진입 시 프로필 재조회하여 권한(can_performance) 검사 */
 	$effect(() => {
 		const userId = authStore.user?.id;
-		if (!userId) {
-			return;
+		if (!userId) return;
 		}
 		permissionProfileLoading = true;
 		permissionProfile = null;
