@@ -1,5 +1,4 @@
 <script>
-	import { goto } from '$app/navigation';
 	import MainContent from '$lib/C/MainContent.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import DepartmentAddModal from './DepartmentAddModal.svelte';
@@ -16,9 +15,8 @@
 	import { getSettings } from '$lib/settingsService';
 	import { getAllUsers } from '$lib/userService';
 
-	/** @type {import('@supabase/supabase-js').User | null} */
+	/** @type {import('@supabase/supabase-js').User | null} (레이아웃에서 인증 처리) */
 	let user = $derived(authStore.user);
-	let authLoading = $derived(authStore.loading);
 
 	/** @type {Array<{ id: string, code: string, title: string, param?: string[] | null }>} */
 	let departments = $state([]);
@@ -48,11 +46,7 @@
 	let departmentUsersMap = $state(/** @type {Record<string, Array<{ full_name?: string | null, email?: string | null }>>} */ ({}));
 
 	$effect(() => {
-		if (!authStore.loading && !authStore.user) {
-			goto('/login');
-			return;
-		}
-		if (user && !authLoading && !dataLoaded) {
+		if (user && !dataLoaded) {
 			dataLoaded = true;
 			loadDepartments();
 			loadOrganizations();
@@ -338,16 +332,7 @@
 
 <MainContent>
 	{#snippet children()}
-		{#if authLoading}
-			<div class="flex items-center justify-center min-h-[200px]">
-				<div class="text-gray-500">로딩 중...</div>
-			</div>
-		{:else if !user}
-			<div class="flex items-center justify-center min-h-[200px]">
-				<div class="text-gray-500">로그인이 필요합니다.</div>
-			</div>
-		{:else}
-			<div class="admin-content-page">
+		<div class="admin-content-page">
 				<div class="mb-6">
 					<h1 class="text-3xl font-bold text-gray-800">부서 코드 관리</h1>
 					<p class="text-gray-600">실제 존재하는 부서별로 회계상의 부서를 연결합니다.</p>
@@ -407,7 +392,6 @@
 					</div>
 				{/if}
 			</div>
-		{/if}
 	{/snippet}
 </MainContent>
 

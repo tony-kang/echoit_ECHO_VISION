@@ -67,7 +67,7 @@ export async function getCurrentUserProfile(userId, userMetadata = null) {
 	try {
 		const { data, error } = await supabase
 			.from('user_profiles')
-			.select('id, email, role, full_name, banned, created_at, last_login_at, top_level_codes')
+			.select('id, email, role, full_name, banned, created_at, last_login_at, top_level_codes, can_dashboard, can_performance, can_profit_loss')
 			.eq('id', userId)
 			.maybeSingle();
 		

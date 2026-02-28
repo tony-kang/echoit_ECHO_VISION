@@ -1,14 +1,7 @@
 <script>
-	import { goto } from '$app/navigation';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import DashboardStats from '$lib/components/echovision/DashboardStats.svelte';
 	import QuickAccess from '$lib/components/echovision/QuickAccess.svelte';
-	import { authStore } from '$lib/stores/authStore.svelte.js';
-
-	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $derived(authStore.user);
-	/** @type {boolean} */
-	let authLoading = $derived(authStore.loading);
 
 	let evYear = $state(new Date().getFullYear());
 
@@ -91,12 +84,6 @@
 		}
 	];
 
-	$effect(() => {
-		if (!authStore.loading && !authStore.user) {
-			goto('/login');
-		}
-	});
-
 	// TODO: 실제 데이터를 가져오는 로직 추가 필요
 	// $effect(() => {
 	// 	if (user && !authLoading) {
@@ -113,28 +100,18 @@
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
 			<div class="p-3">
-				{#if authLoading}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로딩 중...</div>
+				<div class="admin-content-page">
+					<!-- 헤더 -->
+					<div class="mb-6">
+						<h1 class="text-3xl font-bold text-gray-800">{evYear} 경영지표</h1>
 					</div>
-				{:else if !user}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로그인이 필요합니다.</div>
-					</div>
-				{:else}
-					<div class="admin-content-page">
-						<!-- 헤더 -->
-						<div class="mb-6">
-							<h1 class="text-3xl font-bold text-gray-800">{evYear} 경영지표</h1>
-						</div>
 
-						<!-- 통계 카드 -->
-						<DashboardStats bind:stats={stats} />
+					<!-- 통계 카드 -->
+					<DashboardStats bind:stats={stats} />
 
-						<!-- 빠른 액세스 -->
-						<QuickAccess items={quickAccessItems} />
-					</div>
-				{/if}
+					<!-- 빠른 액세스 -->
+					<QuickAccess items={quickAccessItems} />
+				</div>
 			</div>
 		</main>
 	</div>
