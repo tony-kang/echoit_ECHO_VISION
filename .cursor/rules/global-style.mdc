@@ -68,3 +68,4 @@
   `let { initialData = null, onsubmit, oncancel } = $props();`
 - **Exception**: Only for simple inline edits (max 2 fields).
 - **Modal Form**: Modal.svelte 컴포넌트를 이용해 주세요.
+  - CURD에서의 등록, 수정 은 기본적으로 같은폴더내에 모달 폼으로 구현해 주세요.

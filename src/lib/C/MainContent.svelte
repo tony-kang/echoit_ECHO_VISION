@@ -2,14 +2,14 @@
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 
     let { 
-		headerHeight = '80px',
+		headerHeight = '100px',
         showSidebar = true,
         useContainerOnly = false,
         children
 	} = $props();
 </script>
 
-<div class="main-content-page mt-[{$headerHeight}]">
+<div class="main-content-page" style="margin-top: {headerHeight};">
 	<div class="flex">
         {#if showSidebar}
             <PrjSidebar />
