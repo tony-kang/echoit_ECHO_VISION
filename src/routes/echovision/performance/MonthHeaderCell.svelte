@@ -13,8 +13,7 @@
 	 */
 	const monthLabel = $derived(label || `${month}월`);
 </script>
-
-<th class="px-4 py-2 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">
+<th class="px-4 py-2 text-center text-sm font-semibold text-gray-700 border-r border-gray-200 company-performance-th" style="position: sticky; top: 0; z-index: 10; background: rgb(249 250 251); box-shadow: 0 1px 0 0 rgb(229 231 235);">
 	<div class="inline-flex items-center justify-center w-10 h-8 rounded-full bg-blue-100 text-blue-700 font-semibold border-2 border-blue-300">
 		{monthLabel}
 	</div>

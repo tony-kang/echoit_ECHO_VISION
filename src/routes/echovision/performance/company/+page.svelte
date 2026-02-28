@@ -274,32 +274,32 @@
 			{#if isLoading}
 				<div class="flex items-center justify-center min-h-[120px] text-gray-500">데이터 로딩 중...</div>
 			{:else}
-				<!-- 전사 단일 테이블: 부서별 tr, 첫 칼럼에 부서명 -->
-				<div class="bg-white rounded-lg shadow-sm overflow-x-auto">
+				<!-- 전사 단일 테이블: thead 고정, tbody 세로 스크롤, 부서별 border-top -->
+				<div class="bg-white rounded-lg shadow-sm border border-gray-200 company-performance-table-wrap">
 					<table class="w-full border-collapse">
 						<thead>
 							<tr class="bg-gray-50 border-b border-gray-200">
-								<th class="w-28 px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">부서</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
+								<th class="w-28 px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200 company-performance-th">부서</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200 company-performance-th">구분</th>
 								<MonthHeaderCell month={1} />
 								<MonthHeaderCell month={2} />
 								<MonthHeaderCell month={3} />
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200">1분기 합계</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200 company-performance-th">1분기 합계</th>
 								<MonthHeaderCell month={4} />
 								<MonthHeaderCell month={5} />
 								<MonthHeaderCell month={6} />
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">2분기 합계</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">상반기 합계</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200 company-performance-th">2분기 합계</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200 company-performance-th">상반기 합계</th>
 								<MonthHeaderCell month={7} />
 								<MonthHeaderCell month={8} />
 								<MonthHeaderCell month={9} />
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200">3분기 합계</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200 company-performance-th">3분기 합계</th>
 								<MonthHeaderCell month={10} />
 								<MonthHeaderCell month={11} />
 								<MonthHeaderCell month={12} />
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">4분기 합계</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">하반기 합계</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-200 border-r border-gray-200">합계</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200 company-performance-th">4분기 합계</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200 company-performance-th">하반기 합계</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-200 border-r border-gray-200 company-performance-th">합계</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -394,6 +394,21 @@
 </MainContent>
 
 <style>
+	.company-performance-table-wrap {
+		max-height: 70vh;
+		overflow: auto;
+	}
+	.company-performance-table-wrap thead th {
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		background: rgb(249 250 251);
+		box-shadow: 0 1px 0 0 rgb(229 231 235);
+	}
+	.company-performance-table-wrap thead th.bg-blue-50 { background: rgb(239 246 255); }
+	.company-performance-table-wrap thead th.bg-green-50 { background: rgb(240 253 244); }
+	.company-performance-table-wrap thead th.bg-yellow-50 { background: rgb(254 252 232); }
+	.company-performance-table-wrap thead th.bg-gray-200 { background: rgb(229 231 235); }
 	.company-performance-dept-first {
 		border-top: 2px solid black;
 	}
