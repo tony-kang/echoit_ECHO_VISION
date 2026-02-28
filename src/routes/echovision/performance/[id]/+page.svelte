@@ -886,28 +886,25 @@
 					<p class="text-gray-600">해당 부서를 찾을 수 없습니다.</p>
 				</div>
 			{:else}
-			<!-- 헤더 -->
-			<div class="mb-6">
-				<h1 class="text-3xl font-bold text-gray-800">부서별 실적 (<span class="text-blue-600">{selectedOrg.org_alias_name}</span>)</h1>
-				<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다</p>
-			</div>
-
-			<!-- 필터 영역 (한 줄: 연도 선택 | 여백 | 로딩/버튼) -->
-			<div class="bg-white shadow-sm p-4">
-				<div class="grid grid-cols-[auto_1fr_auto] items-center gap-4 w-full min-w-0">
-					<div class="flex items-center gap-2">
-						<label for="year-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">연도</label>
-						<select
-							id="year-select"
-							bind:value={selectedYear}
-							class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-						>
-							{#each recentYears as year}
-								<option value={year}>{year}년</option>
-							{/each}
-						</select>
-					</div>
-					<div class="min-w-0"></div>
+			<!-- 헤더 + 필터 (한 row, 연도는 중앙) -->
+			<div class="mb-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 w-full min-w-0 bg-white shadow-sm p-4 rounded-lg">
+				<div class="min-w-0">
+					<h1 class="text-3xl font-bold text-gray-800">부서별 실적 (<span class="text-blue-600">{selectedOrg.org_alias_name}</span>)</h1>
+					<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다</p>
+				</div>
+				<div class="flex justify-center items-center gap-2">
+					<label for="year-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">연도</label>
+					<select
+						id="year-select"
+						bind:value={selectedYear}
+						class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+					>
+						{#each recentYears as year}
+							<option value={year}>{year}년</option>
+						{/each}
+					</select>
+				</div>
+				<div class="flex flex-row flex-nowrap items-center justify-end gap-4 min-w-0">
 					{#if isLoading}
 						<div class="text-sm text-gray-500 whitespace-nowrap">데이터 로딩 중...</div>
 					{:else if hasPerformanceData}
@@ -919,8 +916,8 @@
 							예상실적 수정
 						</button>
 					{:else}
-						<div class="flex items-center gap-3 justify-end min-w-0">
-							<span class="text-sm text-yellow-800 whitespace-nowrap">{selectedYear}년 {selectedOrg.org_alias_name} 경영실적 데이터 없음</span>
+						<div class="flex items-center gap-3 min-w-0">
+							<span class="text-sm text-yellow-800 whitespace-nowrap">{selectedYear}년 {selectedOrg.org_alias_name} 경영실적 예상 데이터 없음</span>
 							<button
 								onclick={openInputModal}
 								class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium whitespace-nowrap"
