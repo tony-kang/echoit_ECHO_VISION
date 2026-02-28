@@ -125,10 +125,10 @@
 		
 		// 경영실적 데이터에서 계획/예상 값 가져오기 (원 단위로 저장되어 있음)
 		const perf = getPerformanceData(month);
-		const plannedSales = perf?.p_revenue || 100000000; // 기본값 (원 단위)
-		const forecastSales = perf?.f_revenue || 90000000; // 기본값 (원 단위)
-		const plannedCost = perf?.p_expenses || 100000000; // 기본값 (원 단위)
-		const forecastCost = perf?.f_expenses || 90000000; // 기본값 (원 단위)
+		const plannedSales = perf?.p_revenue || 0; // 기본값 (원 단위)
+		const forecastSales = perf?.f_revenue || 0; // 기본값 (원 단위)
+		const plannedCost = perf?.p_expenses || 0; // 기본값 (원 단위)
+		const forecastCost = perf?.f_expenses || 0; // 기본값 (원 단위)
 		
 		return { 
 			sales, 
@@ -342,10 +342,10 @@
 			const perf = getPerformanceData(month);
 			
 			// 기존 데이터가 있으면 천원 단위로 변환하여 사용, 없으면 기본값 사용
-			const p_revenue = perf?.p_revenue ? perf.p_revenue / 1000 : 100000; // 원 -> 천원
-			const f_revenue = perf?.f_revenue ? perf.f_revenue / 1000 : 90000; // 원 -> 천원
-			const p_expenses = perf?.p_expenses ? perf.p_expenses / 1000 : 100000; // 원 -> 천원
-			const f_expenses = perf?.f_expenses ? perf.f_expenses / 1000 : 90000; // 원 -> 천원
+			const p_revenue = perf?.p_revenue ? perf.p_revenue / 1000 : 0; // 원 -> 천원
+			const f_revenue = perf?.f_revenue ? perf.f_revenue / 1000 : 0; // 원 -> 천원
+			const p_expenses = perf?.p_expenses ? perf.p_expenses / 1000 : 0; // 원 -> 천원
+			const f_expenses = perf?.f_expenses ? perf.f_expenses / 1000 : 0; // 원 -> 천원
 			
 			return {
 				month: month,

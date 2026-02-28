@@ -160,8 +160,8 @@
 		if (!data) {
 			return {
 				sales: 0, cost: 0, profit: 0,
-				plannedSales: 100000000, forecastSales: 90000000,
-				plannedCost: 100000000, forecastCost: 90000000
+				plannedSales: 0, forecastSales: 0,
+				plannedCost: 0, forecastCost: 0
 			};
 		}
 		const sales = calculateMonthValue(data.salesData, month, selectedYear, org.org_code, org.sales_code);
@@ -171,10 +171,10 @@
 			sales,
 			cost,
 			profit: sales - cost,
-			plannedSales: perf?.p_revenue ?? 100000000,
-			forecastSales: perf?.f_revenue ?? 90000000,
-			plannedCost: perf?.p_expenses ?? 100000000,
-			forecastCost: perf?.f_expenses ?? 90000000
+			plannedSales: perf?.p_revenue ?? 0,
+			forecastSales: perf?.f_revenue ?? 0,
+			plannedCost: perf?.p_expenses ?? 0,
+			forecastCost: perf?.f_expenses ?? 0
 		};
 	}
 
@@ -207,6 +207,22 @@
 		const startMonth = (half - 1) * 6 + 1;
 		let sales = 0, cost = 0;
 		for (let m = startMonth; m <= startMonth + 5; m++) {
+			const md = getMonthDataForOrg(org, data, m);
+			sales += md.sales;
+			cost += md.cost;
+		}
+		return { sales, cost, profit: sales - cost };
+	}
+
+	/**
+	 * 부서·데이터 기준 연간 합계
+	 * @param {object} org - 조직 정보
+	 * @param {object} data - 해당 부서 데이터
+	 * @returns {{ sales: number, cost: number, profit: number }}
+	 */
+	function getYearTotalForOrg(org, data) {
+		let sales = 0, cost = 0;
+		for (let m = 1; m <= 12; m++) {
 			const md = getMonthDataForOrg(org, data, m);
 			sales += md.sales;
 			cost += md.cost;
@@ -286,6 +302,7 @@
 										<MonthHeaderCell month={12} />
 										<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">4분기 합계</th>
 										<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">하반기 합계</th>
+										<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-gray-200 border-r border-gray-200">합계</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -313,6 +330,7 @@
 										{/each}
 										<SummaryDataCell type="sales" value={getQuarterDataForOrg(org, data, 4).sales} bgColor="green" />
 										<SummaryDataCell type="sales" value={getHalfDataForOrg(org, data, 2).sales} bgColor="yellow" />
+										<SummaryDataCell type="sales" value={getYearTotalForOrg(org, data).sales} bgColor="yellow-dark" />
 									</tr>
 									<tr class="border-b border-gray-200 hover:bg-gray-50">
 										<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
@@ -338,6 +356,7 @@
 										{/each}
 										<SummaryDataCell type="cost" value={getQuarterDataForOrg(org, data, 4).cost} bgColor="green" />
 										<SummaryDataCell type="cost" value={getHalfDataForOrg(org, data, 2).cost} bgColor="yellow" />
+										<SummaryDataCell type="cost" value={getYearTotalForOrg(org, data).cost} bgColor="yellow-dark" />
 									</tr>
 									<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
 										<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
@@ -363,6 +382,7 @@
 										{/each}
 										<SummaryDataCell type="profit" value={getQuarterDataForOrg(org, data, 4).profit} bgColor="green-dark" />
 										<SummaryDataCell type="profit" value={getHalfDataForOrg(org, data, 2).profit} bgColor="yellow-dark" />
+										<SummaryDataCell type="profit" value={getYearTotalForOrg(org, data).profit} bgColor="yellow-dark" />
 									</tr>
 								</tbody>
 							</table>

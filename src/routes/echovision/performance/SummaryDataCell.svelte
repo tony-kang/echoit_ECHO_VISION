@@ -50,7 +50,7 @@
 		visibility: hidden;
 		opacity: 0;
 		position: absolute;
-		left: 50%;
+		left: calc(50% - 40px);
 		transform: translateX(-50%);
 		bottom: 100%;
 		margin-bottom: 4px;
