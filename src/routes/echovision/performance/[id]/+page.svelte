@@ -937,10 +937,11 @@
 				</div>
 			</div>
 
-			<!-- 실적 테이블 (상반기·하반기 한 테이블) -->
+			<!-- 실적 테이블 (1~6월 위, 7~12월 아래, 테이블 1개) -->
 			<div class="bg-white rounded-lg shadow-sm overflow-x-auto">
 				<table class="w-full border-collapse">
 					<thead>
+						<!-- 상반기 헤더 -->
 						<tr class="bg-gray-50 border-b border-gray-200">
 							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
 							<MonthHeaderCell month={1} />
@@ -952,19 +953,10 @@
 							<MonthHeaderCell month={6} />
 							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">2분기 합계</th>
 							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">상반기 합계</th>
-							<MonthHeaderCell month={7} />
-							<MonthHeaderCell month={8} />
-							<MonthHeaderCell month={9} />
-							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200">3분기 합계</th>
-							<MonthHeaderCell month={10} />
-							<MonthHeaderCell month={11} />
-							<MonthHeaderCell month={12} />
-							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">4분기 합계</th>
-							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">하반기 합계</th>
 						</tr>
 					</thead>
 					<tbody>
-						<!-- 매출 행 -->
+						<!-- 상반기: 매출 / 비용 / 이익 -->
 						<tr class="border-b border-gray-200 hover:bg-gray-50">
 							<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
 							{#each [1, 2, 3] as month}
@@ -978,20 +970,7 @@
 							{/each}
 							<SummaryDataCell type="sales" value={getQuarterData(2).sales} bgColor="green" />
 							<SummaryDataCell type="sales" value={getHalfData(1).sales} bgColor="yellow" />
-							{#each [7, 8, 9] as month}
-								{@const monthData = getMonthData(month)}
-								<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
-							{/each}
-							<SummaryDataCell type="sales" value={getQuarterData(3).sales} bgColor="blue" />
-							{#each [10, 11, 12] as month}
-								{@const monthData = getMonthData(month)}
-								<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
-							{/each}
-							<SummaryDataCell type="sales" value={getQuarterData(4).sales} bgColor="green" />
-							<SummaryDataCell type="sales" value={getHalfData(2).sales} bgColor="yellow" />
 						</tr>
-
-						<!-- 비용 행 -->
 						<tr class="border-b border-gray-200 hover:bg-gray-50">
 							<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
 							{#each [1, 2, 3] as month}
@@ -1005,20 +984,7 @@
 							{/each}
 							<SummaryDataCell type="cost" value={getQuarterData(2).cost} bgColor="green" />
 							<SummaryDataCell type="cost" value={getHalfData(1).cost} bgColor="yellow" />
-							{#each [7, 8, 9] as month}
-								{@const monthData = getMonthData(month)}
-								<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
-							{/each}
-							<SummaryDataCell type="cost" value={getQuarterData(3).cost} bgColor="blue" />
-							{#each [10, 11, 12] as month}
-								{@const monthData = getMonthData(month)}
-								<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
-							{/each}
-							<SummaryDataCell type="cost" value={getQuarterData(4).cost} bgColor="green" />
-							<SummaryDataCell type="cost" value={getHalfData(2).cost} bgColor="yellow" />
 						</tr>
-
-						<!-- 이익 행 -->
 						<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
 							<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
 							{#each [1, 2, 3] as month}
@@ -1032,6 +998,58 @@
 							{/each}
 							<SummaryDataCell type="profit" value={getQuarterData(2).profit} bgColor="green-dark" />
 							<SummaryDataCell type="profit" value={getHalfData(1).profit} bgColor="yellow-dark" />
+						</tr>
+
+						<!-- 구분선 -->
+						<tr class="border-b border-gray-200">
+							<td colspan="10" class="px-4 py-2 bg-gray-100"></td>
+						</tr>
+
+						<!-- 하반기 헤더 (7월~12월) -->
+						<tr class="bg-gray-50 border-b border-gray-200">
+							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
+							<MonthHeaderCell month={7} />
+							<MonthHeaderCell month={8} />
+							<MonthHeaderCell month={9} />
+							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200">3분기 합계</th>
+							<MonthHeaderCell month={10} />
+							<MonthHeaderCell month={11} />
+							<MonthHeaderCell month={12} />
+							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">4분기 합계</th>
+							<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">하반기 합계</th>
+						</tr>
+
+						<!-- 하반기: 매출 / 비용 / 이익 -->
+						<tr class="border-b border-gray-200 hover:bg-gray-50">
+							<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
+							{#each [7, 8, 9] as month}
+								{@const monthData = getMonthData(month)}
+								<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							{/each}
+							<SummaryDataCell type="sales" value={getQuarterData(3).sales} bgColor="blue" />
+							{#each [10, 11, 12] as month}
+								{@const monthData = getMonthData(month)}
+								<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							{/each}
+							<SummaryDataCell type="sales" value={getQuarterData(4).sales} bgColor="green" />
+							<SummaryDataCell type="sales" value={getHalfData(2).sales} bgColor="yellow" />
+						</tr>
+						<tr class="border-b border-gray-200 hover:bg-gray-50">
+							<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
+							{#each [7, 8, 9] as month}
+								{@const monthData = getMonthData(month)}
+								<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							{/each}
+							<SummaryDataCell type="cost" value={getQuarterData(3).cost} bgColor="blue" />
+							{#each [10, 11, 12] as month}
+								{@const monthData = getMonthData(month)}
+								<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							{/each}
+							<SummaryDataCell type="cost" value={getQuarterData(4).cost} bgColor="green" />
+							<SummaryDataCell type="cost" value={getHalfData(2).cost} bgColor="yellow" />
+						</tr>
+						<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
+							<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
 							{#each [7, 8, 9] as month}
 								{@const monthData = getMonthData(month)}
 								<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
@@ -1043,11 +1061,6 @@
 							{/each}
 							<SummaryDataCell type="profit" value={getQuarterData(4).profit} bgColor="green-dark" />
 							<SummaryDataCell type="profit" value={getHalfData(2).profit} bgColor="yellow-dark" />
-						</tr>
-
-						<!-- 상반기·하반기 구분선 -->
-						<tr class="border-b border-gray-200">
-							<td colspan="19" class="px-4 py-2 bg-gray-100 border-r border-gray-200"></td>
 						</tr>
 					</tbody>
 				</table>
