@@ -542,7 +542,7 @@
 												<th>가입일</th>
 												<th>마지막 로그인</th>
 												<th>상태</th>
-												<th>관리</th>
+												<th>사이트 접근</th>
 											</tr>
 										</thead>
 										<tbody>

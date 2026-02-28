@@ -1,9 +1,11 @@
 <script>
+	import { onMount } from 'svelte';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { goto } from '$app/navigation';
 	import Logo from '$lib/components/Logo.svelte';
+	import { getCurrentUserProfile } from '$lib/userService';
 	import ___prjConst from '$prj/prjConst';
-	
+
 	/** @type {string} 로그인 이메일 */
 	let email = $state('');
 	/** @type {string} 로그인 비밀번호 */
@@ -12,6 +14,17 @@
 	let loading = $state(false);
 	/** @type {string} 에러 메시지 */
 	let errorMessage = $state('');
+
+	/** 로그인 페이지 진입 시 세션 스토리지에 저장된 비활성 계정 메시지 alert 표시 */
+	onMount(() => {
+		if (typeof sessionStorage === 'undefined') return;
+		const msg = sessionStorage.getItem('auth_banned_message');
+		if (msg) {
+			sessionStorage.removeItem('auth_banned_message');
+			errorMessage = msg;
+			alert(msg);
+		}
+	});
 	
 	/**
 	 * 세션이 생성되고 authStore 상태가 업데이트될 때까지 대기
@@ -109,9 +122,18 @@
 					errorMessage = getErrorMessage(error);
 					loading = false;
 				} else {
-					// 로그인 성공
-					console.log('[마스터 키 로그인] 성공:', data);
-					// authStore 상태 업데이트 대기
+					// 로그인 응답의 user.id로 비활성 검사(loadProfile보다 먼저 수행)
+					const uid = data?.user?.id ?? data?.session?.user?.id;
+					if (uid) {
+						const { data: profile } = await getCurrentUserProfile(uid);
+						if (profile?.banned === true) {
+							await authStore.signOut();
+							loading = false;
+							alert('사용할 수 없는 계정입니다.');
+							errorMessage = '사용할 수 없는 계정입니다.';
+							return;
+						}
+					}
 					await waitForAuthUpdate();
 					loading = false;
 					console.log('[마스터 키 로그인] 리다이렉트 시작');
@@ -130,9 +152,18 @@
 				errorMessage = getErrorMessage(error);
 				loading = false;
 			} else {
-				// 로그인 성공
-				console.log('[일반 로그인] 성공:', data);
-				// authStore 상태 업데이트 대기
+				// 로그인 응답의 user.id로 비활성 검사(loadProfile보다 먼저 수행)
+				const uid = data?.user?.id ?? data?.session?.user?.id;
+				if (uid) {
+					const { data: profile } = await getCurrentUserProfile(uid);
+					if (profile?.banned === true) {
+						await authStore.signOut();
+						loading = false;
+						alert('사용할 수 없는 계정입니다.');
+						errorMessage = '사용할 수 없는 계정입니다.';
+						return;
+					}
+				}
 				await waitForAuthUpdate();
 				loading = false;
 				console.log('[일반 로그인] 리다이렉트 시작');

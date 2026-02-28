@@ -50,6 +50,15 @@ export const authStore = {
         state.profileLoading = true;
         try {
             const { data, error } = await fetchUserProfile(state.user.id, state.user.user_metadata);
+            if (data?.banned === true) {
+                if (typeof sessionStorage !== 'undefined') {
+                    sessionStorage.setItem('auth_banned_message', '사용할 수 없는 계정입니다.');
+                }
+                clearLocalAuth();
+                await supabase.auth.signOut();
+                state.profileLoading = false;
+                return;
+            }
             state.userProfile = error ? { id: state.user.id, role: 'USER' } : data;
             lastUserId = state.user.id;
         } finally { state.profileLoading = false; }
