@@ -764,7 +764,7 @@
 	$effect(() => {
 		const userId = authStore.user?.id;
 		if (!userId) return;
-		}
+
 		permissionProfileLoading = true;
 		permissionProfile = null;
 		getCurrentUserProfile(userId, authStore.user?.user_metadata)
