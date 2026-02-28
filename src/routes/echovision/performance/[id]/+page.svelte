@@ -32,7 +32,7 @@
 	let selectedYear = $state(new Date().getFullYear());
 
 	/** @type {'full' | 'split'} 실적 테이블 레이아웃: full=1~12월 가로 한 줄, split=1~6월 위 / 7~12월 아래 */
-	let tableLayoutMode = $state('split');
+	let tableLayoutMode = $state('full'); // 'split'
 
 	/** @type {Array<{org_id: string, org_alias_id: string, org_alias_name: string, org_code: string[], sales_code: string[], cost_code: string[]}>} ev_department 기반 조직 정보 (org_id = ev_department.id) */
 	let orgInfo = $state([]);
