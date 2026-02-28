@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
+	import Pagination from '$lib/components/admin/Pagination.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import { getEvCodes, createEvCode, updateEvCode, deleteEvCode } from '$lib/settingsService';
@@ -29,6 +30,10 @@
 	let topLevelEnvCodes = $state([]);
 	/** @type {boolean} 데이터 로드 완료 여부 */
 	let dataLoaded = $state(false);
+	/** @type {number} 현재 페이지 (1-based) */
+	let currentPage = $state(1);
+	/** @type {number} 페이지당 항목 수 */
+	let pageSize = $state(20);
 
 	// 폼 상태
 	/** @type {string} 코드 */
@@ -140,6 +145,7 @@
 	 * @returns {Promise<void>}
 	 */
 	async function handleFilterApply() {
+		currentPage = 1;
 		await loadEvCodes();
 	}
 
@@ -149,6 +155,7 @@
 	 */
 	async function handleFilterReset() {
 		filters = { code: '', category: '' };
+		currentPage = 1;
 		await loadEvCodes();
 	}
 
@@ -527,6 +534,34 @@
 		});
 	});
 
+	/** @type {number} 필터링된 전체 개수 */
+	const paginationTotalCount = $derived(filteredEvCodes.length);
+	/** @type {number} 전체 페이지 수 */
+	const totalPages = $derived(Math.max(1, Math.ceil(paginationTotalCount / pageSize)));
+	/** @type {Array<any>} 현재 페이지에 표시할 ev_code 목록 */
+	const paginatedEvCodes = $derived.by(() => {
+		const start = (currentPage - 1) * pageSize;
+		return filteredEvCodes.slice(start, start + pageSize);
+	});
+
+	/**
+	 * 페이지 변경 핸들러
+	 * @param {number} page - 이동할 페이지 번호
+	 * @returns {void}
+	 */
+	function handlePageChange(page) {
+		if (page < 1 || page > totalPages) return;
+		currentPage = page;
+	}
+
+	// 필터/데이터 변경으로 전체 페이지 수가 줄어들면 현재 페이지 보정
+	$effect(() => {
+		const total = totalPages;
+		if (total > 0 && currentPage > total) {
+			currentPage = total;
+		}
+	});
+
 	/**
 	 * FilterBar 필드 정의
 	 * @type {Array<{key: string, type: string, label: string, placeholder?: string, options?: Array<{value: string, label: string}>}>}
@@ -670,10 +705,10 @@
 									{ label: '수정일' },
 									{ label: '작업', align: 'center' }
 								]}
-								rowCount={filteredEvCodes.length}
+								rowCount={paginatedEvCodes.length}
 								emptyMessage="등록된 코드가 없습니다."
 							>
-								{#each filteredEvCodes as evCode}
+								{#each paginatedEvCodes as evCode}
 									<tr>
 										<td class="font-mono text-sm">{evCode.item_code}</td>
 										<td>
@@ -718,6 +753,15 @@
 									</tr>
 								{/each}
 							</DataTable>
+							{#if filteredEvCodes.length > 0}
+								<Pagination
+									currentPage={currentPage}
+									totalPages={totalPages}
+									totalCount={paginationTotalCount}
+									pageSize={pageSize}
+									onPageChange={handlePageChange}
+								/>
+							{/if}
 						{/if}
 					</div>
 				{/if}
