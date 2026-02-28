@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { sidebarStore } from '$lib/stores/sidebarStore.svelte.js';
-	import { prjMenuItems } from './PrjMenuItems.js';
+	import { prjMenuItems } from './prjMenuItems.js';
 
 	/**
 	 * @type {{ forceHidden?: boolean }}
