@@ -920,7 +920,7 @@
 	}
 
 	.data-table td {
-		padding: 12px;
+		padding: 5px 12px;
 		border: 1px solid #e5e7eb;
 		font-size: 0.875rem;
 		color: #374151;

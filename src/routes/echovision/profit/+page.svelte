@@ -1,19 +1,22 @@
 <script>
 	import { onMount, untrack } from 'svelte';
-	import { goto } from '$app/navigation';
-	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
+	import MainContent from '$lib/C/MainContent.svelte';
 	import YearMonthCodeFilter from '$lib/components/YearMonthCodeFilter.svelte';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { getSettingsHierarchy, getSettings } from '$lib/settingsService';
 	import { getSales, getChildCodes } from '$lib/salesService';
-	import { isAdmin } from '$lib/userService'; 
+	import { isAdmin, getCurrentUserProfile } from '$lib/userService';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $derived(authStore.user);
-	/** @type {boolean} */
-	let authLoading = $derived(authStore.loading);
 	/** @type {Object | null} */
 	let userProfile = $derived(authStore.profile);
+	/** @type {object | null} 페이지 진입 시 재조회한 프로필(권한 검사용) */
+	let permissionProfile = $state(null);
+	/** @type {boolean} 권한 프로필 로딩 중 */
+	let permissionProfileLoading = $state(false);
+	/** 손익현황 접근 가능 여부 (can_profit_loss) */
+	let canAccessProfitLoss = $derived(permissionProfile?.can_profit_loss === true);
 	
 	/** @type {Array<any>} 전체 환경설정 코드 목록 (평면 구조) */
 	let allSettings = $state([]);
@@ -178,12 +181,24 @@
 		return filterTreeBySelectedCode(hierarchySettings, selectedTopLevelCode);
 	});
 
+	/** 페이지 진입 시 프로필 재조회하여 권한(can_profit_loss) 검사 */
 	$effect(() => {
-		if (!authStore.loading && !authStore.user) {
-			goto('/login');
+		const userId = authStore.user?.id;
+		if (!userId) {
+			permissionProfile = null;
+			permissionProfileLoading = false;
 			return;
 		}
-		if (authStore.user && authStore.profile) {
+		permissionProfileLoading = true;
+		permissionProfile = null;
+		getCurrentUserProfile(userId, authStore.user?.user_metadata)
+			.then(({ data }) => { permissionProfile = data ?? null; })
+			.catch(() => { permissionProfile = null; })
+			.finally(() => { permissionProfileLoading = false; });
+	});
+
+	$effect(() => {
+		if (user && userProfile && canAccessProfitLoss) {
 			untrack(() => {
 				loadAllSettings();
 			});
@@ -197,7 +212,7 @@
 	 * 선택된 코드, 연도, 월 변경 시 매출 데이터 로드
 	 */
 	$effect(() => {
-		if (user && !authLoading && selectedTopLevelCode && allSettings.length > 0 && selectedCodes.length > 0 && initialSelectionDone && selectedYear && !isSalesDataLoaded) {
+		if (user && canAccessProfitLoss && selectedTopLevelCode && allSettings.length > 0 && selectedCodes.length > 0 && initialSelectionDone && selectedYear && !isSalesDataLoaded) {
 			untrack(async () => {
 				isSalesDataLoaded = true;
 				await loadSalesData();
@@ -418,233 +433,225 @@
 
 </script>
 
-<div class="main-content-page">
-	<div class="flex h-[calc(100vh-100px)]">
-		<!-- Left Sidebar -->
-		<PrjSidebar />
+<MainContent>
+	{#snippet children()}
+		{#if permissionProfileLoading}
+			<div class="flex items-center justify-center min-h-[200px]">
+				<div class="text-gray-500">로딩 중...</div>
+			</div>
+		{:else if !canAccessProfitLoss}
+			<div class="flex items-center justify-center min-h-[50vh]">
+				<p class="text-lg text-gray-600">접근 권한이 없습니다.</p>
+			</div>
+		{:else}
+			<div class="admin-content-page">
+				<!-- 헤더 -->
+				<div class="mb-6">
+					<div class="flex items-center justify-between gap-3 mb-2">
+						<h1 class="text-2xl font-bold text-gray-900">수익 정보</h1>
+						{#if userProfile}
+							{@const topLevelCodes = Array.isArray(userProfile.top_level_codes) ? userProfile.top_level_codes : []}
+							{#if topLevelCodes.length > 0}
+								<div class="flex items-center gap-2 flex-wrap">
+									<span class="text-sm text-gray-600 whitespace-nowrap">접근 가능한 코드:</span>
+									<div class="flex flex-wrap gap-2">
+										{#each topLevelCodes as code}
+											{@const setting = allSettings.find((/** @type {any} */ s) => s.code === code)}
+											<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+												{code}
+												{#if setting?.title}
+													<span class="ml-1 text-blue-600">- {setting.title}</span>
+												{/if}
+											</span>
+										{/each}
+									</div>
+								</div>
+							{:else if accessibleTopLevelCodes === null}
+								<div class="text-sm text-gray-500">모든 코드 접근 가능</div>
+							{/if}
+						{/if}
+					</div>
+				</div>
 
-		<!-- Main Content -->
-		<main class="flex-1 overflow-y-auto bg-gray-50">
-			<div class="p-3">
-				{#if authLoading}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로딩 중...</div>
-					</div>
-				{:else if !user}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로그인이 필요합니다.</div>
-					</div>
-				{:else}
-					<div class="admin-content-page">
-						<!-- 헤더 -->
-						<div class="mb-6">
-							<div class="flex items-center justify-between gap-3 mb-2">
-								<h1 class="text-2xl font-bold text-gray-900">수익 정보</h1>
-								{#if userProfile}
-									{@const topLevelCodes = Array.isArray(userProfile.top_level_codes) ? userProfile.top_level_codes : []}
-									{#if topLevelCodes.length > 0}
-										<div class="flex items-center gap-2 flex-wrap">
-											<span class="text-sm text-gray-600 whitespace-nowrap">접근 가능한 코드:</span>
-											<div class="flex flex-wrap gap-2">
-												{#each topLevelCodes as code}
-													{@const setting = allSettings.find((/** @type {any} */ s) => s.code === code)}
-													<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-														{code}
-														{#if setting?.title}
-															<span class="ml-1 text-blue-600">- {setting.title}</span>
-														{/if}
-													</span>
-												{/each}
-											</div>
-										</div>
-									{:else if accessibleTopLevelCodes === null}
-										<div class="text-sm text-gray-500">모든 코드 접근 가능</div>
-									{/if}
-								{/if}
-							</div>
+				<!-- 필터 영역 -->
+				<YearMonthCodeFilter
+					bind:selectedYear
+					bind:selectedMonth
+					bind:selectedCode={selectedTopLevelCode}
+					bind:codeOptions={accessibleTopLevelOptions}
+					codeLabel="코드 구분"
+					onFilterChange={() => {
+						initialSelectionDone = true;
+						loadSalesData();
+					}}
+				/>
+
+				<!-- 트리 형태 매출 데이터 -->
+				<div class="bg-white rounded-lg shadow-md overflow-hidden">
+					{#if isLoading}
+						<div class="flex items-center justify-center py-12">
+							<div class="text-gray-500">데이터 로딩 중...</div>
 						</div>
-
-						<!-- 필터 영역 -->
-						<YearMonthCodeFilter
-							bind:selectedYear
-							bind:selectedMonth
-							bind:selectedCode={selectedTopLevelCode}
-							bind:codeOptions={accessibleTopLevelOptions}
-							codeLabel="코드 구분"
-							onFilterChange={() => {
-								initialSelectionDone = true;
-								loadSalesData();
-							}}
-						/>
-
-						<!-- 트리 형태 매출 데이터 -->
-						<div class="bg-white rounded-lg shadow-md overflow-hidden">
-							{#if isLoading}
-								<div class="flex items-center justify-center py-12">
-									<div class="text-gray-500">데이터 로딩 중...</div>
-								</div>
-							{:else if !selectedTopLevelCode}
-								<div class="flex items-center justify-center py-12">
-									<div class="text-gray-500">코드를 선택해주세요.</div>
-								</div>
-							{:else if displayTree.length === 0}
-								<div class="flex flex-col items-center justify-center py-12">
-									<div class="text-gray-500 mb-2">표시할 데이터가 없습니다.</div>
-								</div>
-							{:else}
-								<div class="overflow-x-auto">
-									<table class="data-table">
-										<thead>
-											<tr>
-												<th class="w-64">코드</th>
-												<th class="text-right">목표 매출액</th>
-												<th class="text-right">매출액</th>
-												<th class="text-right">매출 원가</th>
-												<th class="text-right">매출 총손실</th>
-												<th class="text-right">판매 관리비</th>
-												<th class="text-right">영업 손실</th>
-												<th class="text-right">영업외 수익</th>
-												<th class="text-right">영업외 비용</th>
-												<th class="text-right">법인세 비용 차감전 순손실</th>
-												<th class="text-right">법인세 비용</th>
-												<th class="text-right">당기 순손실</th>
-											</tr>
-										</thead>
-										<tbody>
-											{#each displayTree as rootNode}
-												{@const salesTotal = calculateSalesTotal(rootNode)}
-												{@const hasChildren = rootNode.children && rootNode.children.length > 0}
-												{@const isLast = rootNode === displayTree[displayTree.length - 1]}
-												<!-- 루트 노드 -->
-												<tr class="tree-row-root">
-													<td class="font-semibold">
+					{:else if !selectedTopLevelCode}
+						<div class="flex items-center justify-center py-12">
+							<div class="text-gray-500">코드를 선택해주세요.</div>
+						</div>
+					{:else if displayTree.length === 0}
+						<div class="flex flex-col items-center justify-center py-12">
+							<div class="text-gray-500 mb-2">표시할 데이터가 없습니다.</div>
+						</div>
+					{:else}
+						<div class="overflow-x-auto">
+							<table class="data-table">
+								<thead>
+									<tr>
+										<th class="w-64">코드</th>
+										<th class="text-right">목표 매출액</th>
+										<th class="text-right">매출액</th>
+										<th class="text-right">매출 원가</th>
+										<th class="text-right">매출 총손실</th>
+										<th class="text-right">판매 관리비</th>
+										<th class="text-right">영업 손실</th>
+										<th class="text-right">영업외 수익</th>
+										<th class="text-right">영업외 비용</th>
+										<th class="text-right">법인세 비용 차감전 순손실</th>
+										<th class="text-right">법인세 비용</th>
+										<th class="text-right">당기 순손실</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each displayTree as rootNode}
+										{@const salesTotal = calculateSalesTotal(rootNode)}
+										{@const hasChildren = rootNode.children && rootNode.children.length > 0}
+										{@const isLast = rootNode === displayTree[displayTree.length - 1]}
+										<!-- 루트 노드 -->
+										<tr class="tree-row-root">
+											<td class="font-semibold">
+												<div class="flex items-center gap-2">
+													<span class="font-mono text-sm">{rootNode.code}</span>
+													<span>{rootNode.title}</span>
+													{#if hasChildren}
+														<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+														</svg>
+													{/if}
+												</div>
+											</td>
+											<td class="text-right">{formatAmount(salesTotal.target_sales_amount)}</td>
+											<td class="text-right">{formatAmount(salesTotal.sales_amount)}</td>
+											<td class="text-right">{formatAmount(salesTotal.sales_cost)}</td>
+											<td class="text-right">{formatAmount(salesTotal.sales_gross_loss)}</td>
+											<td class="text-right">{formatAmount(salesTotal.selling_admin_expenses)}</td>
+											<td class="text-right">{formatAmount(salesTotal.operating_loss)}</td>
+											<td class="text-right">{formatAmount(salesTotal.non_operating_income)}</td>
+											<td class="text-right">{formatAmount(salesTotal.non_operating_expenses)}</td>
+											<td class="text-right">{formatAmount(salesTotal.loss_before_tax)}</td>
+											<td class="text-right">{formatAmount(salesTotal.corporate_tax_expenses)}</td>
+											<td class="text-right font-semibold">{formatAmount(salesTotal.net_loss)}</td>
+										</tr>
+										<!-- 하위 노드 재귀 렌더링 -->
+										{#if hasChildren}
+											{#each rootNode.children as child, childIndex}
+												{@const childSalesTotal = calculateSalesTotal(child)}
+												{@const childHasChildren = child.children && child.children.length > 0}
+												{@const isLastChild = childIndex === rootNode.children.length - 1}
+												<tr class="tree-row-child">
+													<td class="pl-6">
 														<div class="flex items-center gap-2">
-															<span class="font-mono text-sm">{rootNode.code}</span>
-															<span>{rootNode.title}</span>
-															{#if hasChildren}
+															<span class="text-gray-400">{isLastChild ? '└─' : '├─'}</span>
+															<span class="font-mono text-sm">{child.code}</span>
+															<span>{child.title}</span>
+															{#if childHasChildren}
 																<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 																</svg>
 															{/if}
 														</div>
 													</td>
-													<td class="text-right">{formatAmount(salesTotal.target_sales_amount)}</td>
-													<td class="text-right">{formatAmount(salesTotal.sales_amount)}</td>
-													<td class="text-right">{formatAmount(salesTotal.sales_cost)}</td>
-													<td class="text-right">{formatAmount(salesTotal.sales_gross_loss)}</td>
-													<td class="text-right">{formatAmount(salesTotal.selling_admin_expenses)}</td>
-													<td class="text-right">{formatAmount(salesTotal.operating_loss)}</td>
-													<td class="text-right">{formatAmount(salesTotal.non_operating_income)}</td>
-													<td class="text-right">{formatAmount(salesTotal.non_operating_expenses)}</td>
-													<td class="text-right">{formatAmount(salesTotal.loss_before_tax)}</td>
-													<td class="text-right">{formatAmount(salesTotal.corporate_tax_expenses)}</td>
-													<td class="text-right font-semibold">{formatAmount(salesTotal.net_loss)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.target_sales_amount)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.sales_amount)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.sales_cost)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.sales_gross_loss)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.selling_admin_expenses)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.operating_loss)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.non_operating_income)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.non_operating_expenses)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.loss_before_tax)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.corporate_tax_expenses)}</td>
+													<td class="text-right">{formatAmount(childSalesTotal.net_loss)}</td>
 												</tr>
-												<!-- 하위 노드 재귀 렌더링 -->
-												{#if hasChildren}
-													{#each rootNode.children as child, childIndex}
-														{@const childSalesTotal = calculateSalesTotal(child)}
-														{@const childHasChildren = child.children && child.children.length > 0}
-														{@const isLastChild = childIndex === rootNode.children.length - 1}
-														<tr class="tree-row-child">
-															<td class="pl-6">
+												<!-- 3단계 하위 노드 -->
+												{#if childHasChildren}
+													{#each child.children as grandChild, grandChildIndex}
+														{@const grandChildSalesTotal = calculateSalesTotal(grandChild)}
+														{@const grandChildHasChildren = grandChild.children && grandChild.children.length > 0}
+														{@const isLastGrandChild = grandChildIndex === child.children.length - 1}
+														<tr class="tree-row-grandchild">
+															<td class="pl-12">
 																<div class="flex items-center gap-2">
-																	<span class="text-gray-400">{isLastChild ? '└─' : '├─'}</span>
-																	<span class="font-mono text-sm">{child.code}</span>
-																	<span>{child.title}</span>
-																	{#if childHasChildren}
+																	<span class="text-gray-400">{isLastChild ? '   ' : '│  '}{isLastGrandChild ? '└─' : '├─'}</span>
+																	<span class="font-mono text-sm">{grandChild.code}</span>
+																	<span>{grandChild.title}</span>
+																	{#if grandChildHasChildren}
 																		<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 																		</svg>
 																	{/if}
 																</div>
 															</td>
-															<td class="text-right">{formatAmount(childSalesTotal.target_sales_amount)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.sales_amount)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.sales_cost)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.sales_gross_loss)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.selling_admin_expenses)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.operating_loss)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.non_operating_income)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.non_operating_expenses)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.loss_before_tax)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.corporate_tax_expenses)}</td>
-															<td class="text-right">{formatAmount(childSalesTotal.net_loss)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.target_sales_amount)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.sales_amount)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.sales_cost)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.sales_gross_loss)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.selling_admin_expenses)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.operating_loss)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.non_operating_income)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.non_operating_expenses)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.loss_before_tax)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.corporate_tax_expenses)}</td>
+															<td class="text-right">{formatAmount(grandChildSalesTotal.net_loss)}</td>
 														</tr>
-														<!-- 3단계 하위 노드 -->
-														{#if childHasChildren}
-															{#each child.children as grandChild, grandChildIndex}
-																{@const grandChildSalesTotal = calculateSalesTotal(grandChild)}
-																{@const grandChildHasChildren = grandChild.children && grandChild.children.length > 0}
-																{@const isLastGrandChild = grandChildIndex === child.children.length - 1}
-																<tr class="tree-row-grandchild">
-																	<td class="pl-12">
+														<!-- 4단계 하위 노드 (필요시 확장 가능) -->
+														{#if grandChildHasChildren}
+															{#each grandChild.children as greatGrandChild, greatGrandChildIndex}
+																{@const greatGrandChildSalesTotal = calculateSalesTotal(greatGrandChild)}
+																{@const isLastGreatGrandChild = greatGrandChildIndex === grandChild.children.length - 1}
+																<tr class="tree-row-great-grandchild">
+																	<td class="pl-20">
 																		<div class="flex items-center gap-2">
-																			<span class="text-gray-400">{isLastChild ? '   ' : '│  '}{isLastGrandChild ? '└─' : '├─'}</span>
-																			<span class="font-mono text-sm">{grandChild.code}</span>
-																			<span>{grandChild.title}</span>
-																			{#if grandChildHasChildren}
-																				<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-																				</svg>
-																			{/if}
+																			<span class="text-gray-400">{isLastChild ? '   ' : '│  '}{isLastGrandChild ? '   ' : '│  '}{isLastGreatGrandChild ? '└─' : '├─'}</span>
+																			<span class="font-mono text-sm">{greatGrandChild.code}</span>
+																			<span>{greatGrandChild.title}</span>
 																		</div>
 																	</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.target_sales_amount)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.sales_amount)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.sales_cost)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.sales_gross_loss)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.selling_admin_expenses)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.operating_loss)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.non_operating_income)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.non_operating_expenses)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.loss_before_tax)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.corporate_tax_expenses)}</td>
-																	<td class="text-right">{formatAmount(grandChildSalesTotal.net_loss)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.target_sales_amount)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.sales_amount)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.sales_cost)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.sales_gross_loss)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.selling_admin_expenses)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.operating_loss)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.non_operating_income)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.non_operating_expenses)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.loss_before_tax)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.corporate_tax_expenses)}</td>
+																	<td class="text-right">{formatAmount(greatGrandChildSalesTotal.net_loss)}</td>
 																</tr>
-																<!-- 4단계 하위 노드 (필요시 확장 가능) -->
-																{#if grandChildHasChildren}
-																	{#each grandChild.children as greatGrandChild, greatGrandChildIndex}
-																		{@const greatGrandChildSalesTotal = calculateSalesTotal(greatGrandChild)}
-																		{@const isLastGreatGrandChild = greatGrandChildIndex === grandChild.children.length - 1}
-																		<tr class="tree-row-great-grandchild">
-																			<td class="pl-20">
-																				<div class="flex items-center gap-2">
-																					<span class="text-gray-400">{isLastChild ? '   ' : '│  '}{isLastGrandChild ? '   ' : '│  '}{isLastGreatGrandChild ? '└─' : '├─'}</span>
-																					<span class="font-mono text-sm">{greatGrandChild.code}</span>
-																					<span>{greatGrandChild.title}</span>
-																				</div>
-																			</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.target_sales_amount)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.sales_amount)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.sales_cost)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.sales_gross_loss)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.selling_admin_expenses)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.operating_loss)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.non_operating_income)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.non_operating_expenses)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.loss_before_tax)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.corporate_tax_expenses)}</td>
-																			<td class="text-right">{formatAmount(greatGrandChildSalesTotal.net_loss)}</td>
-																		</tr>
-																	{/each}
-																{/if}
 															{/each}
 														{/if}
 													{/each}
 												{/if}
 											{/each}
-										</tbody>
-									</table>
-								</div>
-							{/if}
+										{/if}
+									{/each}
+								</tbody>
+							</table>
 						</div>
-					</div>
-				{/if}
+					{/if}
+				</div>
 			</div>
-		</main>
-	</div>
-</div>
+		{/if}
+	{/snippet}
+</MainContent>
 
 <style>
 	.admin-content-page {

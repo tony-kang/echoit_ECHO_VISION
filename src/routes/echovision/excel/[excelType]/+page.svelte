@@ -37,6 +37,16 @@
 	let editMonth = $state(null);
 	/** @type {boolean} 수정 중 여부 */
 	let isUpdating = $state(false);
+	/** 데이터 보기 전 년도/월 미입력 시 입력 다이얼로그 */
+	let showYearMonthInputForView = $state(false);
+	/** @type {any | null} 년도/월 입력 후 데이터 보기할 파일 */
+	let filePendingForView = $state(null);
+	/** @type {number | null} 데이터 보기용 입력 년도 */
+	let viewYear = $state(null);
+	/** @type {number | null} 데이터 보기용 입력 월 */
+	let viewMonth = $state(null);
+	/** 데이터 보기용 년도/월 저장 중 */
+	let isSavingViewYearMonth = $state(false);
 
 	let listLoaded = $state(false);
 	/** @type {number} 현재 페이지 번호 */
@@ -358,13 +368,65 @@
 	}
 
 	/**
-	 * 파일에서 추출한 데이터 보기 핸들러
+	 * 파일에서 추출한 데이터 보기 핸들러. 년도/월이 없으면 입력 다이얼로그 표시 후 진행.
 	 * @param {any} file - 보여줄 데이터의 파일 정보
-	 * @returns {Promise<void>}
 	 */
 	function handleDataView(file) {
-		selectedFileForView = file;
-		showDataTable = true;
+		const hasYear = file.year != null && file.year !== '';
+		const hasMonth = file.month != null && file.month !== '';
+		if (hasYear && hasMonth) {
+			selectedFileForView = file;
+			showDataTable = true;
+			return;
+		}
+		const currentYear = new Date().getFullYear();
+		filePendingForView = file;
+		viewYear = file.year ?? currentYear;
+		viewMonth = file.month ?? null;
+		showYearMonthInputForView = true;
+	}
+
+	/**
+	 * 데이터 보기용 년도/월 입력 확인 시 DB 반영 후 데이터 테이블 열기
+	 * @returns {Promise<void>}
+	 */
+	async function handleConfirmViewYearMonth() {
+		if (!filePendingForView || viewYear == null || viewMonth == null) {
+			alert('년도와 월을 모두 선택하세요.');
+			return;
+		}
+		isSavingViewYearMonth = true;
+		try {
+			const filePath = filePendingForView.fullPath || (excelTypeParam ? `${excelTypeParam}/${filePendingForView.name}` : filePendingForView.name);
+			const { error } = await updateExcelFileYearMonth(filePath, viewYear, viewMonth);
+			if (error) {
+				alert(`년도/월 저장 실패: ${error.message}`);
+				return;
+			}
+			selectedFileForView = { ...filePendingForView, year: viewYear, month: viewMonth };
+			showDataTable = true;
+			showYearMonthInputForView = false;
+			filePendingForView = null;
+			viewYear = null;
+			viewMonth = null;
+			listLoaded = false;
+			await loadExcelFiles();
+		} catch (err) {
+			console.error('[handleConfirmViewYearMonth] 오류:', err);
+			alert('년도/월 저장 중 오류가 발생했습니다.');
+		} finally {
+			isSavingViewYearMonth = false;
+		}
+	}
+
+	/**
+	 * 데이터 보기용 년도/월 입력 다이얼로그 닫기
+	 */
+	function handleCloseViewYearMonthDialog() {
+		showYearMonthInputForView = false;
+		filePendingForView = null;
+		viewYear = null;
+		viewMonth = null;
 	}
 
 	/**
@@ -723,6 +785,60 @@
 											disabled={isUpdating}
 										>
 											{isUpdating ? '저장 중...' : '저장'}
+										</button>
+									</div>
+								</div>
+							</div>
+						{/if}
+
+						<!-- 데이터 보기 전 년도/월 입력 다이얼로그 -->
+						{#if showYearMonthInputForView && filePendingForView}
+							<div class="fixed inset-0 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="view-yearmonth-dialog-title">
+								<div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+									<h2 id="view-yearmonth-dialog-title" class="text-xl font-bold mb-4">년도/월 입력</h2>
+									<p class="text-sm text-gray-600 mb-4">데이터 보기를 위해 년도와 월을 선택하세요.</p>
+									<div class="mb-2 text-sm text-gray-500">파일: {getOriginalFileName(filePendingForView)}</div>
+									<div class="space-y-4">
+										<div>
+											<label for="view-year" class="block text-sm font-medium text-gray-700 mb-1">년도</label>
+											<select
+												id="view-year"
+												bind:value={viewYear}
+												class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+											>
+												{#each recentYears as y}
+													<option value={y}>{y}년</option>
+												{/each}
+											</select>
+										</div>
+										<div>
+											<label for="view-month" class="block text-sm font-medium text-gray-700 mb-1">월</label>
+											<select
+												id="view-month"
+												bind:value={viewMonth}
+												class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+											>
+												<option value={null}>선택</option>
+												{#each Array.from({ length: 12 }, (_, i) => i + 1) as m}
+													<option value={m}>{m}월</option>
+												{/each}
+											</select>
+										</div>
+									</div>
+									<div class="flex justify-end gap-2 mt-6">
+										<button
+											onclick={handleCloseViewYearMonthDialog}
+											class="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+											disabled={isSavingViewYearMonth}
+										>
+											취소
+										</button>
+										<button
+											onclick={handleConfirmViewYearMonth}
+											class="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+											disabled={isSavingViewYearMonth || viewYear == null || viewMonth == null}
+										>
+											{isSavingViewYearMonth ? '저장 중...' : '확인'}
 										</button>
 									</div>
 								</div>
