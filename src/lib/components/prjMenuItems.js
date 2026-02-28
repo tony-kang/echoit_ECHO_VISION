@@ -53,6 +53,7 @@
 			subMenus: [
 				{ label: '사용자 관리', path: '/echovision/settings/user' },
 				{ label: '엑셀 컬럼 관리', path: '/echovision/settings/excel-code' },
+				{ label: '부서 관리', path: '/echovision/settings/department' },
 				{ label: '금액 코드 관리', path: '/echovision/settings/amount-code' },
 				// { label: '시스템', path: '/echovision/settings/system' }
 			]

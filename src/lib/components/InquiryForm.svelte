@@ -1,7 +1,6 @@
 <script>
-	import { onMount } from 'svelte';
 	import { createInquiry, INQUIRY_TYPES, INQUIRY_TYPE_LABELS } from '$lib/inquiryService';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { goto } from '$app/navigation';
 	
 	/**
@@ -22,31 +21,18 @@
 	
 	let { onSuccess, onCancel } = $props();
 	
-	let user = $state(null);
-	let userProfile = $state(null);
-	let authLoading = $state(true);
+	/** @type {import('@supabase/supabase-js').User | null} */
+	let user = $derived(authStore.user);
+	/** @type {Object | null} */
+	let userProfile = $derived(authStore.profile);
+	let authLoading = $derived(authStore.loading);
 	
-	// 인증 상태 구독
-	onMount(() => {
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			userProfile = state.userProfile;
-			
-			// 로그인 사용자 정보로 폼 자동 채우기 (비어있을 때만)
-			if (state.user && state.userProfile) {
-				if (state.user.email && !formData.email) {
-					formData.email = state.user.email;
-				}
-				if (state.user.user_metadata?.full_name && !formData.name) {
-					formData.name = state.user.user_metadata.full_name;
-				}
-			}
-		});
-		
-		return () => {
-			unsubscribe();
-		};
+	// 로그인 사용자 정보로 폼 자동 채우기 (비어있을 때만)
+	$effect(() => {
+		const u = authStore.user;
+		const p = authStore.profile;
+		if (u && p && !formData.email && u.email) formData.email = u.email;
+		if (u && p && !formData.name && u.user_metadata?.full_name) formData.name = u.user_metadata.full_name;
 	});
 	
 	// 로그인 체크

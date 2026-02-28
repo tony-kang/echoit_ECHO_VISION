@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { getCategoryBySlug } from '$lib/boardCategoryService';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import PostList from './PostList.svelte';
 	import PostForm from './PostForm.svelte';
 	import PostDetail from './PostDetail.svelte';
@@ -24,20 +24,11 @@
 	/** @type {any} */
 	let editingPost = $state(null);
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
+	let user = $derived(authStore.user);
 	let postListRefreshTrigger = $state(0);
 
 	onMount(() => {
-		authStore.initialize();
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-		});
-
 		loadCategory();
-
-		return () => {
-			unsubscribe();
-		};
 	});
 
 	$effect(() => {

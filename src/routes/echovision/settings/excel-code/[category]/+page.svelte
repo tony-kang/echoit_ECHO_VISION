@@ -1,14 +1,14 @@
 <script>
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import CodeManagement from '$lib/components/settings/CodeManagement.svelte';
-	import { authStore } from '$lib/stores/authStore';  
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	/** @type {boolean} */
+	let authLoading = $derived(authStore.loading);
 
 	/**
 	 * URL 파라미터에서 카테고리 가져오기
@@ -38,22 +38,14 @@
 		return ['all', 'organization', 'sales', 'cost'].includes(category);
 	});
 
-	onMount(() => {
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			} else if (state.user && !isValidCategory) {
-				// 유효하지 않은 카테고리면 메인 페이지로 리다이렉트
-				goto('/echovision/settings/code');
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+			return;
+		}
+		if (authStore.user && !isValidCategory) {
+			goto('/echovision/settings/code');
+		}
 	});
 </script>
 

@@ -3,7 +3,7 @@
 	import { getUserLabels, getPostLabels, addLabelToPost, removeLabelFromPost, createLabel } from '$lib/labelService';
 	import { addHashtagsToPost, getPostHashtags, removeHashtagFromPost } from '$lib/hashtagService';
 	import { uploadImage } from '$lib/imageUploadService';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { onMount } from 'svelte';
 	import LabelForm from './LabelForm.svelte';
 	import FroalaEditor from './FroalaEditor.svelte';
@@ -45,7 +45,7 @@
 	} = $props();
 
 	/** @type {import('@supabase/supabase-js').User | null} 현재 로그인한 사용자 */
-	let user = $state(null);
+	let user = $derived(authStore.user);
 	/** @type {string} 게시물 제목 */
 	let title = $state('');
 	/** @type {string} 게시물 내용 */
@@ -86,11 +86,6 @@
 	});
 
 	onMount(() => {
-		// 레이아웃에서 이미 초기화되므로 여기서는 구독만 함
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-		});
-
 		if (post && post.title && post.content) {
 			title = post.title;
 			content = post.content;
@@ -99,10 +94,6 @@
 				imagePreviewUrl = getThumbnailUrl(post.thumbnail_url);
 			}
 		}
-
-		return () => {
-			unsubscribe();
-		};
 	});
 
 	$effect(() => {

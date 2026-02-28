@@ -1,50 +1,29 @@
 <script>
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { isAdmin } from '$lib/userService';
 	import ___prjConst from '$prj/prjConst';
 	
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let loading = $state(true);
+	let user = $derived(authStore.user);
+	/** @type {boolean} */
+	let loading = $derived(authStore.loading);
 	/** @type {Object | null} */
-	let userProfile = $state(null);
-	let userProfileLoading = $state(true);
-	let profileChecked = $state(false);
+	let userProfile = $derived(authStore.profile);
+	/** @type {boolean} */
+	let userProfileLoading = $derived(authStore.profileLoading);
+	/** @type {boolean} 관리자 권한 여부 */
+	let isAdminUser = $derived(Boolean(authStore.profile?.role && isAdmin(authStore.profile.role)));
 	
-	// 관리자 권한 확인
-	let isAdminUser = $derived(() => {
-		const profile = userProfile;
-		if (!profile?.role) return false;
-		return isAdmin(profile.role);
-	});
-	
-	// 인증 및 권한 체크
-	onMount(() => {
-		const unsubscribe = authStore.subscribe(async (state) => {
-			user = state.user;
-			loading = state.loading;
-			userProfile = state.userProfile;
-			userProfileLoading = state.profileLoading;
-
-			if (user && !loading && !userProfileLoading && userProfile && !profileChecked) {
-				profileChecked = true;
-				
-				// 관리자 권한 체크
-				if (!isAdminUser()) {
-					alert('관리자 권한이 필요합니다.');
-					goto('/mypage');
-					return;
-				}
-			} else if (!user && !loading) {
-				goto('/login');
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+			return;
+		}
+		if (authStore.user && !authStore.loading && !authStore.profileLoading && authStore.profile && !isAdmin(authStore.profile.role)) {
+			alert('관리자 권한이 필요합니다.');
+			goto('/mypage');
+		}
 	});
 
 	/**
@@ -106,7 +85,7 @@
 		<div class="spinner"></div>
 		<p>로딩 중...</p>
 	</div>
-{:else if user && isAdminUser()}
+{:else if user && isAdminUser}
 	<div class="admin-page">
 		
 		<main class="admin-main">

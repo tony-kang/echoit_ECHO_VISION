@@ -1,9 +1,9 @@
 <script>
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { getExcelFileUrl, listExcelFiles, deleteExcelFile, updateExcelFileYearMonth } from '$lib/excelUploadService';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { supabase } from '$lib/supabaseClient';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
@@ -13,8 +13,9 @@
 	import Pagination from '$lib/components/admin/Pagination.svelte';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	/** @type {boolean} */
+	let authLoading = $derived(authStore.loading);
 
 	/** @type {Array<any>} 엑셀 파일 목록 */
 	let excelFiles = $state([]);
@@ -243,25 +244,10 @@
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
-	onMount(() => {
-		// console.log('(S)', new Date().toISOString());
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			// console.log('(A)',user === null, authLoading, new Date().toISOString());
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			} 
-			// else if (state.user && !authLoading) {
-			// 	console.log('---(1)----', excelTypeParam);
-			// 	loadExcelFiles();
-			// }
-		});
-
-		return () => {
-			unsubscribe();
-		};
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+		}
 	});
 
 	/** @type {string | null} 이전 excelTypeParam 값 추적 */
@@ -289,7 +275,7 @@
 	 * excelType 변경 시 파일 목록 다시 로드
 	 */
 	$effect(() => {
-		if (user && !authLoading && excelTypeParam && !isFilesLoaded) {
+		if (authStore.user && !authStore.loading && excelTypeParam && !isFilesLoaded) {
 			untrack(async () => {
 				isFilesLoaded = true;
 				await loadExcelFiles();

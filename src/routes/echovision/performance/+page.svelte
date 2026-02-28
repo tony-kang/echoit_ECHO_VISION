@@ -6,7 +6,7 @@
 	import SummaryDataCell from './SummaryDataCell.svelte';
 	import MonthHeaderCell from './MonthHeaderCell.svelte';
 	import PerformanceInputModal from './PerformanceInputModal.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { getSales } from '$lib/salesService';
 	import { getCosts } from '$lib/costService';
 	import { getGoals } from '$lib/goalService';
@@ -17,8 +17,9 @@
 	Chart.register(...registerables);
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	/** @type {boolean} */
+	let authLoading = $derived(authStore.loading);
 
 	/** @type {number} 선택된 연도 */
 	let selectedYear = $state(new Date().getFullYear());
@@ -755,16 +756,13 @@
 		}
 	}
 
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+		}
+	});
+
 	onMount(() => {
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			
-			if (!state.loading && !state.user) {
-				goto('/login');
-			}
-		});
-		
 		// canvas가 마운트된 후 차트 초기화 시도
 		setTimeout(() => {
 			if (!isLoading) {
@@ -774,7 +772,6 @@
 		}, 200);
 		
 		return () => {
-			unsubscribe();
 			// 컴포넌트 언마운트 시 차트 정리
 			if (salesProfitChartInstance) {
 				salesProfitChartInstance.destroy();

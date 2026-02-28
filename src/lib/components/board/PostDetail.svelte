@@ -4,7 +4,7 @@
 	import { getPostById, deletePost } from '$lib/postService';
 	import { toggleReaction, getUserReaction } from '$lib/reactionService';
 	import { getPostHashtags } from '$lib/hashtagService';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import CommentList from './CommentList.svelte';
 	import PostHeader from './PostHeader.svelte';
 	import PostActions from './PostActions.svelte';
@@ -33,24 +33,15 @@
 	/** @type {string | null} 에러 메시지 */
 	let error = $state(null);
 	/** @type {import('@supabase/supabase-js').User | null} 현재 사용자 */
-	let user = $state(null);
+	let user = $derived(authStore.user);
 	/** @type {any} 사용자의 반응 정보 */
 	let userReaction = $state(null);
 	/** @type {Array<any>} 해시태그 목록 */
 	let hashtags = $state([]);
 
 	onMount(() => {
-		authStore.initialize();
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-		});
-
 		loadPost();
 		loadHashtags();
-
-		return () => {
-			unsubscribe();
-		};
 	});
 
 	/**

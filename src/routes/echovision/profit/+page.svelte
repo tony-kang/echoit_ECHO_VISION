@@ -3,16 +3,17 @@
 	import { goto } from '$app/navigation';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import YearMonthCodeFilter from '$lib/components/YearMonthCodeFilter.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { getSettingsHierarchy, getSettings } from '$lib/settingsService';
 	import { getSales, getChildCodes } from '$lib/salesService';
 	import { isAdmin } from '$lib/userService'; 
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	/** @type {boolean} */
+	let authLoading = $derived(authStore.loading);
 	/** @type {Object | null} */
-	let userProfile = $state(null);
+	let userProfile = $derived(authStore.profile);
 	
 	/** @type {Array<any>} 전체 환경설정 코드 목록 (평면 구조) */
 	let allSettings = $state([]);
@@ -177,40 +178,16 @@
 		return filterTreeBySelectedCode(hierarchySettings, selectedTopLevelCode);
 	});
 
-	onMount(() => {
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			const prevUserProfile = userProfile;
-			userProfile = state.userProfile;
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			} else if (state.user && state.userProfile) {
-				// 사용자 프로필이 로드된 후에만 설정 로드
-				if (!prevUserProfile && state.userProfile) {
-					// 처음 프로필이 로드될 때만
-					loadAllSettings();
-				} else if (prevUserProfile && state.userProfile) {
-					// top_level_codes가 변경된 경우 다시 로드
-					const prevCodes = JSON.stringify(prevUserProfile?.top_level_codes || []);
-					const newCodes = JSON.stringify(state.userProfile?.top_level_codes || []);
-					if (prevCodes !== newCodes) {
-						loadAllSettings();
-					} else if (allSettings.length === 0) {
-						// 설정이 없으면 로드
-						loadAllSettings();
-					} else {
-						// 설정은 있지만 옵션이 업데이트되지 않은 경우
-						loadAccessibleTopLevelOptions();
-					}
-				}
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+			return;
+		}
+		if (authStore.user && authStore.profile) {
+			untrack(() => {
+				loadAllSettings();
+			});
+		}
 	});
 
 	/** @type {boolean} 매출 데이터 로드 완료 여부 */

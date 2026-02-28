@@ -1,15 +1,25 @@
 <script>
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { isMaster } from '$lib/userService';
 	import ___prjConst from '$prj/prjConst';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	let authLoading = $derived(authStore.loading);
 	/** @type {Object | null} */
-	let userProfile = $state(null);
+	let userProfile = $derived(authStore.profile);
+
+	$effect(() => {
+		if (authStore.user && !authStore.loading && authStore.profile) {
+			const profile = authStore.profile;
+			if (profile && !isMaster(profile.role)) {
+				goto('/mypage');
+			}
+		} else if (!authStore.user && !authStore.loading) {
+			goto('/login');
+		}
+	});
 
 	// 기능 그룹 및 기능 목록
 	const featureGroups = [
@@ -32,32 +42,6 @@
 			]
 		}
 	];
-
-	/**
-	 * 인증 상태 구독 (레이아웃에서 이미 초기화됨)
-	 */
-	onMount(() => {
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			userProfile = state.userProfile;
-
-			if (state.user && !state.loading && state.userProfile) {
-				// Master 권한 확인
-				/** @type {any} */
-				const profile = state.userProfile;
-				if (profile && !isMaster(profile.role)) {
-					goto('/mypage');
-				}
-			} else if (!state.user && !state.loading) {
-				goto('/login');
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
-	});
 
 	/**
 	 * @param {string} path

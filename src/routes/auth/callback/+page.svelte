@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { supabase } from '$lib/supabaseClient';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import Logo from '$lib/components/Logo.svelte';
 	
 	let status = $state('처리 중...');

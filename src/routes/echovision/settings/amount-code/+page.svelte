@@ -1,17 +1,17 @@
 <script>
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
-	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
+	import MainContent from '$lib/C/MainContent.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import Pagination from '$lib/components/admin/Pagination.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { getEvCodes, createEvCode, updateEvCode, deleteEvCode } from '$lib/settingsService';
 	import { getSettings } from '$lib/settingsService'; 
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	let authLoading = $derived(authStore.loading);
 	/** @type {Array<any>} ev_code 목록 */
 	let evCodes = $state([]);
 	/** @type {Record<string, any>} 필터 객체 */
@@ -598,40 +598,10 @@
 		}
 	];
 
-	onMount(() => {
-		// 타임아웃 설정: 10초 후에도 로딩이 끝나지 않으면 에러 처리
-		let timeoutId = null;
-		
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-
-			if (!state.loading) {
-				if (timeoutId) {
-					clearTimeout(timeoutId);
-					timeoutId = null;
-				}
-			} else if (!timeoutId) {
-				timeoutId = setTimeout(() => {
-					if (authLoading) {
-						console.error('[amount-code/+page] 인증 로딩 타임아웃 (10초)');
-						authLoading = false;
-					}
-					timeoutId = null;
-				}, 10000);
-			}
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			}
-		});
-
-		return () => {
-			if (timeoutId) {
-				clearTimeout(timeoutId);
-			}
-			unsubscribe();
-		};
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+		}
 	});
 
 	// 사용자 변경 시 데이터 로드 (한 번만 실행)
@@ -649,24 +619,18 @@
 	});
 </script>
 
-<div class="main-content-page">
-	<div class="flex h-[calc(100vh-100px)]">
-		<!-- Left Sidebar -->
-		<PrjSidebar />
-
-		<!-- Main Content -->
-		<main class="flex-1 overflow-y-auto bg-gray-50">
-			<div class="p-3">
-				{#if authLoading}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로딩 중...</div>
-					</div>
-				{:else if !user}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로그인이 필요합니다.</div>
-					</div>
-				{:else}
-					<div class="admin-content-page">
+<MainContent>
+	{#snippet children()}
+		{#if authLoading}
+			<div class="flex items-center justify-center h-full">
+				<div class="text-gray-500">로딩 중...</div>
+			</div>
+		{:else if !user}
+			<div class="flex items-center justify-center h-full">
+				<div class="text-gray-500">로그인이 필요합니다.</div>
+			</div>
+		{:else}
+			<div class="admin-content-page">
 						<!-- 헤더 -->
 						<div class="mb-6">
 							<h1 class="text-3xl font-bold text-gray-800">매출/비용 코드 관리</h1>
@@ -765,10 +729,8 @@
 						{/if}
 					</div>
 				{/if}
-			</div>
-		</main>
-	</div>
-</div>
+	{/snippet}
+</MainContent>
 
 <!-- 폼 모달 -->
 {#if showFormModal}
@@ -904,6 +866,7 @@
 											</div>
 											<!-- 항목 목록 -->
 											{#each selectableItemOptions as option}
+												<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 												<label 
 													class="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
 													onmousedown={(e) => e.preventDefault()}

@@ -1,14 +1,14 @@
 <script>
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import DashboardStats from '$lib/components/echovision/DashboardStats.svelte';
 	import QuickAccess from '$lib/components/echovision/QuickAccess.svelte';
-	import { authStore } from '$lib/stores/authStore'; 
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	/** @type {boolean} */
+	let authLoading = $derived(authStore.loading);
 
 	let evYear = $state(new Date().getFullYear());
 
@@ -91,20 +91,10 @@
 		}
 	];
 
-	onMount(() => {
-		// 레이아웃에서 이미 초기화되므로 여기서는 구독만 함
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+		}
 	});
 
 	// TODO: 실제 데이터를 가져오는 로직 추가 필요

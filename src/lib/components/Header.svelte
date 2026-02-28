@@ -1,12 +1,11 @@
 <script>
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Logo from '$lib/components/Logo.svelte';
 	import InquiryForm from '$lib/components/InquiryForm.svelte';
 	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { isAdmin } from '$lib/userService';
 	import { isDevDomain } from '$lib/utils/domainUtils';
 	import ___prjConst from '$prj/prjConst';
@@ -15,9 +14,11 @@
 	let isUserMenuOpen = $state(false);
 	let showInquiryModal = $state(false);
 	let showInquirySuccess = $state(false);
-	let user = $state(null);
-	let authLoading = $state(true);
-	let userProfile = $state(null);
+	/** @type {import('@supabase/supabase-js').User | null} */
+	let user = $derived(authStore.user);
+	let authLoading = $derived(authStore.loading);
+	/** @type {Object | null} */
+	let userProfile = $derived(authStore.profile);
 	let activeDropdown = $state(null);
 	let isSidebarOpen = $state(false); // 사이드바 열림 상태
 	const showHamburgerIcon = true;
@@ -43,19 +44,6 @@
 		const profile = userProfile;
 		if (!profile?.role) return false;
 		return isAdmin(profile.role);
-	});
-
-	onMount(() => {
-		// 레이아웃에서 이미 초기화되므로 여기서는 구독만 함
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			userProfile = state.userProfile;
-		});
-
-		return () => {
-			unsubscribe();
-		};
 	});
 
 	function toggleMenu() {

@@ -1,10 +1,9 @@
 <script>
 	import { tick, untrack } from 'svelte';
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import FilterBar from '$lib/components/FilterBar.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { getSettings, getEvCodes } from '$lib/settingsService';
 
 	/**
@@ -28,10 +27,10 @@
 	} = $props();
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	let authLoading = $derived(authStore.loading);
 	/** @type {Object | null} */
-	let userProfile = $state(null);
+	let userProfile = $derived(authStore.profile);
 
 	/** @type {Array<any>} 전체 환경설정 코드 목록 */
 	let allSettings = $state([]);
@@ -101,27 +100,15 @@
 
 	let allSettingsLoaded = $state(false);
 
-	onMount(() => {
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			userProfile = state.userProfile;
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			} else if (state.user && state.userProfile) {
-				// 사용자 프로필이 로드된 후에만 설정 로드
-				if (!allSettingsLoaded) {
-					allSettingsLoaded = true;
-					console.log('loadAllSettings');
-					loadAllSettings();
-				}
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+			return;
+		}
+		if (authStore.user && authStore.profile && !allSettingsLoaded) {
+			allSettingsLoaded = true;
+			loadAllSettings();
+		}
 	});
 
 	/**

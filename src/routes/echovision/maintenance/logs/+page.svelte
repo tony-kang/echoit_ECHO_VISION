@@ -1,9 +1,9 @@
 <script>
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import {
 		getActionLogs,
 		getLogStatistics
@@ -12,14 +12,17 @@
 	import LogTab from '$lib/components/admin/LogTab.svelte';
 	
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let loading = $state(true);
+	let user = $derived(authStore.user);
+	/** @type {boolean} */
+	let loading = $derived(authStore.loading);
 	/** @type {boolean} 인증 로딩 상태 */
-	let authLoading = $state(true);
+	let authLoading = $derived(authStore.loading);
 	/** @type {Object | null} */
-	let userProfile = $state(null);
-	let userProfileLoading = $state(true);
-	let profileChecked = $state(false);
+	let userProfile = $derived(authStore.profile);
+	/** @type {boolean} */
+	let userProfileLoading = $derived(authStore.profileLoading);
+	/** @type {boolean} 관리자 권한 여부 */
+	let isAdminUser = $derived(Boolean(authStore.profile?.role && isAdmin(authStore.profile.role)));
 	
 	/**
 	 * URL 파라미터에서 초기 페이지 번호 가져오기
@@ -54,41 +57,25 @@
 		endDate: null
 	});
 	
-	// 관리자 권한 확인
-	let isAdminUser = $derived(() => {
-		const profile = userProfile;
-		if (!profile?.role) return false;
-		return isAdmin(profile.role);
-	});
+	/** @type {boolean} 관리자 확인 후 데이터 로드 한 번만 수행 */
+	let dataLoaded = $state(false);
 	
-	// 인증 및 권한 체크
-	onMount(() => {
-		const unsubscribe = authStore.subscribe(async (state) => {
-			user = state.user;
-			loading = state.loading;
-			authLoading = state.loading;
-			userProfile = state.userProfile;
-			userProfileLoading = state.profileLoading;
-
-			if (user && !loading && !userProfileLoading && userProfile && !profileChecked) {
-				profileChecked = true;
-				
-				// 관리자 권한 체크
-				if (!isAdminUser()) {
-					alert('관리자 권한이 필요합니다.');
-					goto('/mypage');
-					return;
-				}
-				
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+			return;
+		}
+		if (authStore.user && !authStore.loading && !authStore.profileLoading && authStore.profile && !isAdmin(authStore.profile.role)) {
+			alert('관리자 권한이 필요합니다.');
+			goto('/mypage');
+			return;
+		}
+		if (authStore.user && !authStore.loading && !authStore.profileLoading && authStore.profile && isAdmin(authStore.profile.role) && !dataLoaded) {
+			dataLoaded = true;
+			untrack(async () => {
 				await loadData();
-			} else if (!user && !loading) {
-				goto('/login');
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
+			});
+		}
 	});
 	
 	// URL 파라미터 변경 감지 및 동기화
@@ -210,7 +197,7 @@
 					<div class="flex items-center justify-center h-full">
 						<div class="text-gray-500">로그인이 필요합니다.</div>
 					</div>
-				{:else if !isAdminUser()}
+				{:else if !isAdminUser}
 					<div class="flex items-center justify-center h-full">
 						<div class="text-gray-500">관리자 권한이 필요합니다.</div>
 					</div>

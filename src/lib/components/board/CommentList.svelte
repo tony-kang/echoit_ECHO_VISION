@@ -6,7 +6,7 @@
 	import LoadingSpinner from './LoadingSpinner.svelte';
 	import ErrorMessage from './ErrorMessage.svelte';
 	import EmptyState from './EmptyState.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 
 	let {
 		postId,
@@ -20,20 +20,11 @@
 	let loading = $state(true);
 	let error = $state(null);
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
+	let user = $derived(authStore.user);
 	let showReplyForm = $state(null); // 댓글 ID
 
 	onMount(() => {
-		// 레이아웃에서 이미 초기화되므로 여기서는 구독만 함
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-		});
-
 		loadComments();
-
-		return () => {
-			unsubscribe();
-		};
 	});
 
 	async function loadComments() {

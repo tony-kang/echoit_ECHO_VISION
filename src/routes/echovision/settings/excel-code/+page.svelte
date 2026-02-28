@@ -1,13 +1,13 @@
 <script>
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { getSettings } from '$lib/settingsService'; 
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	let authLoading = $derived(authStore.loading);
 	/** @type {Record<string, number>} 카테고리별 데이터 개수 */
 	let categoryCounts = $state({
 		all: 0,
@@ -29,47 +29,10 @@
 		{ code: 'cost', label: '비용' , bgColor: 'bg-red-100'}
 	];
 
-	onMount(() => {
-		// 타임아웃 설정: 10초 후에도 로딩이 끝나지 않으면 에러 처리 (네트워크 지연 고려)
-		let timeoutId = null;
-		
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-
-			// 로딩이 완료되면 타임아웃 클리어
-			if (!state.loading) {
-				if (timeoutId) {
-					clearTimeout(timeoutId);
-					timeoutId = null;
-				}
-			} else if (!timeoutId) {
-				// 로딩 중이고 타임아웃이 설정되지 않았으면 설정
-				timeoutId = setTimeout(() => {
-					if (authLoading) {
-						console.error('[code/+page] 인증 로딩 타임아웃 (10초) - 네트워크 문제 가능성');
-						authLoading = false;
-					}
-					timeoutId = null;
-				}, 10000);
-			}
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			}
-		});
-
-		// 사용자가 로그인되어 있으면 데이터 개수 로드
-		if (user) {
-			loadCategoryCounts();
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
 		}
-
-		return () => {
-			if (timeoutId) {
-				clearTimeout(timeoutId);
-			}
-			unsubscribe();
-		};
 	});
 
 	/** @type {boolean} 카테고리 개수 로드 완료 여부 */

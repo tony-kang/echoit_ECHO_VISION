@@ -1,5 +1,5 @@
 <script>
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import Logo from '$lib/components/Logo.svelte';
 	
 	let email = $state('');

@@ -1,8 +1,8 @@
 <script>
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import {
 		getAllUsers,
 		updateUserRole,
@@ -16,11 +16,14 @@
 	import { searchSettingsByTitle } from '$lib/settingsService'; 
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	/** @type {boolean} */
+	let authLoading = $derived(authStore.loading);
 	/** @type {Object | null} */
-	let userProfile = $state(null);
-	let userProfileLoading = $state(true);
+	let userProfile = $derived(authStore.profile);
+	/** @type {boolean} */
+	let userProfileLoading = $derived(authStore.profileLoading);
+	/** @type {boolean} 관리자 확인 후 데이터 로드 한 번만 수행 */
 	let profileChecked = $state(false);
 
 	/** @type {Array<any>} 사용자 목록 */
@@ -131,39 +134,20 @@
 		return stats;
 	});
 
-	onMount(() => {
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			userProfile = state.userProfile;
-			userProfileLoading = state.profileLoading;
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
-	});
-
-	/**
-	 * 사용자 프로필 로드 후 데이터 로드 및 권한 체크
-	 */
 	$effect(() => {
-		if (user && !authLoading && !userProfileLoading && userProfile && !profileChecked) {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+			return;
+		}
+		if (authStore.user && !authStore.loading && !authStore.profileLoading && authStore.profile && !profileChecked) {
+			profileChecked = true;
+			const profile = authStore.profile;
+			if (!profile?.role || !isAdmin(profile.role)) {
+				alert('관리자 권한이 필요합니다.');
+				goto('/echovision');
+				return;
+			}
 			untrack(async () => {
-				profileChecked = true;
-
-				// 관리자 권한 체크
-				const profile = userProfile;
-				if (!profile?.role || !isAdmin(profile.role)) {
-					alert('관리자 권한이 필요합니다.');
-					goto('/echovision');
-					return;
-				}
-
 				await loadData();
 			});
 		}

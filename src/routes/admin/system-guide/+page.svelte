@@ -1,7 +1,6 @@
 <script>
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { isAdmin, isMaster } from '$lib/userService';
 	import ___prjConst from '$prj/prjConst';
 	import SupabaseTab from '$lib/components/admin/system-guide/SupabaseTab.svelte';
@@ -19,36 +18,25 @@
 	import SupabaseStorageMigrationTab from '$lib/components/admin/system-guide/SupabaseStorageMigrationTab.svelte';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	/** @type {boolean} */
+	let authLoading = $derived(authStore.loading);
 	/** @type {Object | null} */
-	let userProfile = $state(null);
-	let activeTab = $state('supabase'); // supabase, google, supabase-provider, pr-settings, vercel-domain, troubleshooting
+	let userProfile = $derived(authStore.profile);
+	/** @type {string} */
+	let activeTab = $state('supabase');
 
-	/**
-	 * 인증 상태 구독 (레이아웃에서 이미 초기화됨)
-	 */
-	onMount(() => {
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			userProfile = state.userProfile;
-
-			if (state.user && !state.loading && state.userProfile) {
-				// 관리자 권한 확인
-				/** @type {any} */
-				const profile = state.userProfile;
-				if (profile && !isAdmin(profile.role) && !isMaster(profile.role)) {
-					goto('/mypage');
-				}
-			} else if (!state.user && !state.loading) {
-				goto('/login');
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+			return;
+		}
+		if (authStore.user && !authStore.loading && authStore.profile) {
+			const profile = authStore.profile;
+			if (profile && !isAdmin(profile.role) && !isMaster(profile.role)) {
+				goto('/mypage');
 			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
+		}
 	});
 
 	const tabs = [
@@ -86,7 +74,7 @@
 		<div class="spinner"></div>
 		<p>로딩 중...</p>
 	</div>
-{:else if user && (isAdmin(userProfile?.role) || isMaster(userProfile?.role))}
+{:else if user && userProfile && (isAdmin(userProfile.role) || isMaster(userProfile.role))}
 	<div class="admin-page">
 		
 		<main class="admin-main">

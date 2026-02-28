@@ -4,7 +4,7 @@
 	import { page } from '$app/state';
 	import ScheduleForm from '$lib/components/ScheduleForm.svelte';
 	import ScheduleSidebar from '$lib/components/ScheduleSidebar.svelte';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import {
 		getAllSchedules,
 		getSchedulesByDate,
@@ -29,8 +29,8 @@
 	});
 	
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	let authLoading = $derived(authStore.loading);
 	/** @type {Array<any>} */
 	let schedules = $state([]);
 	/** @type {Array<any>} */
@@ -51,20 +51,10 @@
 	let selectedCategories = $state([]);
 	let searchQuery = $state('');
 
-	onMount(() => {
-		// 레이아웃에서 이미 초기화되므로 여기서는 구독만 함
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+		}
 	});
 
 	$effect(() => {

@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { supabase, getCurrentSession, getCurrentUser } from '$lib/supabaseClient';
 	import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import prjConst from '$prj/prjConst.js';
 
 	let connectionStatus = '연결 중...';

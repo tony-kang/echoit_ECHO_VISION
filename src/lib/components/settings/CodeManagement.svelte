@@ -14,7 +14,7 @@
 		deleteSetting,
 		searchSettings
 	} from '$lib/settingsService';
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { isAdmin } from '$lib/userService';
 
 	/**
@@ -24,10 +24,10 @@
 	let { category = '' } = $props();
 
 	/** @type {import('@supabase/supabase-js').User | null} */
-	let user = $state(null);
-	let authLoading = $state(true);
+	let user = $derived(authStore.user);
+	let authLoading = $derived(authStore.loading);
 	/** @type {Object | null} */
-	let userProfile = $state(null);
+	let userProfile = $derived(authStore.profile);
 	/** @type {Array<any>} 전체 환경설정 코드 목록 (부모 이름 조회용) */
 	let allSettings = $state([]);
 	/** @type {Array<any>} 현재 표시할 환경설정 코드 목록 (필터링 전) */
@@ -99,20 +99,10 @@
 	 */
 	const selectedTopCode = $derived(topCodeParam || null);
 
-	onMount(() => {
-		const unsubscribe = authStore.subscribe((state) => {
-			user = state.user;
-			authLoading = state.loading;
-			userProfile = state.userProfile;
-
-			if (!state.loading && !state.user) {
-				goto('/login');
-			}
-		});
-
-		return () => {
-			unsubscribe();
-		};
+	$effect(() => {
+		if (!authStore.loading && !authStore.user) {
+			goto('/login');
+		}
 	});
 
 	/**

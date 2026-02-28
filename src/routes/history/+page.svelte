@@ -1,22 +1,9 @@
 <script>
-    import { onMount } from 'svelte';
-    import { authStore } from '$lib/stores/authStore';
+    import { authStore } from '$lib/stores/authStore.svelte.js';
 
     /** @type {import('@supabase/supabase-js').User | null} */
-    let user = $state(null);
-    let authLoading = $state(true);
-
-    onMount(() => {
-        // 레이아웃에서 이미 초기화되므로 여기서는 구독만 함
-        const unsubscribe = authStore.subscribe((state) => {
-            user = state.user;
-            authLoading = state.loading;
-        });
-
-        return () => {
-            unsubscribe();
-        };
-    });
+    let user = $derived(authStore.user);
+    let authLoading = $derived(authStore.loading);
 </script>
 
 <div class="main-content-page">

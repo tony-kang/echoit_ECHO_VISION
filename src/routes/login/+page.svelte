@@ -1,5 +1,5 @@
 <script>
-	import { authStore } from '$lib/stores/authStore';
+	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { goto } from '$app/navigation';
 	import Logo from '$lib/components/Logo.svelte';
 	import ___prjConst from '$prj/prjConst';
