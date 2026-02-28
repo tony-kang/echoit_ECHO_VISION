@@ -1,13 +1,14 @@
 <script>
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
-	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
+	import MainContent from '$lib/C/MainContent.svelte';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import {
 		getAllUsers,
 		updateUserRole,
 		toggleUserStatus,
 		updateUserTopLevelCodes,
+		updateUserPermissions,
 		getUserStatistics,
 		USER_ROLE_LABELS,
 		USER_ROLES,
@@ -392,26 +393,45 @@
 		if (codes.length <= 3) return codes.join(', ');
 		return codes.slice(0, 3).join(', ') + ` 외 ${codes.length - 3}개`;
 	}
+
+	/** 권한 라벨 (대시보드, 실적현황, 손익현황) */
+	const PERMISSION_KEYS = [
+		{ key: 'can_dashboard', label: '대시보드' },
+		{ key: 'can_performance', label: '실적현황' },
+		{ key: 'can_profit_loss', label: '손익현황' }
+	];
+
+	/**
+	 * 사용자 메뉴 권한 체크박스 변경
+	 * @param {any} usr - 사용자 객체
+	 * @param {string} permissionKey - can_dashboard | can_performance | can_profit_loss
+	 * @param {boolean} checked
+	 * @returns {Promise<void>}
+	 */
+	async function changePermission(usr, permissionKey, checked) {
+		const { error } = await updateUserPermissions(usr.id, { [permissionKey]: checked });
+		if (error) {
+			alert(error.message || '권한 변경에 실패했습니다.');
+			return;
+		}
+		users = users.map((u) =>
+			u.id === usr.id ? { ...u, [permissionKey]: checked } : u
+		);
+	}
 </script>
 
-<div class="main-content-page">
-	<div class="flex h-[calc(100vh-100px)]">
-		<!-- Left Sidebar -->
-		<PrjSidebar />
-
-		<!-- Main Content -->
-		<main class="flex-1 overflow-y-auto bg-gray-50">
-			<div class="p-3">
-				{#if authLoading || userProfileLoading}
-					<div class="flex items-center justify-center h-full">
+<MainContent>
+	{#snippet children()}
+		{#if authLoading || userProfileLoading}
+					<div class="flex items-center justify-center min-h-[200px]">
 						<div class="text-gray-500">로딩 중...</div>
 					</div>
 				{:else if !user}
-					<div class="flex items-center justify-center h-full">
+					<div class="flex items-center justify-center min-h-[200px]">
 						<div class="text-gray-500">로그인이 필요합니다.</div>
 					</div>
 				{:else if !isAdminUser}
-					<div class="flex items-center justify-center h-full">
+					<div class="flex items-center justify-center min-h-[200px]">
 						<div class="text-gray-500">관리자 권한이 필요합니다.</div>
 					</div>
 				{:else}
@@ -517,6 +537,7 @@
 												<th>이메일</th>
 												<th>이름</th>
 												<th>역할</th>
+												<th>권한</th>
 												<th>최상위 코드</th>
 												<th>가입일</th>
 												<th>마지막 로그인</th>
@@ -527,7 +548,7 @@
 										<tbody>
 											{#if filteredUsers.length === 0}
 												<tr>
-													<td colspan="8" class="empty-message">사용자가 없습니다.</td>
+													<td colspan="9" class="empty-message">사용자가 없습니다.</td>
 												</tr>
 											{:else}
 												{#each filteredUsers as usr}
@@ -551,6 +572,19 @@
 																	{/if}
 																{/each}
 															</select>
+														</td>
+														<td class="permission-cell">
+															{#each PERMISSION_KEYS as { key, label }}
+																<label class="permission-check" title={label}>
+																	<input
+																		type="checkbox"
+																		checked={usr[key] !== false}
+																		onchange={(e) => changePermission(usr, key, e.currentTarget.checked)}
+																		disabled={usr.id === user?.id}
+																	/>
+																	<span>{label}</span>
+																</label>
+															{/each}
 														</td>
 														<td>
 															<div class="flex items-center gap-2">
@@ -611,10 +645,8 @@
 						</div>
 					</div>
 				{/if}
-			</div>
-		</main>
-	</div>
-</div>
+	{/snippet}
+</MainContent>
 
 <!-- 최상위 코드 설정 모달 -->
 {#if showTopLevelCodesModal}
@@ -956,6 +988,24 @@
 		opacity: 0.6;
 		cursor: not-allowed;
 		background-color: #f5f5f5;
+	}
+
+	.permission-cell {
+		vertical-align: middle;
+		white-space: nowrap;
+	}
+	.permission-check {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		margin-right: 0.75rem;
+		font-size: 0.8em;
+		color: #555;
+		cursor: pointer;
+	}
+	.permission-check:has(input:disabled) {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	.badge {

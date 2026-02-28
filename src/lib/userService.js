@@ -179,7 +179,7 @@ export async function getAllUsers(options = {}) {
 		// 데이터 조회용 쿼리
 		let dataQuery = supabase
 			.from('user_profiles')
-			.select('id, email, role, full_name, banned, created_at, last_login_at, top_level_codes')
+			.select('id, email, role, full_name, banned, created_at, last_login_at, top_level_codes, can_dashboard, can_performance, can_profit_loss')
 			.order('created_at', { ascending: false });
 
 		// 필터 적용
@@ -237,10 +237,11 @@ export async function getAllUsers(options = {}) {
 				role: profile.role || USER_ROLES.USER,
 				banned: isBanned,
 				full_name: profile.full_name || null,
-				// created_at과 last_sign_in_at은 user_profiles에 있으면 사용
 				created_at: profile.created_at || null,
-				// last_login_at을 last_sign_in_at으로 매핑
-				last_sign_in_at: profile.last_login_at || null
+				last_sign_in_at: profile.last_login_at || null,
+				can_dashboard: profile.can_dashboard !== false,
+				can_performance: profile.can_performance !== false,
+				can_profit_loss: profile.can_profit_loss !== false
 			};
 		});
 		
@@ -351,6 +352,35 @@ export async function updateUserTopLevelCodes(userId, topLevelCodes) {
 			errorMessage: error instanceof Error ? error.message : String(error)
 		});
 
+		return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+	}
+}
+
+/**
+ * 사용자 메뉴 권한 업데이트 (대시보드, 실적현황, 손익현황)
+ * @param {string} userId - 사용자 ID
+ * @param {{ can_dashboard?: boolean, can_performance?: boolean, can_profit_loss?: boolean }} payload
+ * @returns {Promise<{data: Object|null, error: Error|null}>}
+ */
+export async function updateUserPermissions(userId, payload) {
+	try {
+		const updateFields = {};
+		if (payload.can_dashboard !== undefined) updateFields.can_dashboard = !!payload.can_dashboard;
+		if (payload.can_performance !== undefined) updateFields.can_performance = !!payload.can_performance;
+		if (payload.can_profit_loss !== undefined) updateFields.can_profit_loss = !!payload.can_profit_loss;
+		if (Object.keys(updateFields).length === 0) return { data: null, error: null };
+
+		const { data, error } = await supabase
+			.from('user_profiles')
+			.update(updateFields)
+			.eq('id', userId)
+			.select()
+			.single();
+
+		if (error) throw error;
+		return { data, error: null };
+	} catch (error) {
+		console.error('메뉴 권한 업데이트 실패:', error);
 		return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
 	}
 }
