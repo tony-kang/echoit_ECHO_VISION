@@ -8,6 +8,7 @@
 		getDepartments,
 		createDepartment,
 		updateDepartment,
+		deleteDepartment,
 		getDepartmentUsers,
 		addDepartmentUser,
 		deleteDepartmentUsersByDepartmentId
@@ -186,6 +187,33 @@
 			email: r.email ?? null,
 			full_name: r.full_name ?? null
 		}));
+	}
+
+	/**
+	 * 부서 삭제
+	 * @param {{ id: string, code: string, title: string, param?: string[] | null }} dept
+	 * @returns {Promise<void>}
+	 */
+	async function handleDeleteDepartment(dept) {
+		if (!confirm('정말 삭제하시겠습니까?')) return;
+		isSaving = true;
+		try {
+			const { error: delUsersErr } = await deleteDepartmentUsersByDepartmentId(dept.id);
+			if (delUsersErr) {
+				alert(delUsersErr.message || '담당자 데이터 정리 중 오류가 발생했습니다.');
+				return;
+			}
+			const { error } = await deleteDepartment(dept.id);
+			if (error) {
+				alert(error.message || '삭제에 실패했습니다.');
+				return;
+			}
+			await loadDepartments();
+		} catch (e) {
+			alert(e instanceof Error ? e.message : '삭제 중 오류가 발생했습니다.');
+		} finally {
+			isSaving = false;
+		}
 	}
 
 	/**
@@ -381,9 +409,17 @@
 										<button
 											type="button"
 											onclick={() => openEditPopup(dept)}
-											class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+											class="btn-edit btn-xs"
 										>
 											조직 수정
+										</button>
+										<button
+											type="button"
+											onclick={() => handleDeleteDepartment(dept)}
+											class="btn-danger btn-xs"
+											disabled={isSaving}
+										>
+											조직 삭제
 										</button>
 									</td>
 								</tr>
