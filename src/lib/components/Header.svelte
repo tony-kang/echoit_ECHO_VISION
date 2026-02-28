@@ -7,7 +7,6 @@
 	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { authStore } from '$lib/stores/authStore';
-	import { sidebarStore } from '$lib/stores/sidebarStore';
 	import { isAdmin } from '$lib/userService';
 	import { isDevDomain } from '$lib/utils/domainUtils';
 	import ___prjConst from '$prj/prjConst';
@@ -38,15 +37,6 @@
 		return !hideHamburgerPaths.includes(currentPath);
 	});
 	
-	// sidebarStore 구독
-	onMount(() => {
-		const unsubscribeSidebar = sidebarStore.subscribe((state) => {
-			isSidebarOpen = state.isOpen;
-		});
-		return () => {
-			unsubscribeSidebar();
-		};
-	});
 
 	// 관리자 권한 확인
 	const isAdminUser = $derived.by(() => {

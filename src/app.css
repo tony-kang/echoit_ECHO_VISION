@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+@import "$lib/C/btn.css";
+@import "$lib/C/form.css";
+@import "$lib/C/dataTable-1.css";
+
+/* svelte-toast 메시지 잘림 방지: 전체 문구 표시 */
+.toast-container .toast {
+	max-width: 90vw !important;
+	white-space: normal !important;
+	overflow: visible !important;
+	text-overflow: clip !important;
+	height: auto !important;
+	line-height: 1.4 !important;
+	padding: 12px 20px !important;
+}
+
+
+
 /* 실제 터치 기기 감지 (모바일/태블릿) */
 /* hover: none - 호버 불가능한 기기 (터치 기기) */
 /* pointer: coarse - 거친 포인터 (터치스크린) */

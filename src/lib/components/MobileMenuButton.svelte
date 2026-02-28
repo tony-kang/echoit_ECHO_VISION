@@ -1,5 +1,5 @@
 <script>
-	import { sidebarStore } from '$lib/stores/sidebarStore';
+	import { sidebarStore } from '$src/lib/stores/sidebarStore.svelte.js';
 	
 	/**
 	 * 사이드바 열기

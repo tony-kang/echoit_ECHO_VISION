@@ -1,0 +1,210 @@
+/**
+ * 프로젝트 공통 버튼 스타일
+ * 사용법: class="btn-primary btn-md" 또는 class="btn-secondary btn-sm"
+ * 색상: 
+ 	btn-primary, 
+	btn-secondary, 
+	btn-cancel(취소), 
+	btn-save(저장), 
+	btn-append(등록/추가), 
+	btn-delete(삭제), 
+	btn-danger, 
+	btn-warning(경고), 
+	btn-edit(수정)
+ * 크기: btn-xs, btn-sm, btn-md(기본), btn-lg
+ */
+
+/* 베이스 스타일 (btn-* 클래스 공통) */
+[class*="btn-"] {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.25rem;
+	cursor: pointer;
+	font-weight: 500;
+	border-radius: 6px;
+	border: none;
+	transition: background-color 0.2s, opacity 0.2s;
+}
+
+[class*="btn-"]:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* 크기 변형 (함께 사용 가능) */
+.btn-xs {
+	padding: 4px 8px;
+	font-size: 0.75rem;
+}
+
+.btn-sm,
+.btn-small {
+	padding: 6px 12px;
+	font-size: 0.8125rem;
+}
+
+.btn-md {
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-lg {
+	padding: 10px 20px;
+	font-size: 1rem;
+}
+
+/* 색상 변형 */
+.btn-primary {
+	background: #2563eb;
+	color: white;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-primary:hover:not(:disabled) {
+	background: #1d4ed8;
+}
+
+.btn-secondary {
+	background: #f3f4f6;
+	color: #374151;
+	border: 1px solid #d1d5db;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+	background: #e5e7eb;
+}
+
+.btn-cancel {
+	background: #f3f4f6;
+	color: #374151;
+	border: 1px solid #d1d5db;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-cancel:hover:not(:disabled) {
+	background: #e5e7eb;
+}
+
+.btn-danger {
+	background: #ef4444;
+	color: white;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-danger:hover:not(:disabled) {
+	background: #dc2626;
+}
+
+.btn-success {
+	background: #16a34a;
+	color: white;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-success:hover:not(:disabled) {
+	background: #15803d;
+}
+
+.btn-warning {
+	background: #ffc107;
+	color: #1f2937;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-warning:hover:not(:disabled) {
+	background: #e6ac00;
+}
+
+.btn-save {
+	background: #2563eb;
+	color: white;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-save:hover:not(:disabled) {
+	background: #1d4ed8;
+}
+
+.btn-append {
+	background: #16a34a;
+	color: white;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-append:hover:not(:disabled) {
+	background: #15803d;
+}
+
+.btn-delete {
+	background: #ef4444;
+	color: white;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-delete:hover:not(:disabled) {
+	background: #dc2626;
+}
+
+.btn-edit {
+	background: #3b82f6;
+	color: white;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+}
+
+.btn-edit:hover:not(:disabled) {
+	background: #2563eb;
+}
+
+/* 크기 클래스와 함께 사용 시 패딩/폰트 오버라이드 */
+.btn-primary.btn-xs,
+.btn-secondary.btn-xs,
+.btn-cancel.btn-xs,
+.btn-save.btn-xs,
+.btn-append.btn-xs,
+.btn-delete.btn-xs,
+.btn-danger.btn-xs,
+.btn-success.btn-xs,
+.btn-warning.btn-xs,
+.btn-edit.btn-xs { padding: 4px 8px; font-size: 0.75rem; }
+.btn-primary.btn-sm,
+.btn-primary.btn-small,
+.btn-secondary.btn-sm,
+.btn-secondary.btn-small,
+.btn-cancel.btn-sm,
+.btn-cancel.btn-small,
+.btn-save.btn-sm,
+.btn-save.btn-small,
+.btn-append.btn-sm,
+.btn-append.btn-small,
+.btn-delete.btn-sm,
+.btn-delete.btn-small,
+.btn-danger.btn-sm,
+.btn-danger.btn-small,
+.btn-success.btn-sm,
+.btn-success.btn-small,
+.btn-warning.btn-sm,
+.btn-warning.btn-small,
+.btn-edit.btn-sm,
+.btn-edit.btn-small { padding: 6px 12px; font-size: 0.8125rem; }
+.btn-primary.btn-lg,
+.btn-secondary.btn-lg,
+.btn-cancel.btn-lg,
+.btn-save.btn-lg,
+.btn-append.btn-lg,
+.btn-delete.btn-lg,
+.btn-danger.btn-lg,
+.btn-success.btn-lg,
+.btn-warning.btn-lg,
+.btn-edit.btn-lg { padding: 10px 20px; font-size: 1rem; }

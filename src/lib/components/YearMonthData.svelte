@@ -1,6 +1,8 @@
 <script>
+	import { tick, untrack } from 'svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import { authStore } from '$lib/stores/authStore';
 	import { getSettings, getEvCodes } from '$lib/settingsService';
@@ -38,7 +40,7 @@
 	let isLoading = $state(false);
 	/** @type {Array<any>} ev_code 목록 */
 	let evCodes = $state([]);
-	let evCodeItems = $state([]);
+	let evCodeItems = $state(getInitialEvCodeItems());
 	let isLoadingEvCodes = $state(false);
 
 	/** @type {Array<any>} organization 카테고리의 두 번째 레벨 코드 목록 (최상위의 자식 코드들) */
@@ -52,13 +54,40 @@
 	/** @type {boolean} 하위 코드의 하위 코드 목록 로딩 상태 */
 	let isLoadingGrandChildCodes = $state(false);
 
+	/**
+	 * URL 쿼리 파라미터에서 초기값 읽기
+	 * @returns {Record<string, any>}
+	 */
+	function getInitialFilters() {
+		const urlYear = page.url.searchParams.get('year');
+		const urlEvCodeItems = page.url.searchParams.get('evCodeItems');
+		
+		return {
+			year: urlYear || new Date().getFullYear().toString(),
+			parentCode: 'SUM_000',
+			selectedCodes: [],
+			selectedCodes2: []
+		};
+	}
+
+	/**
+	 * URL 쿼리 파라미터에서 evCodeItems 읽기
+	 * @returns {string[]}
+	 */
+	function getInitialEvCodeItems() {
+		const urlEvCodeItems = page.url.searchParams.get('evCodeItems');
+		if (urlEvCodeItems) {
+			try {
+				return JSON.parse(decodeURIComponent(urlEvCodeItems));
+			} catch {
+				return [];
+			}
+		}
+		return [];
+	}
+
 	/** @type {Record<string, any>} 필터 객체 */
-	let filters = $state({ 
-		year: new Date().getFullYear().toString(),
-		parentCode: 'SUM_000',
-		selectedCodes: [],
-		selectedCodes2: []
-	});
+	let filters = $state(getInitialFilters());
 	/** @type {string | null} 이전 연도 값 (무한루프 방지) */
 	let previousYear = $state(new Date().getFullYear().toString());
 	/** @type {string | null} 이전 상위 코드 값 (무한루프 방지) */
@@ -197,7 +226,68 @@
 	});
 
 	/**
-	 * 연도 또는 evCodeItems 변경 시 데이터 로드 (무한루프 방지)
+	 * URL 쿼리 파라미터 업데이트 (주소창과 다를 때만 goto하여 무한루프 방지)
+	 * @returns {Promise<void>}
+	 */
+	async function updateUrlParams() {
+		const url = new URL(page.url);
+		if (filters.year) {
+			url.searchParams.set('year', filters.year);
+		} else {
+			url.searchParams.delete('year');
+		}
+		if (evCodeItems.length > 0) {
+			url.searchParams.set('evCodeItems', encodeURIComponent(JSON.stringify(evCodeItems)));
+		} else {
+			url.searchParams.delete('evCodeItems');
+		}
+		const newUrl = url.pathname + url.search;
+		if (page.url.pathname + page.url.search === newUrl) return;
+		await goto(newUrl, { replaceState: true, noScroll: true });
+	}
+
+	/**
+	 * URL 쿼리 파라미터 변경 감지 및 상태 동기화 (evCodeItems 읽기는 untrack으로 순환 방지)
+	 */
+	$effect(() => {
+		const urlYear = page.url.searchParams.get('year');
+		const urlEvCodeItems = page.url.searchParams.get('evCodeItems');
+		
+		// URL의 year가 변경되었으면 filters 업데이트
+		if (urlYear && urlYear !== filters.year) {
+			filters = { ...filters, year: urlYear };
+		}
+		
+		// URL의 evCodeItems가 변경되었으면 evCodeItems 업데이트 (비교만 untrack으로 의존성 차단)
+		if (urlEvCodeItems) {
+			try {
+				const parsed = JSON.parse(decodeURIComponent(urlEvCodeItems));
+				const parsedStr = JSON.stringify([...parsed].sort());
+				const currentStr = untrack(() => JSON.stringify([...evCodeItems].sort()));
+				if (currentStr !== parsedStr) {
+					evCodeItems = parsed;
+				}
+			} catch {
+				// 파싱 실패 시 무시
+			}
+		}
+	});
+
+	/**
+	 * 연도/evCodeItems 변경 시 주소창 동기화 (tick 후 호출로 상태 반영 보장)
+	 */
+	$effect(() => {
+		const year = filters.year;
+		const itemsStr = JSON.stringify([...evCodeItems].sort());
+		if (!user || authLoading) return;
+		untrack(async () => {
+			await tick();
+			updateUrlParams();
+		});
+	});
+
+	/**
+	 * 연도 또는 evCodeItems 변경 시 데이터 로드 및 URL 업데이트 (무한루프 방지)
 	 */
 	$effect(() => {
 		const currentYear = filters.year;
@@ -209,7 +299,10 @@
 			if (currentYear !== previousYear || currentEvCodeItemsStr !== (previousEvCodeItemsStr || '')) {
 				previousYear = currentYear;
 				previousEvCodeItemsStr = currentEvCodeItemsStr;
-				loadDataByYear();
+				untrack(async () => {
+					await loadDataByYear();
+					await updateUrlParams();
+				});
 			}
 		} else if (!currentYear) {
 			// 연도가 없으면 이전 연도도 초기화
@@ -506,25 +599,23 @@
 		const currentSelectedCodes2Str = JSON.stringify([...currentSelectedCodes2].sort());
 		const previousSelectedCodes2Str = JSON.stringify([...previousSelectedCodes2].sort());
 		
-		// 선택된 코드가 실제로 변경되었을 때만 실행
+		// 선택된 코드가 실제로 변경되었을 때만 실행 (evCodeItems 쓰기 시 effect 재실행 방지)
 		if (currentSelectedCodes2Str !== previousSelectedCodes2Str) {
 			previousSelectedCodes2 = [...currentSelectedCodes2];
-			updateEvCodeItemsFromFilters();
+			untrack(() => updateEvCodeItemsFromFilters());
 		}
 	});
 
 	/**
-	 * childCodes 또는 grandChildCodes 변경 시 evCodeItems 업데이트 (초기 로드 시)
+	 * childCodes 또는 grandChildCodes 변경 시 evCodeItems 업데이트 (초기 로드 시, evCodeItems 의존성으로 재실행 방지)
 	 */
 	$effect(() => {
 		if (isLoadingChildCodes || isLoadingGrandChildCodes || !user || authLoading || allSettings.length === 0) {
 			return;
 		}
 
-		// childCodes나 grandChildCodes가 변경되었을 때만 업데이트
-		// (이미 다른 $effect에서 처리되는 경우가 많으므로 조건을 엄격하게)
 		if (childCodes.length > 0 || grandChildCodes.length > 0) {
-			updateEvCodeItemsFromFilters();
+			untrack(() => updateEvCodeItemsFromFilters());
 		}
 	});
 
@@ -683,6 +774,9 @@
 				<!-- 필터 영역 -->
 				<FilterBar
 					bind:filters={filters}
+					onApply={async () => {
+						await updateUrlParams();
+					}}
 					fields={[
 						{
 							key: 'year',
@@ -713,7 +807,7 @@
 							options: grandChildCodes
 						}
 					]}
-					onReset={() => {
+					onReset={async () => {
 						filters = { 
 							year: new Date().getFullYear().toString(),
 							parentCode: 'SUM_000',
@@ -728,6 +822,7 @@
 						previousSelectedCodes = [];
 						previousSelectedCodes2 = [];
 						previousYear = new Date().getFullYear().toString();
+						await updateUrlParams();
 					}}
 				/>
 

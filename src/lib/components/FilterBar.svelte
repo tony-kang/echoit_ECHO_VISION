@@ -178,9 +178,12 @@
 			{#each fields as field}
 				{#if field.type === 'select'}
 					<select 
-						bind:value={filters[field.key]} 
+						value={filters[field.key]}
 						class="filter-input"
-						onchange={handleApply}
+						onchange={(e) => {
+							filters = { ...filters, [field.key]: e.target.value };
+							handleApply();
+						}}
 					>
 						<option value="">{field.label || '전체'}</option>
 						{#each normalizeOptions(field.options) as option}

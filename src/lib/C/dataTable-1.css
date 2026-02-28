@@ -1,0 +1,108 @@
+.data-table-1 {
+	width: 100%;
+	border-collapse: collapse;
+	background: white;
+	border-radius: 8px;
+	overflow: hidden;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+	min-width: fit-content;
+}
+
+.data-table-1 thead {
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	color: white;
+}
+
+.data-table-1 th {
+	padding: 12px 10px;
+	text-align: left;
+	font-weight: 600;
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: white;
+	border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.data-table-1 th.align-right {
+	text-align: right;
+}
+
+.data-table-1 th.align-center {
+	text-align: center;
+}
+
+.data-table-1 th:first-child {
+	padding-left: 16px;
+}
+
+.data-table-1 th:last-child {
+	padding-right: 16px;
+}
+
+.data-table-1 tbody tr {
+	border-bottom: 1px solid #e0e0e0;
+	transition: background-color 0.2s;
+}
+
+.data-table-1 tbody tr:hover {
+	background-color: #f8f9ff;
+}
+
+.data-table-1 tbody tr:last-child {
+	border-bottom: none;
+}
+
+.data-table-1 td {
+	padding: 5px 10px;
+	font-size: 0.9em;
+	color: #333;
+	vertical-align: middle;
+}
+
+.data-table-1 td:first-child {
+	padding-left: 16px;
+}
+
+.data-table-1 td:last-child {
+	padding-right: 16px;
+}
+
+.data-table-1 .empty-message {
+	text-align: center;
+	padding: 40px 20px;
+	color: #999;
+	font-style: italic;
+}
+
+@media (max-width: 1024px) {
+	.data-table-1 {
+		font-size: 0.8em;
+	}
+	
+	.data-table-1 th {
+		padding: 10px 8px;
+		white-space: nowrap;
+	}
+	
+	.data-table-1 th:first-child {
+		padding-left: 12px;
+	}
+	
+	.data-table-1 th:last-child {
+		padding-right: 12px;
+	}
+	
+	.data-table-1 td {
+		padding: 8px 6px;
+		white-space: nowrap;
+	}
+	
+	.data-table-1 td:first-child {
+		padding-left: 12px;
+	}
+	
+	.data-table-1 td:last-child {
+		padding-right: 12px;
+	}
+}

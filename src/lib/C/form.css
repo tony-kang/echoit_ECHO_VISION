@@ -1,0 +1,112 @@
+.form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.form-row .form-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.form-row .form-col-10 {
+    flex: 10 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-15 {
+    flex: 15 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-20 {
+    flex: 20 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-25 {
+    flex: 25 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-30 {
+    flex: 30 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-35 {
+    flex: 35 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-40 {
+    flex: 40 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-45 {
+    flex: 45 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-50 {
+    flex: 50 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-55 {
+    flex: 55 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-60 {
+    flex: 60 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-65 {
+    flex: 65 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-70 {
+    flex: 70 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-75 {
+    flex: 75 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-80 {
+    flex: 80 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-85 {
+    flex: 85 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-90 {
+    flex: 90 1 0%;
+    min-width: 0;
+}
+.form-row .form-col-95 {
+    flex: 95 1 0%;
+    min-width: 0;
+}
+    
+.form-group {
+    margin-bottom: 1rem;
+}
+.form-row .form-group {
+    margin-bottom: 0;
+}
+.form-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    color: #374151;
+}
+.form-label .required {
+    color: #ef4444;
+}
+.form-input,
+.form-textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+}
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}

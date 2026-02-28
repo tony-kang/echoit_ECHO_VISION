@@ -5,11 +5,12 @@
 	import { getExcelFileUrl, listExcelFiles, deleteExcelFile, updateExcelFileYearMonth } from '$lib/excelUploadService';
 	import { authStore } from '$lib/stores/authStore';
 	import { supabase } from '$lib/supabaseClient';
-	import EchoVisionSidebar from '$lib/components/EchoVisionSidebar.svelte';
+	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import ExcelUploadViewer from '$lib/components/excel/ExcelUploadViewer.svelte';
 	import ExcelDataTable from '$lib/components/excel/ExcelDataTable.svelte';
+	import Pagination from '$lib/components/admin/Pagination.svelte';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $state(null);
@@ -37,6 +38,10 @@
 	let isUpdating = $state(false);
 
 	let listLoaded = $state(false);
+	/** @type {number} 현재 페이지 번호 */
+	let currentPage = $state(1);
+	/** @type {number} 페이지당 항목 수 */
+	const pageSize = 20;
 
 	/**
 	 * URL 파라미터에서 excelType 읽기
@@ -188,6 +193,7 @@
 	async function handleApplyFilters() {
 		// 검색어가 변경되면 파일 목록 다시 로드
 		listLoaded = false; // 리스트 갱신을 위해 플래그 리셋
+		currentPage = 1; // 필터 적용 시 첫 페이지로 이동
 		await loadExcelFiles();
 	}
 
@@ -197,6 +203,7 @@
 	 */
 	function handleResetFilters() {
 		filters = { search: '' };
+		currentPage = 1; // 필터 초기화 시 첫 페이지로 이동
 	}
 
 	/**
@@ -207,6 +214,34 @@
 		// 서버에서 이미 검색어로 필터링된 결과를 반환
 		return excelFiles;
 	});
+
+	/**
+	 * 전체 페이지 수
+	 * @type {number}
+	 */
+	const totalPages = $derived.by(() => {
+		return Math.ceil(filteredFiles.length / pageSize);
+	});
+
+	/**
+	 * 현재 페이지에 표시할 파일 목록
+	 * @type {Array<any>}
+	 */
+	const paginatedFiles = $derived.by(() => {
+		const start = (currentPage - 1) * pageSize;
+		const end = start + pageSize;
+		return filteredFiles.slice(start, end);
+	});
+
+	/**
+	 * 페이지 변경 핸들러
+	 * @param {number} page - 변경할 페이지 번호
+	 */
+	function handlePageChange(page) {
+		currentPage = page;
+		// 페이지 변경 시 스크롤을 상단으로 이동
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
 
 	onMount(() => {
 		// console.log('(S)', new Date().toISOString());
@@ -235,19 +270,28 @@
 	let isFilesLoaded = $state(false);
 
 	/**
+	 * excelTypeParam 변경 감지 및 리셋
+	 */
+	$effect(() => {
+		const currentType = excelTypeParam;
+		if (previousExcelTypeParam !== null && previousExcelTypeParam !== currentType) {
+			// excelTypeParam이 변경되었으면 상태 리셋
+			isFilesLoaded = false;
+			listLoaded = false;
+			excelFiles = [];
+			filters = { search: '' };
+			currentPage = 1;
+		}
+		previousExcelTypeParam = currentType;
+	});
+
+	/**
 	 * excelType 변경 시 파일 목록 다시 로드
 	 */
 	$effect(() => {
 		if (user && !authLoading && excelTypeParam && !isFilesLoaded) {
 			untrack(async () => {
 				isFilesLoaded = true;
-				// excelTypeParam이 변경되었으면 리스트 리셋 및 다시 로드
-				if (previousExcelTypeParam !== null && previousExcelTypeParam !== excelTypeParam) {
-					listLoaded = false;
-					excelFiles = [];
-					filters = { search: '' };
-				}
-				previousExcelTypeParam = excelTypeParam;
 				await loadExcelFiles();
 			});
 		}
@@ -320,7 +364,7 @@
 			// 파일 목록 갱신
 			listLoaded = false;
 			await loadExcelFiles();
-			alert('데이터가 삭제되었습니다.');
+			// alert('데이터가 삭제되었습니다.');
 		} catch (err) {
 			console.error('[handleDeleteData] 오류:', err);
 			alert('데이터 삭제 중 오류가 발생했습니다.');
@@ -510,7 +554,7 @@
 <div class="main-content-page">
 	<div class="flex h-[calc(100vh-100px)]">
 		<!-- Left Sidebar -->
-		<EchoVisionSidebar />
+		<PrjSidebar />
 
 		<!-- Main Content -->
 		<main class="flex-1 overflow-y-auto bg-gray-50">
@@ -561,10 +605,10 @@
 									{ label: '업로드 일시', align: 'center' },
 									{ label: '작업', align: 'center' }
 								]}
-								rowCount={filteredFiles.length}
+								rowCount={paginatedFiles.length}
 								emptyMessage="엑셀 파일이 없습니다."
 							>
-								{#each filteredFiles as file}
+								{#each paginatedFiles as file}
 									<tr class="hover:bg-gray-50">
 										<td class="font-medium">{getOriginalFileName(file)}</td>
 										<td class="text-center text-sm text-gray-600">{file.year || '-'}</td>
@@ -580,33 +624,33 @@
 										<td class="flex justify-center gap-2">
 											<button
 												onclick={() => handleEditFile(file)}
-												class="btn-small btn-edit"
+												class="btn-edit btn-xs"
 											>
 												수정
 											</button>
 											<button
 												onclick={() => handleDownloadFile(file)}
-												class="btn-small btn-secondary"
+												class="btn-secondary btn-xs"
 											>
 												다운로드
 											</button>
 											<button
 												onclick={() => handleDeleteFile(file)}
-												class="btn-small btn-danger"
+												class="btn-danger btn-xs"
 												disabled={file.hasData}
 											>
 												파일삭제
 											</button>
 											<button
 												onclick={() => handleDeleteData(file)}
-												class="btn-small btn-delete-data"
+												class="btn-delete btn-xs"
 												disabled={!file.hasData}
 											>
 												데이터삭제
 											</button>
 											<button
 												onclick={() => handleDataView(file)}
-												class="btn-small btn-data-view"
+												class="btn-success btn-xs"
 											>
 												데이터보기
 											</button>
@@ -614,6 +658,15 @@
 									</tr>
 								{/each}
 							</DataTable>
+
+							<!-- 페이지네이션 -->
+							<Pagination
+								currentPage={currentPage}
+								totalPages={totalPages}
+								totalCount={filteredFiles.length}
+								pageSize={pageSize}
+								onPageChange={handlePageChange}
+							/>
 						{/if}
 
 						<!-- 업로드 뷰어 (전체 화면) -->
@@ -699,67 +752,6 @@
 <style>
 	.admin-content-page {
 		width: 100%;
-	}
-
-	.btn-small {
-		padding: 0.25rem 0.75rem;
-		font-size: 0.875rem;
-		border-radius: 0.5rem;
-		border: none;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s;
-		white-space: nowrap;
-	}
-
-	.btn-small.btn-secondary {
-		background-color: #6b7280;
-		color: white;
-	}
-
-	.btn-small.btn-secondary:hover:not(:disabled) {
-		background-color: #4b5563;
-	}
-
-	.btn-small.btn-danger {
-		background-color: #ef4444;
-		color: white;
-	}
-
-	.btn-small.btn-danger:hover:not(:disabled) {
-		background-color: #dc2626;
-	}
-
-	.btn-small.btn-data-view {
-		background-color: #22c55e;
-		color: white;
-	}
-
-	.btn-small.btn-data-view:hover:not(:disabled) {
-		background-color: #16a34a;
-	}
-
-	.btn-small.btn-delete-data {
-		background-color: #f97316;
-		color: white;
-	}
-
-	.btn-small.btn-delete-data:hover:not(:disabled) {
-		background-color: #ea580c;
-	}
-
-	.btn-small.btn-edit {
-		background-color: #3b82f6;
-		color: white;
-	}
-
-	.btn-small.btn-edit:hover:not(:disabled) {
-		background-color: #2563eb;
-	}
-
-	.btn-small:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
 	}
 
 	.data-status-badge {
