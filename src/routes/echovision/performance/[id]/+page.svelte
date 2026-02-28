@@ -561,7 +561,7 @@
 						title: {
 							display: true,
 							text: '매출 & 이익',
-							font: { size: 15, weight: 'bold' }
+							font: { size: 20, weight: 'bold' }
 						},
 						legend: {
 							display: true,
@@ -569,7 +569,7 @@
 							labels: {
 								boxWidth: 12,
 								padding: 6,
-								font: { size: 9 }
+								font: { size: 12 }
 							}
 						},
 						tooltip: {
@@ -718,7 +718,7 @@
 						title: {
 							display: true,
 							text: '매출 & 비용',
-							font: { size: 15, weight: 'bold' }
+							font: { size: 20, weight: 'bold' }
 						},
 						legend: {
 							display: true,
@@ -726,7 +726,7 @@
 							labels: {
 								boxWidth: 12,
 								padding: 6,
-								font: { size: 9 }
+								font: { size: 12 }
 							}
 						},
 						tooltip: {
@@ -1167,10 +1167,10 @@
 							</td>
 							<td rowspan="3" class="px-4 py-3 align-top">
 								<div class="flex flex-row gap-4 w-full min-w-[800px]">
-									<div class="flex-1 h-[280px] relative">
+									<div class="flex-1 h-[400px] relative">
 										<canvas bind:this={salesProfitChartCanvas} class="w-full h-full"></canvas>
 									</div>
-									<div class="flex-1 h-[280px] relative">
+									<div class="flex-1 h-[400px] relative">
 										<canvas bind:this={salesCostChartCanvas} class="w-full h-full"></canvas>
 									</div>
 								</div>
