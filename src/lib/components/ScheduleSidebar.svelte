@@ -1,7 +1,6 @@
 <script>
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { sidebarStore } from '$lib/stores/sidebarStore';
+	import { sidebarStore } from '$lib/stores/sidebarStore.svelte.js';
 
 	let {
 		categories = [],
@@ -9,18 +8,10 @@
 		searchQuery = $bindable(''),
 		onCategoryToggle = () => {}
 	} = $props();
-	
+
 	/** @type {boolean} 사이드바 열림 상태 */
-	let isOpen = $state(false);
-	
-	// sidebarStore 구독
-	onMount(() => {
-		const unsubscribe = sidebarStore.subscribe((state) => {
-			isOpen = state.isOpen;
-		});
-		return unsubscribe;
-	});
-	
+	let isOpen = $derived(sidebarStore.isOpen);
+
 	/**
 	 * 사이드바 닫기
 	 */
