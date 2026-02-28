@@ -18,6 +18,7 @@
 			path: '/echovision/profit',
 			subMenus: [
 				{ label: '부서별 실적', path: '/echovision/performance/department' },
+				{ label: '전사 실적', path: '/echovision/performance/company' },
 				{ label: '경영 실적', path: '/echovision/performance' },
 				{ label: '손익 현황', path: '/echovision/profit' },
 			]
