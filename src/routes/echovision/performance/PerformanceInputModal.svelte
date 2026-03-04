@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * 컴포넌트 Props
+	 * 컴포넌트 Props (ev_department_user 권한에 따라 편집 가능 컬럼 제어)
 	 * @type {{
 	 *   open: boolean,
 	 *   selectedYear: number,
@@ -8,6 +8,10 @@
 	 *   hasPerformanceData: boolean,
 	 *   inputData: Array<{month: number, p_revenue: number, f_revenue: number, p_expenses: number, f_expenses: number, p_revenue_display: string, f_revenue_display: string, p_expenses_display: string, f_expenses_display: string}>,
 	 *   isSaving: boolean,
+	 *   canEditPlanRevenue?: boolean,
+	 *   canEditExpectedRevenue?: boolean,
+	 *   canEditPlanCost?: boolean,
+	 *   canEditExpectedCost?: boolean,
 	 *   onClose: () => void,
 	 *   onSave: () => void,
 	 *   formatNumberWithComma: (value: string | number) => string,
@@ -21,6 +25,10 @@
 		hasPerformanceData,
 		inputData,
 		isSaving,
+		canEditPlanRevenue = false,
+		canEditExpectedRevenue = false,
+		canEditPlanCost = false,
+		canEditExpectedCost = false,
 		onClose,
 		onSave,
 		formatNumberWithComma,
@@ -71,12 +79,15 @@
 										<input
 											type="text"
 											bind:value={item.p_revenue_display}
+											disabled={!canEditPlanRevenue}
+											readonly={!canEditPlanRevenue}
 											oninput={(e) => {
+												if (!canEditPlanRevenue) return;
 												const num = parseNumberFromComma(e.target.value);
 												item.p_revenue = num;
 												item.p_revenue_display = formatNumberWithComma(num);
 											}}
-											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
+											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md {!canEditPlanRevenue ? 'bg-gray-100 cursor-not-allowed' : ''}"
 											placeholder="계획 매출"
 										/>
 									</td>
@@ -84,12 +95,15 @@
 										<input
 											type="text"
 											bind:value={item.f_revenue_display}
+											disabled={!canEditExpectedRevenue}
+											readonly={!canEditExpectedRevenue}
 											oninput={(e) => {
+												if (!canEditExpectedRevenue) return;
 												const num = parseNumberFromComma(e.target.value);
 												item.f_revenue = num;
 												item.f_revenue_display = formatNumberWithComma(num);
 											}}
-											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
+											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md {!canEditExpectedRevenue ? 'bg-gray-100 cursor-not-allowed' : ''}"
 											placeholder="예상 매출"
 										/>
 									</td>
@@ -97,12 +111,15 @@
 										<input
 											type="text"
 											bind:value={item.p_expenses_display}
+											disabled={!canEditPlanCost}
+											readonly={!canEditPlanCost}
 											oninput={(e) => {
+												if (!canEditPlanCost) return;
 												const num = parseNumberFromComma(e.target.value);
 												item.p_expenses = num;
 												item.p_expenses_display = formatNumberWithComma(num);
 											}}
-											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
+											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md {!canEditPlanCost ? 'bg-gray-100 cursor-not-allowed' : ''}"
 											placeholder="계획 비용"
 										/>
 									</td>
@@ -110,12 +127,15 @@
 										<input
 											type="text"
 											bind:value={item.f_expenses_display}
+											disabled={!canEditExpectedCost}
+											readonly={!canEditExpectedCost}
 											oninput={(e) => {
+												if (!canEditExpectedCost) return;
 												const num = parseNumberFromComma(e.target.value);
 												item.f_expenses = num;
 												item.f_expenses_display = formatNumberWithComma(num);
 											}}
-											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md"
+											class="w-full text-right px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-md {!canEditExpectedCost ? 'bg-gray-100 cursor-not-allowed' : ''}"
 											placeholder="예상 비용"
 										/>
 									</td>

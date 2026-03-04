@@ -1,7 +1,7 @@
 <script>
 	/**
 	 * 부서 소속 조직·담당자 수정 모달 Props
-	 * @type {{ open: boolean, department: { id: string, code: string, title: string } | null, organizationList: Array<{ code: string, title: string }>, selectedOrgCodes: Set<string>, onToggle: (code: string, checked: boolean) => void, departmentUsers: Array<{ id?: string, user_id: string, can_edit_business_plan: boolean, can_edit_expected_sales: boolean, email?: string | null, full_name?: string | null }>, userList: Array<{ id: string, email?: string, full_name?: string }>, onAddUser: (userId: string) => void, onRemoveUser: (entry: { user_id: string }) => void, onUpdateUserPermission: (entry: { user_id: string }, payload: { can_edit_business_plan?: boolean, can_edit_expected_sales?: boolean }) => void, onClose: () => void, onSave: () => void, isSaving: boolean }}
+	 * @type {{ open: boolean, department: { id: string, code: string, title: string } | null, organizationList: Array<{ code: string, title: string }>, selectedOrgCodes: Set<string>, onToggle: (code: string, checked: boolean) => void, departmentUsers: Array<{ id?: string, user_id: string, can_edit_business_plan: boolean, can_edit_expected_sales: boolean, can_edit_plan_cost: boolean, can_edit_expected_cost: boolean, email?: string | null, full_name?: string | null }>, userList: Array<{ id: string, email?: string, full_name?: string }>, onAddUser: (userId: string) => void, onRemoveUser: (entry: { user_id: string }) => void, onUpdateUserPermission: (entry: { user_id: string }, payload: { can_edit_business_plan?: boolean, can_edit_expected_sales?: boolean, can_edit_plan_cost?: boolean, can_edit_expected_cost?: boolean }) => void, onClose: () => void, onSave: () => void, isSaving: boolean }}
 	 */
 	let {
 		open = false,
@@ -187,6 +187,22 @@
 										onchange={(e) => onUpdateUserPermission?.(du, { can_edit_expected_sales: e.currentTarget.checked })}
 									/>
 									<span>예상 매출 수정권한</span>
+								</label>
+								<label class="department-user-perm">
+									<input
+										type="checkbox"
+										checked={du.can_edit_plan_cost}
+										onchange={(e) => onUpdateUserPermission?.(du, { can_edit_plan_cost: e.currentTarget.checked })}
+									/>
+									<span>계획 비용 수정권한</span>
+								</label>
+								<label class="department-user-perm">
+									<input
+										type="checkbox"
+										checked={du.can_edit_expected_cost}
+										onchange={(e) => onUpdateUserPermission?.(du, { can_edit_expected_cost: e.currentTarget.checked })}
+									/>
+									<span>예상 비용 수정권한</span>
 								</label>
 								<button
 									type="button"

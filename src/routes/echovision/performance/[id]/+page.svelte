@@ -11,8 +11,7 @@
 	import { getCosts } from '$lib/costService';
 	import { getGoals } from '$lib/goalService';
 	import { getPerformance, upsertPerformanceBulk, upsertPerformance } from '$lib/performanceService';
-	import { getCurrentUserProfile } from '$lib/userService';
-	import { getDepartments } from '$lib/departmentService';
+	import { getDepartments, getDepartmentUsers } from '$lib/departmentService';
 	import { toKoreanAmount } from '$lib/utils/moneyUtil.js';
 	import { toast } from 'svelte-sonner';
 	import { Chart, registerables } from 'chart.js';
@@ -21,12 +20,14 @@
 
 	/** @type {import('@supabase/supabase-js').User | null} (레이아웃에서 인증 처리) */
 	let user = $derived(authStore.user);
-	/** @type {object | null} 페이지 진입 시 재조회한 프로필(권한 검사용) */
-	let permissionProfile = $state(null);
-	/** @type {boolean} 권한 프로필 로딩 중 */
-	let permissionProfileLoading = $state(false);
-	/** 실적현황 접근 가능 여부 (can_performance, 페이지별 최신 프로필로 검사) */
-	let canAccessPerformance = $derived(permissionProfile?.can_performance === true);
+	/** @type {boolean} 해당 부서 담당자 여부 로딩 중 */
+	let departmentAccessLoading = $state(true);
+	/** @type {boolean} 해당 부서(ev_department_user) 담당자에 자신이 포함되어 있으면 true */
+	let isDepartmentMember = $state(false);
+	/** @type {{ can_edit_business_plan: boolean, can_edit_expected_sales: boolean, can_edit_plan_cost: boolean, can_edit_expected_cost: boolean } | null} 현재 사용자의 해당 부서 담당자 권한 (모달 입력 가능 여부용) */
+	let currentUserDepartmentRecord = $state(null);
+	/** 실적현황 접근 가능 여부: 이 부서의 담당자(ev_department_user)에 자신이 있을 때만 */
+	let canAccessPerformance = $derived(isDepartmentMember);
 
 	/** @type {number} 선택된 연도 */
 	let selectedYear = $state(new Date().getFullYear());
@@ -776,18 +777,42 @@
 		}
 	}
 
-	/** 페이지 진입 시 프로필 재조회하여 권한(can_performance) 검사 */
+	/** 해당 부서(departmentId)의 ev_department_user에 현재 사용자가 포함되는지 검사 */
 	$effect(() => {
-		const userId = authStore.user?.id;
-		if (!userId) {
+		const uid = authStore.user?.id;
+		const deptId = departmentId;
+		if (!deptId) {
+			departmentAccessLoading = false;
+			isDepartmentMember = false;
+			currentUserDepartmentRecord = null;
 			return;
 		}
-		permissionProfileLoading = true;
-		permissionProfile = null;
-		getCurrentUserProfile(userId, authStore.user?.user_metadata)
-			.then(({ data }) => { permissionProfile = data ?? null; })
-			.catch(() => { permissionProfile = null; })
-			.finally(() => { permissionProfileLoading = false; });
+		if (!uid) {
+			departmentAccessLoading = false;
+			isDepartmentMember = false;
+			currentUserDepartmentRecord = null;
+			return;
+		}
+		departmentAccessLoading = true;
+		getDepartmentUsers(deptId)
+			.then(({ data }) => {
+				const list = data ?? [];
+				const myRecord = list.find((u) => u.user_id === uid) ?? null;
+				isDepartmentMember = !!myRecord;
+				currentUserDepartmentRecord = myRecord
+					? {
+							can_edit_business_plan: !!myRecord.can_edit_business_plan,
+							can_edit_expected_sales: !!myRecord.can_edit_expected_sales,
+							can_edit_plan_cost: !!myRecord.can_edit_plan_cost,
+							can_edit_expected_cost: !!myRecord.can_edit_expected_cost
+						}
+					: null;
+			})
+			.catch(() => {
+				isDepartmentMember = false;
+				currentUserDepartmentRecord = null;
+			})
+			.finally(() => { departmentAccessLoading = false; });
 	});
 
 	/** ev_department 부서 목록 로드 → orgInfo 구성 (can_performance 있을 때만) */
@@ -875,13 +900,17 @@
 
 <MainContent>
 	{#snippet children()}
-		{#if permissionProfileLoading}
+		{#if departmentAccessLoading}
 			<div class="flex items-center justify-center min-h-[200px]">
 				<div class="text-gray-500">로딩 중...</div>
 			</div>
 		{:else if !canAccessPerformance}
-			<div class="flex items-center justify-center min-h-[50vh]">
-				<p class="text-lg text-gray-600">접근 권한이 없습니다.</p>
+			<div class="min-w-0">
+				<h1 class="text-3xl font-bold text-gray-800">부서별 실적</h1>
+				<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림 처리됨)</span></p>
+			</div>
+			<div class="flex items-center justify-center min-h-[10vh] border-2 border-red-600 rounded-lg p-4">
+				<p class="text-lg text-red-600">해당 부서의 담당자가 아니어서 접근할 수 없습니다.</p>
 			</div>
 		{:else if orgInfoLoading}
 			<div class="flex items-center justify-center min-h-[200px]">
@@ -1283,6 +1312,10 @@
 		hasPerformanceData={hasPerformanceData}
 		{inputData}
 		{isSaving}
+		canEditPlanRevenue={currentUserDepartmentRecord?.can_edit_business_plan ?? false}
+		canEditExpectedRevenue={currentUserDepartmentRecord?.can_edit_expected_sales ?? false}
+		canEditPlanCost={currentUserDepartmentRecord?.can_edit_plan_cost ?? false}
+		canEditExpectedCost={currentUserDepartmentRecord?.can_edit_expected_cost ?? false}
 		onClose={closeInputModal}
 		onSave={savePerformanceData}
 		{formatNumberWithComma}

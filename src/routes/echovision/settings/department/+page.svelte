@@ -37,7 +37,7 @@
 	let newDeptTitle = $state('');
 	/** @type {Set<string>} 수정 팝업에서 선택된 organization 코드 집합 */
 	let selectedOrgCodes = $state(new Set());
-	/** @type {Array<{ id?: string, user_id: string, can_edit_business_plan: boolean, can_edit_expected_sales: boolean, email?: string | null, full_name?: string | null }>} 수정 팝업 내 담당자 목록 */
+	/** @type {Array<{ id?: string, user_id: string, can_edit_business_plan: boolean, can_edit_expected_sales: boolean, can_edit_plan_cost: boolean, can_edit_expected_cost: boolean, email?: string | null, full_name?: string | null }>} 수정 팝업 내 담당자 목록 */
 	let departmentUsers = $state([]);
 	/** @type {Array<{ id: string, email?: string, full_name?: string }>} 담당자 추가용 사용자 목록 */
 	let userList = $state([]);
@@ -184,6 +184,8 @@
 			user_id: r.user_id,
 			can_edit_business_plan: !!r.can_edit_business_plan,
 			can_edit_expected_sales: !!r.can_edit_expected_sales,
+			can_edit_plan_cost: !!r.can_edit_plan_cost,
+			can_edit_expected_cost: !!r.can_edit_expected_cost,
 			email: r.email ?? null,
 			full_name: r.full_name ?? null
 		}));
@@ -243,6 +245,8 @@
 				user_id: userId,
 				can_edit_business_plan: false,
 				can_edit_expected_sales: false,
+				can_edit_plan_cost: false,
+				can_edit_expected_cost: false,
 				email: u.email ?? null,
 				full_name: u.full_name ?? null
 			}
@@ -260,7 +264,7 @@
 	/**
 	 * 수정 팝업에서 담당자 권한 변경
 	 * @param {{ user_id: string }} entry
-	 * @param {{ can_edit_business_plan?: boolean, can_edit_expected_sales?: boolean }} payload
+	 * @param {{ can_edit_business_plan?: boolean, can_edit_expected_sales?: boolean, can_edit_plan_cost?: boolean, can_edit_expected_cost?: boolean }} payload
 	 */
 	function handleUpdateDepartmentUserPermission(entry, payload) {
 		departmentUsers = departmentUsers.map((d) =>
@@ -269,7 +273,9 @@
 				: {
 						...d,
 						can_edit_business_plan: payload.can_edit_business_plan ?? d.can_edit_business_plan,
-						can_edit_expected_sales: payload.can_edit_expected_sales ?? d.can_edit_expected_sales
+						can_edit_expected_sales: payload.can_edit_expected_sales ?? d.can_edit_expected_sales,
+						can_edit_plan_cost: payload.can_edit_plan_cost ?? d.can_edit_plan_cost,
+						can_edit_expected_cost: payload.can_edit_expected_cost ?? d.can_edit_expected_cost
 					}
 		);
 	}
@@ -298,7 +304,9 @@
 					department_id: editingDept.id,
 					user_id: du.user_id,
 					can_edit_business_plan: du.can_edit_business_plan,
-					can_edit_expected_sales: du.can_edit_expected_sales
+					can_edit_expected_sales: du.can_edit_expected_sales,
+					can_edit_plan_cost: du.can_edit_plan_cost,
+					can_edit_expected_cost: du.can_edit_expected_cost
 				});
 				if (addErr) {
 					alert(addErr.message || '담당자 저장 중 오류가 발생했습니다.');

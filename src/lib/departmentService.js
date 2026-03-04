@@ -17,6 +17,59 @@ export async function getDepartments() {
 }
 
 /**
+ * 부서 목록 조회 (담당자 정보 조인). FK 없으면 담당자 없이 부서만 반환하거나 폴백으로 개별 조회
+ * ev_department ← ev_department_user ← user_profiles FK 권장
+ * @returns {Promise<{ data: Array<{ id: string, code: string, title: string, param: string[] | null, ev_department_user?: Array<{ id: string, user_id: string, can_edit_business_plan: boolean, can_edit_expected_sales: boolean, user_profiles?: { email: string | null, full_name: string | null } }> }> | null, error: Error | null }>}
+ */
+export async function getDepartmentsWithUsers() {
+	const { data: joinData, error: joinError } = await supabase
+		.from('ev_department')
+		.select(`
+			id,
+			code,
+			title,
+			param,
+			ev_department_user (
+				id,
+				user_id,
+				can_edit_business_plan,
+				can_edit_expected_sales,
+				can_edit_plan_cost,
+				can_edit_expected_cost,
+				user_profiles (
+					email,
+					full_name
+				)
+			)
+		`)
+		.order('code', { ascending: true });
+	if (!joinError && joinData) {
+		return { data: joinData, error: null };
+	}
+	// FK 미설정 등으로 조인 실패 시: 부서 목록 + 부서별 담당자 개별 조회
+	const { data: deptData, error: deptError } = await getDepartments();
+	if (deptError || !deptData?.length) return { data: deptData ?? [], error: deptError ?? null };
+	const results = await Promise.all(
+		deptData.map(async (d) => {
+			const { data: users } = await getDepartmentUsers(d.id);
+			return {
+				...d,
+				ev_department_user: users?.map((u) => ({
+					id: u.id,
+					user_id: u.user_id,
+					can_edit_business_plan: u.can_edit_business_plan,
+					can_edit_expected_sales: u.can_edit_expected_sales,
+					can_edit_plan_cost: u.can_edit_plan_cost,
+					can_edit_expected_cost: u.can_edit_expected_cost,
+					user_profiles: { email: u.email ?? null, full_name: u.full_name ?? null }
+				})) ?? []
+			};
+		})
+	);
+	return { data: results, error: null };
+}
+
+/**
  * 부서 한 건 조회
  * @param {string} id - 부서 id
  * @returns {Promise<{ data: object | null, error: Error | null }>}
@@ -70,12 +123,12 @@ export async function deleteDepartment(id) {
 /**
  * 부서별 담당자 목록 조회 (user_profiles와 조인하여 이메일/이름 포함)
  * @param {string} departmentId - 부서 id
- * @returns {Promise<{ data: Array<{ id: string, department_id: string, user_id: string, can_edit_business_plan: boolean, can_edit_expected_sales: boolean, email?: string, full_name?: string }>, error: Error | null }>}
+ * @returns {Promise<{ data: Array<{ id: string, department_id: string, user_id: string, can_edit_business_plan: boolean, can_edit_expected_sales: boolean, can_edit_plan_cost: boolean, can_edit_expected_cost: boolean, email?: string, full_name?: string }>, error: Error | null }>}
  */
 export async function getDepartmentUsers(departmentId) {
 	const { data: rows, error } = await supabase
 		.from('ev_department_user')
-		.select('id, department_id, user_id, can_edit_business_plan, can_edit_expected_sales, created_at, updated_at')
+		.select('id, department_id, user_id, can_edit_business_plan, can_edit_expected_sales, can_edit_plan_cost, can_edit_expected_cost, created_at, updated_at')
 		.eq('department_id', departmentId)
 		.order('created_at', { ascending: true });
 	if (error) return { data: [], error };
@@ -101,7 +154,7 @@ export async function getDepartmentUsers(departmentId) {
 
 /**
  * 부서 담당자 추가
- * @param {{ department_id: string, user_id: string, can_edit_business_plan?: boolean, can_edit_expected_sales?: boolean }} payload
+ * @param {{ department_id: string, user_id: string, can_edit_business_plan?: boolean, can_edit_expected_sales?: boolean, can_edit_plan_cost?: boolean, can_edit_expected_cost?: boolean }} payload
  * @returns {Promise<{ data: object | null, error: Error | null }>}
  */
 export async function addDepartmentUser(payload) {
@@ -109,13 +162,17 @@ export async function addDepartmentUser(payload) {
 		department_id,
 		user_id,
 		can_edit_business_plan = false,
-		can_edit_expected_sales = false
+		can_edit_expected_sales = false,
+		can_edit_plan_cost = false,
+		can_edit_expected_cost = false
 	} = payload;
 	const insert = {
 		department_id,
 		user_id,
 		can_edit_business_plan: !!can_edit_business_plan,
-		can_edit_expected_sales: !!can_edit_expected_sales
+		can_edit_expected_sales: !!can_edit_expected_sales,
+		can_edit_plan_cost: !!can_edit_plan_cost,
+		can_edit_expected_cost: !!can_edit_expected_cost
 	};
 	const { data, error } = await supabase.from('ev_department_user').insert(insert).select().single();
 	return { data, error: error || null };
@@ -124,13 +181,15 @@ export async function addDepartmentUser(payload) {
 /**
  * 부서 담당자 권한 수정
  * @param {string} id - ev_department_user id
- * @param {{ can_edit_business_plan?: boolean, can_edit_expected_sales?: boolean }} payload
+ * @param {{ can_edit_business_plan?: boolean, can_edit_expected_sales?: boolean, can_edit_plan_cost?: boolean, can_edit_expected_cost?: boolean }} payload
  * @returns {Promise<{ data: object | null, error: Error | null }>}
  */
 export async function updateDepartmentUser(id, payload) {
 	const updateFields = {};
 	if (payload.can_edit_business_plan !== undefined) updateFields.can_edit_business_plan = payload.can_edit_business_plan;
 	if (payload.can_edit_expected_sales !== undefined) updateFields.can_edit_expected_sales = payload.can_edit_expected_sales;
+	if (payload.can_edit_plan_cost !== undefined) updateFields.can_edit_plan_cost = payload.can_edit_plan_cost;
+	if (payload.can_edit_expected_cost !== undefined) updateFields.can_edit_expected_cost = payload.can_edit_expected_cost;
 	if (Object.keys(updateFields).length === 0) return { data: null, error: new Error('수정할 필드가 없습니다.') };
 	const { data, error } = await supabase.from('ev_department_user').update(updateFields).eq('id', id).select().single();
 	return { data, error: error || null };
