@@ -642,7 +642,7 @@
 			<!-- DataTable -->
 			<DataTable
 				headers={[
-					// { label: '코드' },
+					{ label: '코드' },
 					{ label: '구분' },
 					{ label: '제목' },
 					{ label: '항목 수' },
@@ -658,7 +658,7 @@
 			>
 				{#each paginatedEvCodes as evCode, evCodeIndex (evCode?.id ?? evCode?.item_code ?? evCodeIndex)}
 					<tr>
-						<!-- <td class="font-mono text-sm">{evCode.item_code}</td> -->
+						<td class="font-mono text-sm">{evCode.item_code}</td>
 						<td>
 							<span class="px-2 py-1 rounded text-xs font-semibold {evCode.category === 'sales' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
 								{evCode.category === 'sales' ? '매출' : '비용'}

@@ -4,6 +4,7 @@
 	import { getSettings, createSetting, getRootSettings } from '$lib/settingsService';
 	import { toast } from 'svelte-sonner';
 	import { supabase } from '$lib/supabaseClient';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	/**
 	 * 컴포넌트 Props
@@ -892,7 +893,7 @@
 			const tableName = excelType === 'sales' ? 'ev_sales' : 'ev_cost';
 
 			/** @type {Map<string, {year: number, month: number | null, excel_file_id: string, org_code: string, excel_file_data: Record<string, any>}>} */
-			const orgCodeDataMap = new Map();
+			const orgCodeDataMap = new SvelteMap();
 
 			// col 2~N (조직코드 컬럼)을 순회
 			for (let colIndex = 1; colIndex < headers.length; colIndex++) {
