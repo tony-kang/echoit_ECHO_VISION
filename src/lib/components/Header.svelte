@@ -4,7 +4,7 @@
 	import Logo from '$lib/components/Logo.svelte';
 	import InquiryForm from '$lib/components/InquiryForm.svelte';
 	import MobileMenuButton from '$lib/components/MobileMenuButton.svelte';
-	import { supabase } from '$lib/supabaseClient';
+	// import { supabase } from '$lib/supabaseClient';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { isAdmin } from '$lib/userService';
 	import { isDevDomain } from '$lib/utils/domainUtils';
@@ -19,9 +19,9 @@
 	let authLoading = $derived(authStore.loading);
 	/** @type {Object | null} */
 	let userProfile = $derived(authStore.profile);
-	let activeDropdown = $state(null);
-	let isSidebarOpen = $state(false); // 사이드바 열림 상태
-	const showHamburgerIcon = true;
+	// let activeDropdown = $state(null);
+	// let isSidebarOpen = $state(false); // 사이드바 열림 상태
+	// const showHamburgerIcon = true;
 	
 	/**
 	 * 햄버거 버튼을 숨겨야 할 페이지 경로 목록
@@ -106,9 +106,9 @@
 		isUserMenuOpen = false;
 		
 		// 데스크톱 드롭다운 외부 클릭 시 닫기
-		if (!target.closest('.dropdown-container')) {
-			activeDropdown = null;
-		}
+		// if (!target.closest('.dropdown-container')) {
+		// 	activeDropdown = null;
+		// }
 		
 		// 모바일 메뉴 외부 클릭 시 닫기
 		if (!target.closest('.mobile-menu-container') && !target.closest('.mobile-menu-toggle')) {
@@ -118,17 +118,15 @@
 	
 	/**
 	 * 모바일 메뉴 내부 링크 클릭 핸들러
-	 * @param {MouseEvent} event
 	 * @returns {void}
 	 */
-	function handleMobileLinkClick(event) {
-		// 이벤트 전파를 막지 않고, 메뉴만 닫기
+	function handleMobileLinkClick() {
 		toggleMenu();
 	}
 
-	function closeDropdown() {
-		activeDropdown = null;
-	}
+	// function closeDropdown() {
+	// 	activeDropdown = null;
+	// }
 
 	/**
 	 * 경영지표 관리 페이지로 이동
@@ -167,10 +165,7 @@
 		showInquirySuccess = false;
 	}
 	
-	/**
-	 * @param {any} data
-	 */
-	function handleInquirySuccess(data) {
+	function handleInquirySuccess() {
 		showInquiryModal = false;
 		showInquirySuccess = true;
 		setTimeout(() => {

@@ -1,4 +1,5 @@
 <script>
+	import { SvelteSet } from 'svelte/reactivity';
 	import MainContent from '$lib/C/MainContent.svelte';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import DepartmentAddModal from './DepartmentAddModal.svelte';
@@ -170,7 +171,7 @@
 	 */
 	async function openEditPopup(dept) {
 		editingDept = dept;
-		selectedOrgCodes = new Set(Array.isArray(dept.param) ? dept.param : []);
+		selectedOrgCodes = new SvelteSet(Array.isArray(dept.param) ? dept.param : []);
 		departmentUsers = [];
 		userList = [];
 		showEditPopup = true;
@@ -229,7 +230,7 @@
 		} else {
 			selectedOrgCodes.delete(code);
 		}
-		selectedOrgCodes = new Set(selectedOrgCodes);
+		selectedOrgCodes = new SvelteSet(selectedOrgCodes);
 	}
 
 	/**
@@ -367,76 +368,72 @@
 </script>
 
 <MainContent>
-	{#snippet children()}
-		<div class="admin-content-page">
-				<div class="mb-6">
-					<h1 class="text-3xl font-bold text-gray-800">부서 코드 관리</h1>
-					<p class="text-gray-600">실제 존재하는 부서별로 회계상의 부서를 연결합니다.</p>
-				</div>
+	<div class="mb-6">
+		<h1 class="text-3xl font-bold text-gray-800">부서 코드 관리</h1>
+		<p class="text-gray-600">실제 존재하는 부서별로 회계상의 부서를 연결합니다.</p>
+	</div>
 
-				<div class="mb-4 flex justify-end">
-					<button
-						type="button"
-						onclick={openAddModal}
-						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-					>
-						부서 추가
-					</button>
-				</div>
+	<div class="mb-4 flex justify-end">
+		<button
+			type="button"
+			onclick={openAddModal}
+			class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+		>
+			부서 추가
+		</button>
+	</div>
 
-				{#if isLoading}
-					<div class="text-center py-12 text-gray-500">목록을 불러오는 중...</div>
-				{:else if departments.length === 0}
-					<div class="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
-						등록된 부서가 없습니다. "부서 추가"로 추가하세요.
-					</div>
-				{:else}
-					<div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-						<DataTable
-							headers={[
-								{ label: '코드' },
-								{ label: '실제 부서명' },
-								{ label: '회계상 부서(조직)' },
-								{ label: '담당자' },
-								{ label: '작업', align: 'center' }
-							]}
-							rowCount={departments.length}
-							emptyMessage="등록된 부서가 없습니다."
-						>
-							{#each departments as dept}
-								<tr>
-									<td class="font-mono text-sm">{dept.code}</td>
-									<td>{dept.title || '-'}</td>
-									<td class="max-w-md text-sm text-gray-700">
-										{paramToDisplayLabels(dept.param)}
-									</td>
-									<td class="max-w-xs text-sm text-gray-700">
-										{formatDepartmentUsers(departmentUsersMap[dept.id] ?? [])}
-									</td>
-									<td class="text-center">
-										<button
-											type="button"
-											onclick={() => openEditPopup(dept)}
-											class="btn-edit btn-xs"
-										>
-											조직 수정
-										</button>
-										<button
-											type="button"
-											onclick={() => handleDeleteDepartment(dept)}
-											class="btn-danger btn-xs"
-											disabled={isSaving}
-										>
-											조직 삭제
-										</button>
-									</td>
-								</tr>
-							{/each}
-						</DataTable>
-					</div>
-				{/if}
-			</div>
-	{/snippet}
+	{#if isLoading}
+		<div class="text-center py-12 text-gray-500">목록을 불러오는 중...</div>
+	{:else if departments.length === 0}
+		<div class="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
+			등록된 부서가 없습니다. "부서 추가"로 추가하세요.
+		</div>
+	{:else}
+		<div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+			<DataTable
+				headers={[
+					{ label: '코드' },
+					{ label: '실제 부서명' },
+					{ label: '회계상 부서(조직)' },
+					{ label: '담당자' },
+					{ label: '작업', align: 'center' }
+				]}
+				rowCount={departments.length}
+				emptyMessage="등록된 부서가 없습니다."
+			>
+				{#each departments as dept (dept.id)}
+					<tr>
+						<td class="font-mono text-sm">{dept.code}</td>
+						<td>{dept.title || '-'}</td>
+						<td class="max-w-md text-sm text-gray-700">
+							{paramToDisplayLabels(dept.param)}
+						</td>
+						<td class="max-w-xs text-sm text-gray-700">
+							{formatDepartmentUsers(departmentUsersMap[dept.id] ?? [])}
+						</td>
+						<td class="text-center">
+							<button
+								type="button"
+								onclick={() => openEditPopup(dept)}
+								class="btn-edit btn-xs"
+							>
+								조직 수정
+							</button>
+							<button
+								type="button"
+								onclick={() => handleDeleteDepartment(dept)}
+								class="btn-danger btn-xs"
+								disabled={isSaving}
+							>
+								조직 삭제
+							</button>
+						</td>
+					</tr>
+				{/each}
+			</DataTable>
+		</div>
+	{/if}
 </MainContent>
 
 <DepartmentAddModal
@@ -462,9 +459,3 @@
 	onSave={handleSaveEdit}
 	isSaving={isSaving}
 />
-
-<style>
-	.admin-content-page {
-		width: 100%;
-	}
-</style>
