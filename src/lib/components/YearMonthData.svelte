@@ -846,7 +846,7 @@
 									</tr>
 								</thead>
 								<tbody>
-									{#each displayData as item (item.evCode.code)}
+									{#each displayData as item, i (item.evCode?.code ?? `row-${i}`)}
 										<tr>
 											<td class="text-blue-500!">{item.evCode.title}</td>
 											<!-- <td class="text-blue-500!">{item.year}</td> -->
