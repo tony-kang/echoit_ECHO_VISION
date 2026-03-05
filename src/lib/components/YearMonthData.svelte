@@ -11,8 +11,9 @@
 	 * @type {{ 
 	 *   title: string, 
 	 *   category: 'sales' | 'cost',
-	 *   loadData: (year: number, evCodeItems?: string[]) => Promise<{ data: any[] | null, error: any }>,
+	 *   loadData: (year: number, evCodeItems?: string[], month?: number) => Promise<{ data: any[] | null, error: any }>,
 	 *   organizeData: (rawData: any[], evCodes: any[], filters: Record<string, any>) => any[],
+	 *   getOrgCodesForYear?: (year: number) => Promise<string[]>,
 	 *   emptyMessage?: string,
 	 *   tableName?: string
 	 * }}
@@ -22,6 +23,7 @@
 		category,
 		loadData,
 		organizeData,
+		getOrgCodesForYear,
 		emptyMessage = '데이터가 없습니다.',
 		// tableName
 	} = $props();
@@ -72,8 +74,10 @@
 				// ignore
 			}
 		}
+		const urlMonth = page.url.searchParams.get('month');
 		return {
 			year: urlYear || new Date().getFullYear().toString(),
+			month: urlMonth || '',
 			parentCodes,
 			selectedCodes: [],
 			selectedCodes2: []
@@ -98,8 +102,14 @@
 
 	/** @type {Record<string, any>} 필터 객체 */
 	let filters = $state(getInitialFilters());
+	/** @type {string} 연도 select 표시/선택값 (filters.year와 동기화) */
+	let selectedYear = $state(getInitialFilters().year);
+	/** @type {string} 월 select 표시/선택값 (filters.month와 동기화) */
+	let selectedMonth = $state(getInitialFilters().month ?? '');
 	/** @type {string | null} 이전 연도 값 (무한루프 방지) */
 	let previousYear = $state(new Date().getFullYear().toString());
+	/** @type {string | ''} 이전 월 값 (무한루프 방지) */
+	let previousMonth = $state('');
 	/** @type {string | null} 이전 parentCodes 정렬 JSON 문자열 (무한루프 방지) */
 	let previousParentCodesStr = $state(null);
 	/** @type {string[]} 이전 선택된 코드 배열 (무한루프 방지) */
@@ -118,6 +128,10 @@
 		const f = getInitialFilters();
 		return Array.isArray(f.parentCodes) ? [...f.parentCodes] : [];
 	})());
+	/** @type {string[]} 해당 연도에 데이터가 있는 org_code 목록 (체크박스 disable 판단용) */
+	let orgCodesWithDataForYear = $state([]);
+	/** @type {boolean} 해당 연도별 데이터 유무 로딩 중 */
+	let isLoadingOrgCodesForYear = $state(false);
 
 	$effect(() => {
 		if (!authStore.loading && !authStore.user) {
@@ -241,6 +255,11 @@
 		} else {
 			url.searchParams.delete('year');
 		}
+		if (filters.month) {
+			url.searchParams.set('month', filters.month);
+		} else {
+			url.searchParams.delete('month');
+		}
 		if (evCodeItems.length > 0) {
 			url.searchParams.set('evCodeItems', encodeURIComponent(JSON.stringify(evCodeItems)));
 		} else {
@@ -257,11 +276,17 @@
 	/** URL 변경 시에만 실행 (filters 구독 제거 → 체크 시 effect 재실행으로 selectedOrgCodes 덮어쓰기 방지) */
 	$effect(() => {
 		const urlYear = page.url.searchParams.get('year');
+		const urlMonth = page.url.searchParams.get('month');
 		const urlEvCodeItems = page.url.searchParams.get('evCodeItems');
+		const current = untrack(() => ({ ...filters }));
 
-		// URL의 year가 변경되었으면 filters 업데이트 (filters는 untrack으로 읽어 effect 의존성에서 제외)
-		if (urlYear && urlYear !== untrack(() => filters.year)) {
-			filters = { ...filters, year: urlYear };
+		// URL과 다를 때만 year·month·select 표시값 동기화 (새로고침 시 반영, select 선택 시엔 덮어쓰지 않음)
+		const nextYear = urlYear || current.year;
+		const nextMonth = urlMonth ?? '';
+		if (nextYear !== current.year || nextMonth !== (current.month ?? '')) {
+			filters = { ...current, year: nextYear, month: nextMonth };
+			selectedYear = nextYear;
+			selectedMonth = nextMonth;
 		}
 
 		// URL의 evCodeItems가 변경되었을 때만 evCodeItems·filters·selectedOrgCodes 동기화
@@ -273,7 +298,7 @@
 				const currentStr = untrack(() => JSON.stringify([...evCodeItems].sort()));
 				if (currentStr !== parsedStr) {
 					evCodeItems = [...parsed];
-					filters = { ...filters, parentCodes: [...parsed] };
+					filters = { ...untrack(() => filters), parentCodes: [...parsed] };
 					selectedOrgCodes = [...parsed];
 				}
 			} catch {
@@ -283,10 +308,46 @@
 			const currentCodes = untrack(() => (Array.isArray(filters.parentCodes) ? filters.parentCodes : []));
 			if (currentCodes.length > 0 || untrack(() => evCodeItems.length) > 0) {
 				evCodeItems = [];
-				filters = { ...filters, parentCodes: [] };
+				filters = { ...untrack(() => filters), parentCodes: [] };
 				selectedOrgCodes = [];
 			}
 		}
+	});
+
+	/**
+	 * 해당 연도에 데이터가 있는 org_code 목록 로드 (체크박스 disable 판단용)
+	 */
+	$effect(() => {
+		const yearStr = filters.year;
+		if (!user || authLoading || !allSettingsLoaded || !yearStr) {
+			orgCodesWithDataForYear = [];
+			return;
+		}
+		const yearNum = parseInt(yearStr, 10);
+		if (isNaN(yearNum)) {
+			orgCodesWithDataForYear = [];
+			return;
+		}
+		untrack(async () => {
+			isLoadingOrgCodesForYear = true;
+			try {
+				if (typeof getOrgCodesForYear === 'function') {
+					const codes = await getOrgCodesForYear(yearNum);
+					orgCodesWithDataForYear = Array.isArray(codes) ? codes : [];
+				} else {
+					const { data, error } = await loadData(yearNum, []);
+					if (error || !data || !Array.isArray(data)) {
+						orgCodesWithDataForYear = [];
+						return;
+					}
+					orgCodesWithDataForYear = [...new Set(data.map((/** @type {any} */ r) => r.org_code).filter(Boolean))];
+				}
+			} catch {
+				orgCodesWithDataForYear = [];
+			} finally {
+				isLoadingOrgCodesForYear = false;
+			}
+		});
 	});
 
 	/**
@@ -295,8 +356,8 @@
 	 */
 	$effect(() => {
 		if (!user || authLoading) return;
-		// evCodeItems·filters.year 구독으로 조직 선택 시 effect 재실행
 		void filters.year;
+		void filters.month;
 		void JSON.stringify([...evCodeItems].sort());
 		untrack(async () => {
 			await tick();
@@ -305,13 +366,13 @@
 	});
 
 	/**
-	 * 연도 또는 evCodeItems 변경 시 데이터 로드 (loadAllSettings 완료 후에만 실행)
+	 * 연도·월 또는 evCodeItems 변경 시 데이터 로드 (loadAllSettings 완료 후에만 실행)
 	 */
 	$effect(() => {
 		const currentYear = filters.year;
+		const currentMonth = filters.month ?? '';
 		const currentEvCodeItems = [...evCodeItems];
 		const currentEvCodeItemsStr = JSON.stringify([...currentEvCodeItems].sort());
-		// allSettings 로드 완료 후에만 데이터 로드 (breadcrumb·organizeData 등에서 allSettings 사용)
 		void allSettings.length;
 
 		if (!user || authLoading || !allSettingsLoaded || !currentYear || isLoading || currentEvCodeItems.length === 0) {
@@ -321,12 +382,16 @@
 			}
 			return;
 		}
-		if (currentYear !== previousYear || currentEvCodeItemsStr !== (previousEvCodeItemsStr || '')) {
+		const monthChanged = currentMonth !== (previousMonth ?? '');
+		const yearOrEvChanged = currentYear !== previousYear || currentEvCodeItemsStr !== (previousEvCodeItemsStr || '');
+		if (yearOrEvChanged || monthChanged) {
 			previousYear = currentYear;
 			previousEvCodeItemsStr = currentEvCodeItemsStr;
+			previousMonth = currentMonth;
 			const yearNum = parseInt(currentYear, 10);
+			const monthNum = currentMonth ? parseInt(currentMonth, 10) : undefined;
 			untrack(async () => {
-				await loadDataByYear(yearNum, currentEvCodeItems);
+				await loadDataByYear(yearNum, currentEvCodeItems, monthNum);
 				await updateUrlParams();
 			});
 		}
@@ -541,10 +606,11 @@
 	/**
 	 * 데이터 로드 (중복 호출 방지)
 	 * @param {number} [year] - 연도 (미지정 시 filters.year 사용)
-	 * @param {string[]} [items] - evCodeItems (미지정 시 evCodeItems 상태 사용, effect에서 호출 시 현재값 전달 권장)
+	 * @param {string[]} [items] - evCodeItems (미지정 시 evCodeItems 상태 사용)
+	 * @param {number} [month] - 월 (미지정/undefined면 전체)
 	 * @returns {Promise<void>}
 	 */
-	async function loadDataByYear(year, items) {
+	async function loadDataByYear(year, items, month) {
 		const y = year ?? (filters.year ? parseInt(filters.year, 10) : 0);
 		const itemsToUse = items ?? evCodeItems;
 		if (!y || !itemsToUse || itemsToUse.length === 0) {
@@ -552,14 +618,13 @@
 			return;
 		}
 
-		// 이미 로딩 중이면 중복 호출 방지
 		if (isLoading) {
 			return;
 		}
 
 		isLoading = true;
 		try {
-			const { data, error } = await loadData(y, itemsToUse);
+			const { data, error } = await loadData(y, itemsToUse, month);
 
 			if (error) {
 				console.error(`${title} 데이터 로드 실패:`, error);
@@ -694,10 +759,13 @@
 		const currentYear = new Date().getFullYear().toString();
 		filters = {
 			year: currentYear,
+			month: '',
 			parentCodes: [],
 			selectedCodes: [],
 			selectedCodes2: []
 		};
+		selectedYear = currentYear;
+		selectedMonth = '';
 		selectedOrgCodes = [];
 		displayData = [];
 		evCodeItems = [];
@@ -707,6 +775,7 @@
 		previousSelectedCodes = [];
 		previousSelectedCodes2 = [];
 		previousYear = currentYear;
+		previousMonth = '';
 		await updateUrlParams();
 	}
 </script>
@@ -747,15 +816,33 @@
 								<span class="org-checkbox-title">년도</span>
 								<select
 									class="org-header-year-select"
-									value={filters.year}
+									bind:value={selectedYear}
 									onchange={(e) => {
 										const y = e.target.value;
+										selectedYear = y;
 										filters = { ...filters, year: y };
 									}}
 								>
 									<option value={new Date().getFullYear().toString()}>{new Date().getFullYear()}년</option>
 									<option value={(new Date().getFullYear() - 1).toString()}>{new Date().getFullYear() - 1}년</option>
 									<option value={(new Date().getFullYear() - 2).toString()}>{new Date().getFullYear() - 2}년</option>
+								</select>
+							</label>
+							<label class="org-header-year-label">
+								<span class="org-checkbox-title">월</span>
+								<select
+									class="org-header-year-select"
+									bind:value={selectedMonth}
+									onchange={(e) => {
+										const m = e.target.value;
+										selectedMonth = m;
+										filters = { ...filters, month: m };
+									}}
+								>
+									<option value="">전체</option>
+									{#each Array.from({ length: 12 }, (_, i) => i + 1) as monthNum (monthNum)}
+										<option value={String(monthNum)}>{monthNum}월</option>
+									{/each}
 								</select>
 							</label>
 							<span class="org-checkbox-title">조직</span>
@@ -769,10 +856,12 @@
 					<div class="org-checkbox-grid">
 						{#each secondLevelOrgCodes as option (option.value)}
 							{@const selected = selectedOrgCodes.includes(option.value)}
-							<label class="org-checkbox-item">
+							{@const hasDataForYear = orgCodesWithDataForYear.includes(option.value)}
+							<label class="org-checkbox-item {!hasDataForYear && !isLoadingOrgCodesForYear ? 'org-checkbox-item-disabled' : ''}">
 								<input
 									type="checkbox"
 									checked={selected}
+									disabled={!isLoadingOrgCodesForYear && !hasDataForYear}
 									onchange={(e) => handleOrgCheck(option.value, e.target.checked)}
 									class="org-checkbox-input"
 								/>
@@ -1011,6 +1100,16 @@
 
 	.org-checkbox-item:hover {
 		color: #1f2937;
+	}
+
+	.org-checkbox-item-disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		pointer-events: none;
+	}
+
+	.org-checkbox-item-disabled .org-checkbox-label {
+		color: #9ca3af;
 	}
 
 	.org-checkbox-input {

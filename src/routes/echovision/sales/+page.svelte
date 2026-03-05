@@ -2,17 +2,19 @@
 	import YearMonthData from '$lib/components/YearMonthData.svelte';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
-	import { getSales } from '$lib/salesService';
+	import { getSales, getSalesOrgCodesByYear } from '$lib/salesService';
 
 	/**
 	 * 매출 데이터 로드 함수
 	 * @param {number} year - 연도
 	 * @param {string[]} [evCodeItems] - ev_code의 items 배열 (평탄화된 중복 제거된 배열)
+	 * @param {number} [month] - 월 (미지정이면 전체)
 	 * @returns {Promise<{ data: any[] | null, error: any }>}
 	 */
-	async function loadSalesData(year, evCodeItems) {
+	async function loadSalesData(year, evCodeItems, month) {
 		return await getSales({
 			year,
+			month: month ?? undefined,
 			evCodeItems,
 			orderByYear: true,
 			orderByMonth: true
@@ -103,6 +105,10 @@
 			category="sales"
 			loadData={loadSalesData}
 			organizeData={organizeSalesDataByOrgCode}
+			getOrgCodesForYear={async (year) => {
+				const { data } = await getSalesOrgCodesByYear(year);
+				return data || [];
+			}}
 			emptyMessage="매출 데이터가 없습니다."
 			tableName="ev_sales"
 		/>

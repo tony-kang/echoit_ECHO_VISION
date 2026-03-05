@@ -83,3 +83,27 @@ export async function getCosts(options = {}) {
 		return { data: [], error: error instanceof Error ? error : new Error(String(error)) };
 	}
 }
+
+/**
+ * 해당 연도에 ev_cost에 데이터가 있는 org_code 목록 조회 (year, org_code만 사용)
+ * @param {number} year - 연도
+ * @returns {Promise<{ data: string[], error: Error|null }>}
+ */
+export async function getCostOrgCodesByYear(year) {
+	try {
+		const { data, error } = await supabase
+			.from('ev_cost')
+			.select('org_code')
+			.eq('year', year);
+
+		if (error) {
+			console.error('원가 org_code 조회 실패:', error);
+			return { data: [], error };
+		}
+		const codes = [...new Set((data || []).map((r) => r.org_code).filter(Boolean))];
+		return { data: codes, error: null };
+	} catch (error) {
+		console.error('원가 org_code 조회 실패:', error);
+		return { data: [], error: error instanceof Error ? error : new Error(String(error)) };
+	}
+}

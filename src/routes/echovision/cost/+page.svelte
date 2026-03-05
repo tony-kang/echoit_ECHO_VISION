@@ -2,17 +2,19 @@
 	import YearMonthData from '$lib/components/YearMonthData.svelte';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
-	import { getCosts } from '$lib/costService';
+	import { getCosts, getCostOrgCodesByYear } from '$lib/costService';
 
 	/**
 	 * 원가 데이터 로드 함수
 	 * @param {number} year - 연도
 	 * @param {string[]} [evCodeItems] - ev_code의 items 배열 (평탄화된 중복 제거된 배열)
+	 * @param {number} [month] - 월 (미지정이면 전체)
 	 * @returns {Promise<{ data: any[] | null, error: any }>}
 	 */
-	async function loadCostData(year, evCodeItems) {
+	async function loadCostData(year, evCodeItems, month) {
 		return await getCosts({
 			year,
+			month: month ?? undefined,
 			evCodeItems,
 			orderByYear: true,
 			orderByMonth: true
@@ -103,6 +105,10 @@
 			category="cost"
 			loadData={loadCostData}
 			organizeData={organizeCostDataByOrgCode}
+			getOrgCodesForYear={async (year) => {
+				const { data } = await getCostOrgCodesByYear(year);
+				return data || [];
+			}}
 			emptyMessage="원가 데이터가 없습니다."
 			tableName="ev_cost"
 		/>

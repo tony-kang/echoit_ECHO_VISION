@@ -85,6 +85,30 @@ export async function getSales(options = {}) {
 }
 
 /**
+ * 해당 연도에 ev_sales에 데이터가 있는 org_code 목록 조회 (year, org_code만 사용)
+ * @param {number} year - 연도
+ * @returns {Promise<{ data: string[], error: Error|null }>}
+ */
+export async function getSalesOrgCodesByYear(year) {
+	try {
+		const { data, error } = await supabase
+			.from('ev_sales')
+			.select('org_code')
+			.eq('year', year);
+
+		if (error) {
+			console.error('매출 org_code 조회 실패:', error);
+			return { data: [], error };
+		}
+		const codes = [...new Set((data || []).map((r) => r.org_code).filter(Boolean))];
+		return { data: codes, error: null };
+	} catch (error) {
+		console.error('매출 org_code 조회 실패:', error);
+		return { data: [], error: error instanceof Error ? error : new Error(String(error)) };
+	}
+}
+
+/**
  * 특정 코드의 하위 코드 목록 가져오기 (재귀적으로)
  * @param {string} parentCode - 부모 코드
  * @param {Array<any>} allSettings - 전체 설정 목록
