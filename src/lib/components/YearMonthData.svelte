@@ -1,5 +1,6 @@
 <script>
 	import { tick, untrack } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import FilterBar from '$lib/components/FilterBar.svelte';
@@ -23,7 +24,7 @@
 		loadData,
 		organizeData,
 		emptyMessage = '데이터가 없습니다.',
-		tableName
+		// tableName
 	} = $props();
 
 	/** @type {import('@supabase/supabase-js').User | null} */
@@ -59,7 +60,7 @@
 	 */
 	function getInitialFilters() {
 		const urlYear = page.url.searchParams.get('year');
-		const urlEvCodeItems = page.url.searchParams.get('evCodeItems');
+		// const urlEvCodeItems = page.url.searchParams.get('evCodeItems');
 		
 		return {
 			year: urlYear || new Date().getFullYear().toString(),
@@ -264,8 +265,8 @@
 	 * 연도/evCodeItems 변경 시 주소창 동기화 (tick 후 호출로 상태 반영 보장)
 	 */
 	$effect(() => {
-		const year = filters.year;
-		const itemsStr = JSON.stringify([...evCodeItems].sort());
+		// const year = filters.year;
+		// const itemsStr = JSON.stringify([...evCodeItems].sort());
 		if (!user || authLoading) return;
 		untrack(async () => {
 			await tick();
@@ -492,7 +493,7 @@
 			}
 
 			/** @type {Set<string>} */
-			const allGrandChildCodesSet = new Set();
+			const allGrandChildCodesSet = new SvelteSet();
 			
 			// 선택된 각 하위 코드의 직접 자식 코드들을 찾아서 합침
 			for (const selectedCode of currentSelectedCodes) {
@@ -748,7 +749,7 @@
 					<h1 class="text-2xl font-bold text-gray-900">{title}</h1>
 					{#if breadcrumbText && breadcrumbText.trim() !== ''}
 						<div class="breadcrumb-container">
-							{#each breadcrumbText.split(' > ') as part, index}
+							{#each breadcrumbText.split(' > ') as part, index (index)}
 								{#if index > 0}
 									<span class="breadcrumb-separator"> > </span>
 								{/if}
@@ -836,25 +837,25 @@
 							<table class="data-table">
 								<thead>
 									<tr>
-										<th class="w-60 !text-left">항목</th>
-										<!-- <th class="w-8 !text-center">년도</th> -->
-										{#each months as month}
-											<th class="!text-right">{month}월</th>
+										<th class="w-60 text-left!">항목</th>
+										<!-- <th class="w-8 text-center!">년도</th> -->
+										{#each months as month (month)}
+											<th class="text-right!">{month}월</th>
 										{/each}
-										<th class="!text-right">합계</th>
+										<th class="text-right!">합계</th>
 									</tr>
 								</thead>
 								<tbody>
-									{#each displayData as item}
+									{#each displayData as item (item.evCode.code)}
 										<tr>
-											<td class="!text-blue-500">{item.evCode.title}</td>
-											<!-- <td class="!text-blue-500">{item.year}</td> -->
-											{#each months as month}
-												<td class="w-40 !text-right">
+											<td class="text-blue-500!">{item.evCode.title}</td>
+											<!-- <td class="text-blue-500!">{item.year}</td> -->
+											{#each months as month (month)}
+												<td class="w-40 text-right!">
 													{formatAmount(item.monthData[month] || 0)}
 												</td>
 											{/each}
-											<td class="w-40 !text-right !text-blue-500">
+											<td class="w-40 text-right! text-blue-500!">
 												{formatAmount(
 													months.reduce((sum, month) => sum + (item.monthData[month] || 0), 0)
 												)}

@@ -1,7 +1,7 @@
 <script>
 	import YearMonthData from '$lib/components/YearMonthData.svelte';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
-
+	import { SvelteMap } from 'svelte/reactivity';
 	import { getSales } from '$lib/salesService';
 
 	/**
@@ -35,7 +35,7 @@
 
 		// ev_code별로 데이터 구성
 		/** @type {Map<string, any>} */
-		const evCodeDataMap = new Map();
+		const evCodeDataMap = new SvelteMap();
 
 		// 각 ev_code에 대해 초기화
 		// evCodes는 ev_code 테이블에서 조회한 데이터

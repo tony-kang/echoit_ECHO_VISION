@@ -266,17 +266,17 @@
 	 * @param {any} usr - 사용자 객체
 	 * @returns {Promise<void>}
 	 */
-	async function openTopLevelCodesModal(usr) {
-		editingTopLevelCodesUserId = usr.id;
-		/** @type {any} */
-		const user = usr;
-		editingTopLevelCodes = Array.isArray(user.top_level_codes) ? [...user.top_level_codes] : [];
-		topLevelCodeSearch = '';
-		showTopLevelCodesModal = true;
+	// async function openTopLevelCodesModal(usr) {
+	// 	editingTopLevelCodesUserId = usr.id;
+	// 	/** @type {any} */
+	// 	const user = usr;
+	// 	editingTopLevelCodes = Array.isArray(user.top_level_codes) ? [...user.top_level_codes] : [];
+	// 	topLevelCodeSearch = '';
+	// 	showTopLevelCodesModal = true;
 		
-		// 초기 데이터 로드 (검색어 없이 전체 조회)
-		await searchTopLevelCodes('');
-	}
+	// 	// 초기 데이터 로드 (검색어 없이 전체 조회)
+	// 	await searchTopLevelCodes('');
+	// }
 
 	/**
 	 * 최상위 코드 설정 모달 닫기
@@ -385,14 +385,14 @@
 	 * @param {any} usr - 사용자 객체
 	 * @returns {string}
 	 */
-	function getTopLevelCodesDisplay(usr) {
-		/** @type {any} */
-		const user = usr;
-		const codes = Array.isArray(user.top_level_codes) ? user.top_level_codes : [];
-		if (codes.length === 0) return '-';
-		if (codes.length <= 3) return codes.join(', ');
-		return codes.slice(0, 3).join(', ') + ` 외 ${codes.length - 3}개`;
-	}
+	// function getTopLevelCodesDisplay(usr) {
+	// 	/** @type {any} */
+	// 	const user = usr;
+	// 	const codes = Array.isArray(user.top_level_codes) ? user.top_level_codes : [];
+	// 	if (codes.length === 0) return '-';
+	// 	if (codes.length <= 3) return codes.join(', ');
+	// 	return codes.slice(0, 3).join(', ') + ` 외 ${codes.length - 3}개`;
+	// }
 
 	/** 권한 라벨 (대시보드, 실적현황, 손익현황) */
 	const PERMISSION_KEYS = [
