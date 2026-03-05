@@ -232,8 +232,7 @@
 </script>
 
 <MainContent>
-	{#snippet children()}
-		{#if permissionProfileLoading}
+	{#if permissionProfileLoading}
 			<div class="flex items-center justify-center min-h-[200px]">
 				<div class="text-gray-500">로딩 중...</div>
 			</div>
@@ -263,7 +262,7 @@
 						bind:value={selectedYear}
 						class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
-						{#each recentYears as year}
+						{#each recentYears as year (year)}
 							<option value={year}>{year}년</option>
 						{/each}
 					</select>
@@ -308,23 +307,23 @@
 								<tr class="border-b border-gray-200 hover:bg-gray-50 {orgIndex >= 0 ? 'company-performance-dept-first' : ''}">
 									<td rowspan="3" class="px-4 py-3 text-center text-sm font-semibold text-gray-800 align-middle border-r border-gray-200 bg-gray-50">{org.org_alias_name}</td>
 									<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
-									{#each [1, 2, 3] as month}
+									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
 									{/each}
 									<SummaryDataCell type="sales" value={getQuarterDataForOrg(org, data, 1).sales} bgColor="blue" />
-									{#each [4, 5, 6] as month}
+									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
 									{/each}
 									<SummaryDataCell type="sales" value={getQuarterDataForOrg(org, data, 2).sales} bgColor="green" />
 									<SummaryDataCell type="sales" value={getHalfDataForOrg(org, data, 1).sales} bgColor="yellow" />
-									{#each [7, 8, 9] as month}
+									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
 									{/each}
 									<SummaryDataCell type="sales" value={getQuarterDataForOrg(org, data, 3).sales} bgColor="blue" />
-									{#each [10, 11, 12] as month}
+									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
 									{/each}
@@ -334,23 +333,23 @@
 								</tr>
 								<tr class="border-b border-gray-200 hover:bg-gray-50">
 									<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
-									{#each [1, 2, 3] as month}
+									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
 									{/each}
 									<SummaryDataCell type="cost" value={getQuarterDataForOrg(org, data, 1).cost} bgColor="blue" />
-									{#each [4, 5, 6] as month}
+									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
 									{/each}
 									<SummaryDataCell type="cost" value={getQuarterDataForOrg(org, data, 2).cost} bgColor="green" />
 									<SummaryDataCell type="cost" value={getHalfDataForOrg(org, data, 1).cost} bgColor="yellow" />
-									{#each [7, 8, 9] as month}
+									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
 									{/each}
 									<SummaryDataCell type="cost" value={getQuarterDataForOrg(org, data, 3).cost} bgColor="blue" />
-									{#each [10, 11, 12] as month}
+									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
 									{/each}
@@ -360,23 +359,23 @@
 								</tr>
 								<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
 									<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
-									{#each [1, 2, 3] as month}
+									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
 									{/each}
 									<SummaryDataCell type="profit" value={getQuarterDataForOrg(org, data, 1).profit} bgColor="blue-dark" />
-									{#each [4, 5, 6] as month}
+									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
 									{/each}
 									<SummaryDataCell type="profit" value={getQuarterDataForOrg(org, data, 2).profit} bgColor="green-dark" />
 									<SummaryDataCell type="profit" value={getHalfDataForOrg(org, data, 1).profit} bgColor="yellow-dark" />
-									{#each [7, 8, 9] as month}
+									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
 									{/each}
 									<SummaryDataCell type="profit" value={getQuarterDataForOrg(org, data, 3).profit} bgColor="blue-dark" />
-									{#each [10, 11, 12] as month}
+									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
 										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
 									{/each}
@@ -390,7 +389,6 @@
 				</div>
 			{/if}
 		{/if}
-	{/snippet}
 </MainContent>
 
 <style>
