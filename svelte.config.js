@@ -18,28 +18,46 @@ const config = {
 			$common: 'src/common',
 		}
 	},
+	
+	// onwarn: (warning, handler) => {
+	// 	// Svelte 5에서는 하이픈(-) 대신 언더바(_)를 사용합니다.
+	// 	const ignoredCodes = [
+	// 		'a11y_click_events_have_key_events',
+	// 		'a11y_no_static_element_interactions',
+	// 		'a11y_missing_aria_attribute',
+	// 		'a11y_missing_role',
+	// 		'a11y_no_noninteractive_element_interactions',
+	// 		'a11y_role_has_required_aria_props',
+	// 		'a11y_role_supports_aria_props',
+	// 		'a11y_label_has_associated_control'
+	// 	];
+	
+	// 	if (ignoredCodes.includes(warning.code)) {
+	// 		return;
+	// 	}
+		
+	// 	handler(warning);
+	// },
 
 	compilerOptions: {
-
+		warningFilter: (warning) => {
+			const ignored = [
+				'a11y_label_has_associated_control',
+				'a11y_click_events_have_key_events',
+				'a11y_no_static_element_interactions',
+				'a11y_missing_aria_attribute',
+				'a11y_missing_role',
+				'a11y_no_noninteractive_element_interactions',
+				'a11y_role_has_required_aria_props',
+				'a11y_role_supports_aria_props',
+				
+				'css_unused_selector'
+			];
+			// 포함되어 있으면 false를 반환하여 무시
+			return !ignored.includes(warning.code);
+		}
 	},
 	
-	onwarn: (warning, handler) => {
-		// 접근성 관련 경고들 무시
-		if (
-			warning.code === 'a11y-click-events-have-key-events' ||
-			warning.code === 'a11y-no-static-element-interactions' ||
-			warning.code === 'a11y-missing-aria-attribute' ||
-			warning.code === 'a11y-missing-role' ||
-			warning.code === 'a11y-no-noninteractive-element-interactions' ||
-			warning.code === 'a11y-role-has-required-aria-props' ||
-			warning.code === 'a11y-role-supports-aria-props' ||
-			warning.code === 'a11y-label-has-associated-control'
-		) {
-			return;
-		}
-		// 다른 경고는 기본 처리
-		handler(warning);
-	},
 };
 
 export default config;

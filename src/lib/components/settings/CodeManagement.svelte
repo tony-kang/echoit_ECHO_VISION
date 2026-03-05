@@ -1,13 +1,14 @@
 <script>
-	import { onMount } from 'svelte';
+	// import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
+	import CodeManagementFormModal from '$lib/components/settings/CodeManagementFormModal.svelte';
 	import {
 		getSettings,
 		getRootSettings,
-		getChildSettings,
+		// getChildSettings,
 		getSetting,
 		createSetting,
 		updateSetting,
@@ -350,7 +351,9 @@
 	async function handleCreate() {
 		resetForm();
 		editingSetting = null;
-		
+		if (formCategory) {
+			formCode = getNextCodeForCategory(formCategory);
+		}
 		// 상위 코드 옵션이 로드되지 않았으면 먼저 로드
 		if (parentOptions.length === 0) {
 			await loadParentOptions();
@@ -454,9 +457,33 @@
 	}
 
 	/**
-	 * 폼 초기화
+	 * 등록 시 카테고리별 다음 코드 자동 생성 (예: sales_0001, cost_0002)
+	 * @param {string} cat - 카테고리 (organization, sales, cost 등)
+	 * @returns {string} 다음 사용 가능한 코드
+	 */
+	function getNextCodeForCategory(cat) {
+		if (!cat || cat.trim() === '') return '';
+		const prefix = cat.trim() + '_';
+		const re = new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\d+)$');
+		let max = 0;
+		for (const s of allSettings) {
+			if (s.category !== cat || !s.code) continue;
+			const m = String(s.code).match(re);
+			if (m) max = Math.max(max, parseInt(m[1], 10));
+		}
+		return prefix + String(max + 1).padStart(4, '0');
+	}
+
+	/**
+	 * 카테고리 변경 시 코드 자동 생성 (등록 모드일 때만)
 	 * @returns {void}
 	 */
+	function handleCategoryChange() {
+		if (!editingSetting && formCategory) {
+			formCode = getNextCodeForCategory(formCategory);
+		}
+	}
+
 	/**
 	 * 폼 초기화
 	 * @returns {void}
@@ -699,7 +726,8 @@
 		const labels = {
 			organization: '조직',
 			sales: '매출',
-			cost: '비용'
+			cost: '비용',
+			'excel-company': '엑설등록용 회사'
 		};
 		return labels[cat] || cat;
 	}
@@ -884,7 +912,7 @@
 			rowCount={filteredSettings.length}
 			emptyMessage="환경설정 코드가 없습니다."
 		>
-			{#each filteredSettings as setting}
+			{#each filteredSettings as setting (setting.code)}
 				<tr 
 					class="hover:bg-gray-50 {isSearchMode ? 'cursor-default' : 'cursor-pointer'}" 
 					onclick={isSearchMode ? undefined : () => navigateToCode(setting.code)}
@@ -923,7 +951,7 @@
 					<td class="text-center">
 						{#if setting.param && Array.isArray(setting.param) && setting.param.length > 0}
 							<div class="flex flex-wrap gap-1 justify-center">
-								{#each setting.param as paramItem}
+								{#each setting.param as paramItem (paramItem)}
 									<span class="badge badge-info text-xs">
 										{paramItem}
 									</span>
@@ -958,294 +986,35 @@
 	{/if}
 </div>
 
-<!-- 환경설정 코드 생성/수정 모달 -->
-{#if showFormModal}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="modal-overlay" onclick={handleCancel}>
-		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
-			<div class="modal-header">
-				<h2>{editingSetting ? '환경설정 코드 수정' : '환경설정 코드 추가'}</h2>
-				<button onclick={handleCancel} class="modal-close">×</button>
-			</div>
-			<div class="modal-body">
-				<div class="space-y-4">
-					<!-- 코드 -->
-					<div>
-						<label for="formCode" class="block text-sm font-medium text-gray-700 mb-1">
-							코드 <span class="text-red-500">*</span>
-						</label>
-						<input
-							type="text"
-							id="formCode"
-							bind:value={formCode}
-							maxlength="16"
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-							placeholder="최대 16자리 코드 입력"
-							required
-							disabled={!!editingSetting}
-						/>
-						<p class="text-xs text-gray-500 mt-1">
-							코드는 수정할 수 없습니다.
-						</p>
-					</div>
-
-					<!-- 상위 코드 -->
-					<div>
-						<label for="formParentCode" class="block text-sm font-medium text-gray-700 mb-1">
-							상위 코드
-						</label>
-						<select
-							id="formParentCode"
-							bind:value={formParentCode}
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-						>
-							<option value="">없음 (최상위)</option>
-							{#each parentOptions as parent}
-								{#if !editingSetting || parent.code !== editingSetting.code}
-									<option value={parent.code}>
-										{parent.code} - {parent.title}
-									</option>
-								{/if}
-							{/each}
-						</select>
-						<p class="text-xs text-gray-500 mt-1">부모 코드를 선택하면 계층 구조가 생성됩니다.</p>
-					</div>
-
-					<!-- 표시 순서 -->
-					<div>
-						<label for="formOrder" class="block text-sm font-medium text-gray-700 mb-1">
-							표시 순서
-						</label>
-						<input
-							type="number"
-							id="formOrder"
-							bind:value={formOrder}
-							min="0"
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-							placeholder="0"
-						/>
-					</div>
-
-					<!-- 값 -->
-					<div>
-						<label for="formValue" class="block text-sm font-medium text-gray-700 mb-1">
-							값 <span class="text-red-500">*</span>
-						</label>
-						<input
-							type="number"
-							id="formValue"
-							bind:value={formValue}
-							min="1"
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-							placeholder="1 이상의 숫자"
-							required
-						/>
-						<p class="text-xs text-gray-500 mt-1">값은 1 이상이어야 합니다.</p>
-					</div>
-
-					<!-- 제목 -->
-					<div>
-						<label for="formTitle" class="block text-sm font-medium text-gray-700 mb-1">
-							제목 <span class="text-red-500">*</span>
-						</label>
-						<input
-							type="text"
-							id="formTitle"
-							bind:value={formTitle}
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-							placeholder="제목을 입력하세요"
-							required
-						/>
-					</div>
-
-					<!-- 카테고리 -->
-					<div>
-						<label for="formCategory" class="block text-sm font-medium text-gray-700 mb-1">
-							카테고리 <span class="text-red-500">*</span>
-						</label>
-						<select
-							id="formCategory"
-							bind:value={formCategory}
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-							required
-						>
-							<option value="">선택하세요</option>
-							<option value="organization">organization (조직)</option>
-							<option value="sales">sales (매출)</option>
-							<option value="cost">cost (비용)</option>
-						</select>
-						<p class="text-xs text-gray-500 mt-1">코드의 분류를 선택하세요.</p>
-					</div>
-
-					<!-- 파라미터 -->
-					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">
-							파라미터 (엑셀 컬럼 매칭용)
-						</label>
-						<div class="space-y-2">
-							<div class="flex gap-2">
-								<input
-									type="text"
-									bind:value={newParamValue}
-									onkeydown={(e) => {
-										if (e.key === 'Enter') {
-											e.preventDefault();
-											handleAddParam();
-										}
-									}}
-									class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-									placeholder="파라미터 입력 후 Enter 또는 추가 버튼 클릭"
-								/>
-								<button
-									type="button"
-									onclick={handleAddParam}
-									class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-								>
-									추가
-								</button>
-							</div>
-							{#if formParam.length > 0}
-								<div class="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-lg min-h-[3rem]">
-									{#each formParam as paramItem, index}
-										<span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-											{paramItem}
-											<button
-												type="button"
-												onclick={() => handleRemoveParam(index)}
-												class="ml-1 text-blue-600 hover:text-blue-800 font-bold"
-												aria-label="삭제"
-											>
-												×
-											</button>
-										</span>
-									{/each}
-								</div>
-							{:else}
-								<p class="text-xs text-gray-500">파라미터가 없습니다. 엑셀 컬럼 매칭을 위해 파라미터를 추가하세요.</p>
-							{/if}
-						</div>
-						<p class="text-xs text-gray-500 mt-1">엑셀 파일의 컬럼명과 매칭하기 위한 파라미터 목록입니다.</p>
-					</div>
-
-					<!-- 설명 -->
-					<div>
-						<label for="formComment" class="block text-sm font-medium text-gray-700 mb-1">
-							설명
-						</label>
-						<textarea
-							id="formComment"
-							bind:value={formComment}
-							rows="3"
-							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-							placeholder="설명을 입력하세요 (선택사항)"
-						></textarea>
-					</div>
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button onclick={handleCancel} class="btn-secondary" disabled={isSaving}>취소</button>
-				<button onclick={handleSubmit} class="btn-primary" disabled={isSaving}>
-					{isSaving ? '저장 중...' : '저장'}
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
+	<CodeManagementFormModal
+		open={showFormModal}
+		editingSetting={editingSetting}
+		parentOptions={parentOptions}
+		bind:formCode
+		bind:formParentCode
+		bind:formOrder
+		bind:formValue
+		bind:formTitle
+		bind:formComment
+		bind:formCategory
+		bind:formParam
+		bind:newParamValue
+		isSaving={isSaving}
+		onCategoryChange={handleCategoryChange}
+		onCancel={handleCancel}
+		onSubmit={handleSubmit}
+		onAddParam={handleAddParam}
+		onRemoveParam={handleRemoveParam}
+	/>
 
 <style>
 	.admin-content-page {
 		width: 100%;
 	}
 
-	.modal-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.5);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-	}
-
-	.modal-content {
-		background: white;
-		border-radius: 8px;
-		width: 90%;
-		max-width: 600px;
-		max-height: 90vh;
-		overflow-y: auto;
-		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-	}
-
-	.modal-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 1.5rem;
-		border-bottom: 1px solid #e5e7eb;
-	}
-
-	.modal-header h2 {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: #111827;
-	}
-
-	.modal-close {
-		background: none;
-		border: none;
-		font-size: 1.5rem;
-		color: #6b7280;
-		cursor: pointer;
-		padding: 0;
-		width: 2rem;
-		height: 2rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: 0.25rem;
-	}
-
-	.modal-close:hover {
-		background-color: #f3f4f6;
-		color: #111827;
-	}
-
-	.modal-body {
-		padding: 1.5rem;
-	}
-
-	.modal-footer {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.75rem;
-		padding: 1.5rem;
-		border-top: 1px solid #e5e7eb;
-	}
-
-	.btn-primary {
-		background-color: #3b82f6;
-		color: white;
-		padding: 0.5rem 1rem;
-		border-radius: 0.5rem;
-		border: none;
-		font-weight: 500;
-		cursor: pointer;
-		transition: background-color 0.2s;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background-color: #2563eb;
-	}
-
-	.btn-primary:disabled,
-	.btn-secondary:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
+	.btn-small {
+		padding: 0.25rem 0.75rem;
+		font-size: 0.875rem;
 	}
 
 	.btn-secondary {
@@ -1256,16 +1025,10 @@
 		border: none;
 		font-weight: 500;
 		cursor: pointer;
-		transition: background-color 0.2s;
 	}
 
 	.btn-secondary:hover {
 		background-color: #4b5563;
-	}
-
-	.btn-small {
-		padding: 0.25rem 0.75rem;
-		font-size: 0.875rem;
 	}
 
 	.btn-danger {

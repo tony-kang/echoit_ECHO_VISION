@@ -25,7 +25,8 @@
 			all: '전체',
 			organization: '조직',
 			sales: '매출',
-			cost: '비용'
+			cost: '비용',
+			'excel-company': '엑설등록용 회사'
 		};
 		return labels[category] || category;
 	});

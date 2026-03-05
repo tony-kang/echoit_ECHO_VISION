@@ -390,49 +390,47 @@
 			등록된 부서가 없습니다. "부서 추가"로 추가하세요.
 		</div>
 	{:else}
-		<div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-			<DataTable
-				headers={[
-					// { label: '코드' },
-					{ label: '실제 부서명' },
-					{ label: '회계상 부서(조직)' },
-					{ label: '담당자' },
-					{ label: '작업', align: 'center' }
-				]}
-				rowCount={departments.length}
-				emptyMessage="등록된 부서가 없습니다."
-			>
-				{#each departments as dept (dept.id)}
-					<tr>
-						<!-- <td class="font-mono text-sm">{dept.code}</td> -->
-						<td>{dept.title || '-'}</td>
-						<td class="max-w-md text-sm text-gray-700">
-							{paramToDisplayLabels(dept.param)}
-						</td>
-						<td class="max-w-xs text-sm text-gray-700">
-							{formatDepartmentUsers(departmentUsersMap[dept.id] ?? [])}
-						</td>
-						<td class="text-center">
-							<button
-								type="button"
-								onclick={() => openEditPopup(dept)}
-								class="btn-edit btn-xs"
-							>
-								조직 수정
-							</button>
-							<button
-								type="button"
-								onclick={() => handleDeleteDepartment(dept)}
-								class="btn-danger btn-xs"
-								disabled={isSaving}
-							>
-								조직 삭제
-							</button>
-						</td>
-					</tr>
-				{/each}
-			</DataTable>
-		</div>
+		<DataTable
+			headers={[
+				// { label: '코드' },
+				{ label: '실제 부서명' },
+				{ label: '회계상 부서(조직)' },
+				{ label: '담당자' },
+				{ label: '작업', align: 'center' }
+			]}
+			rowCount={departments.length}
+			emptyMessage="등록된 부서가 없습니다."
+		>
+			{#each departments as dept (dept.id)}
+				<tr>
+					<!-- <td class="font-mono text-sm">{dept.code}</td> -->
+					<td>{dept.title || '-'}</td>
+					<td class="max-w-md text-sm text-gray-700">
+						{paramToDisplayLabels(dept.param)}
+					</td>
+					<td class="max-w-xs text-sm text-gray-700">
+						{formatDepartmentUsers(departmentUsersMap[dept.id] ?? [])}
+					</td>
+					<td class="text-center">
+						<button
+							type="button"
+							onclick={() => openEditPopup(dept)}
+							class="btn-edit btn-xs"
+						>
+							조직 수정
+						</button>
+						<button
+							type="button"
+							onclick={() => handleDeleteDepartment(dept)}
+							class="btn-danger btn-xs"
+							disabled={isSaving}
+						>
+							조직 삭제
+						</button>
+					</td>
+				</tr>
+			{/each}
+		</DataTable>
 	{/if}
 </MainContent>
 
