@@ -231,6 +231,7 @@
 			try {
 				await loadingPromise;
 				return;
+			// eslint-disable-next-line no-unused-vars
 			} catch (err) {
 				// 이전 로드가 실패했으면 다시 시도
 				loadingPromise = null;
