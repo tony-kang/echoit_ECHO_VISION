@@ -3,7 +3,6 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import FilterBar from '$lib/components/FilterBar.svelte';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { getSettings, getEvCodes } from '$lib/settingsService';
 
@@ -55,18 +54,19 @@
 	let isLoadingGrandChildCodes = $state(false);
 
 	/**
-	 * URL 쿼리 파라미터에서 초기값 읽기
+	 * URL 쿼리 파라미터에서 초기값 읽기 (evCodeItems가 ["xxx","xxx"] 형태로 오면 parentCodes로 복원)
 	 * @returns {Record<string, any>}
 	 */
 	function getInitialFilters() {
 		const urlYear = page.url.searchParams.get('year');
 		const urlEvCodeItems = page.url.searchParams.get('evCodeItems');
-		let parentCode = 'SUM_000';
+		/** @type {string[]} */
+		let parentCodes = [];
 		if (urlEvCodeItems) {
 			try {
 				const parsed = JSON.parse(decodeURIComponent(urlEvCodeItems));
-				if (Array.isArray(parsed) && parsed.length === 1 && typeof parsed[0] === 'string') {
-					parentCode = parsed[0];
+				if (Array.isArray(parsed) && parsed.every((/** @type {any} */ p) => typeof p === 'string')) {
+					parentCodes = [...parsed];
 				}
 			} catch {
 				// ignore
@@ -74,7 +74,7 @@
 		}
 		return {
 			year: urlYear || new Date().getFullYear().toString(),
-			parentCode,
+			parentCodes,
 			selectedCodes: [],
 			selectedCodes2: []
 		};
@@ -100,8 +100,8 @@
 	let filters = $state(getInitialFilters());
 	/** @type {string | null} 이전 연도 값 (무한루프 방지) */
 	let previousYear = $state(new Date().getFullYear().toString());
-	/** @type {string | null} 이전 상위 코드 값 (무한루프 방지) */
-	let previousParentCode = $state(null);
+	/** @type {string | null} 이전 parentCodes 정렬 JSON 문자열 (무한루프 방지) */
+	let previousParentCodesStr = $state(null);
 	/** @type {string[]} 이전 선택된 코드 배열 (무한루프 방지) */
 	let previousSelectedCodes = $state([]);
 	/** @type {string[]} 이전 선택된 하위 코드의 하위 코드 배열 (무한루프 방지) */
@@ -113,6 +113,11 @@
 	let allSettingsLoaded = $state(false);
 	/** @type {boolean} loadAllSettings 호출 중 여부 (중복 호출 방지) */
 	let allSettingsLoading = $state(false);
+	/** @type {string[]} 조직 체크박스 선택 코드 (체크 시 여기만 갱신, URL/초기화 시에만 filters에서 동기화) */
+	let selectedOrgCodes = $state((() => {
+		const f = getInitialFilters();
+		return Array.isArray(f.parentCodes) ? [...f.parentCodes] : [];
+	})());
 
 	$effect(() => {
 		if (!authStore.loading && !authStore.user) {
@@ -150,7 +155,8 @@
 				});
 
 				// 상위 코드가 선택되지 않은 경우에만 기본 evCodeItems 설정
-				if (!filters.parentCode) {
+				const parentCodes = Array.isArray(filters.parentCodes) ? filters.parentCodes : [];
+				if (parentCodes.length === 0) {
 					// ev_sales/ev_cost 데이터를 로드할 때 사용할 evCode의 items를 평탄화하고 중복 제거
 					const allItems = evCodes.flatMap(evCode => evCode.items || []);
 					evCodeItems = [...new Set(allItems)];
@@ -183,21 +189,17 @@
 	});
 
 	/**
-	 * 조직(상위 코드) 선택 시 evCodeItems를 [선택한 코드]로 설정 → URL 갱신(227-231) 및 데이터 로드가 기존 effect로 수행됨
+	 * 조직(상위 코드) 다중 선택 시 evCodeItems를 선택된 코드 배열로 설정 → URL 갱신 및 데이터 로드 effect에서 처리
 	 */
 	$effect(() => {
-		const currentParentCode = filters.parentCode || null;
+		const currentParentCodes = Array.isArray(filters.parentCodes) ? [...filters.parentCodes] : [];
+		const currentStr = JSON.stringify([...currentParentCodes].sort());
 
 		if (!user || authLoading) return;
 
-		if (currentParentCode && currentParentCode !== previousParentCode) {
-			previousParentCode = currentParentCode;
-			// 조직 선택 시 해당 코드만 evCodeItems에 설정 (예: ["SUM_XXX"])
-			evCodeItems = [currentParentCode];
-			// updateUrlParams()는 evCodeItems 변경을 감지하는 기존 $effect에서 호출됨
-		} else if (!currentParentCode) {
-			previousParentCode = null;
-			evCodeItems = [];
+		if (currentStr !== (previousParentCodesStr ?? '')) {
+			previousParentCodesStr = currentParentCodes.length > 0 ? currentStr : null;
+			evCodeItems = currentParentCodes.length > 0 ? [...currentParentCodes] : [];
 		}
 	});
 
@@ -252,26 +254,37 @@
 	/**
 	 * URL 쿼리 파라미터 변경 감지 및 상태 동기화 (evCodeItems 읽기는 untrack으로 순환 방지)
 	 */
+	/** URL 변경 시에만 실행 (filters 구독 제거 → 체크 시 effect 재실행으로 selectedOrgCodes 덮어쓰기 방지) */
 	$effect(() => {
 		const urlYear = page.url.searchParams.get('year');
 		const urlEvCodeItems = page.url.searchParams.get('evCodeItems');
-		
-		// URL의 year가 변경되었으면 filters 업데이트
-		if (urlYear && urlYear !== filters.year) {
+
+		// URL의 year가 변경되었으면 filters 업데이트 (filters는 untrack으로 읽어 effect 의존성에서 제외)
+		if (urlYear && urlYear !== untrack(() => filters.year)) {
 			filters = { ...filters, year: urlYear };
 		}
-		
-		// URL의 evCodeItems가 변경되었으면 evCodeItems 업데이트 (비교만 untrack으로 의존성 차단)
+
+		// URL의 evCodeItems가 변경되었을 때만 evCodeItems·filters·selectedOrgCodes 동기화
 		if (urlEvCodeItems) {
 			try {
 				const parsed = JSON.parse(decodeURIComponent(urlEvCodeItems));
+				if (!Array.isArray(parsed) || !parsed.every((/** @type {any} */ p) => typeof p === 'string')) return;
 				const parsedStr = JSON.stringify([...parsed].sort());
 				const currentStr = untrack(() => JSON.stringify([...evCodeItems].sort()));
 				if (currentStr !== parsedStr) {
-					evCodeItems = parsed;
+					evCodeItems = [...parsed];
+					filters = { ...filters, parentCodes: [...parsed] };
+					selectedOrgCodes = [...parsed];
 				}
 			} catch {
 				// 파싱 실패 시 무시
+			}
+		} else {
+			const currentCodes = untrack(() => (Array.isArray(filters.parentCodes) ? filters.parentCodes : []));
+			if (currentCodes.length > 0 || untrack(() => evCodeItems.length) > 0) {
+				evCodeItems = [];
+				filters = { ...filters, parentCodes: [] };
+				selectedOrgCodes = [];
 			}
 		}
 	});
@@ -468,9 +481,10 @@
 		/** @type {string[]} */
 		let newEvCodeItems = [];
 
-		// 조직(상위 코드)만 선택된 경우 해당 코드 1개만 사용
-		if (filters.parentCode && allCodes.length === 0) {
-			newEvCodeItems = [filters.parentCode];
+		// 조직(상위 코드)만 선택된 경우 선택된 코드 배열 사용
+		const parentCodes = Array.isArray(filters.parentCodes) ? filters.parentCodes : [];
+		if (parentCodes.length > 0 && allCodes.length === 0) {
+			newEvCodeItems = [...parentCodes];
 		} else if (allCodes.length > 0) {
 			newEvCodeItems = [...new Set(allCodes)];
 		} else {
@@ -571,61 +585,62 @@
 	 * @param {string} code - 코드
 	 * @returns {string}
 	 */
-	function getCodeTitle(code) {
-		const setting = allSettings.find((/** @type {any} */ s) => s.code === code);
-		return setting?.title || code;
-	}
+	// function getCodeTitle(code) {
+	// 	const setting = allSettings.find((/** @type {any} */ s) => s.code === code);
+	// 	return setting?.title || code;
+	// }
 
 	/**
 	 * Breadcrumb 텍스트 생성
 	 * @returns {string}
 	 */
-	const breadcrumbText = $derived.by(() => {
-		// allSettings가 로드되지 않았으면 빈 문자열 반환
-		if (!allSettings || allSettings.length === 0) {
-			return '';
-		}
+	// const breadcrumbText = $derived.by(() => {
+	// 	// allSettings가 로드되지 않았으면 빈 문자열 반환
+	// 	if (!allSettings || allSettings.length === 0) {
+	// 		return '';
+	// 	}
 
-		/** @type {string[]} */
-		const parts = [];
+	// 	/** @type {string[]} */
+	// 	const parts = [];
 
-		// 년도
-		if (filters.year) {
-			parts.push(`${filters.year}년`);
-		}
+	// 	// 년도
+	// 	if (filters.year) {
+	// 		parts.push(`${filters.year}년`);
+	// 	}
 
-		// 상위 코드
-		if (filters.parentCode) {
-			const parentTitle = getCodeTitle(filters.parentCode);
-			if (parentTitle) {
-				parts.push(parentTitle);
-			}
-		}
+	// 	// 상위 코드(다중)
+	// 	const parentCodes = Array.isArray(filters.parentCodes) ? filters.parentCodes : [];
+	// 	if (parentCodes.length > 0) {
+	// 		const parentTitles = parentCodes.map((code) => getCodeTitle(code)).filter((t) => t);
+	// 		if (parentTitles.length > 0) {
+	// 			parts.push(parentTitles.join(', '));
+	// 		}
+	// 	}
 
-		// 하위 코드
-		const currentSelectedCodes = Array.isArray(filters.selectedCodes) ? filters.selectedCodes : [];
-		if (currentSelectedCodes.length > 0) {
-			const selectedTitles = currentSelectedCodes
-				.map(code => getCodeTitle(code))
-				.filter(title => title);
-			if (selectedTitles.length > 0) {
-				parts.push(selectedTitles.join(', '));
-			}
-		}
+	// 	// 하위 코드
+	// 	const currentSelectedCodes = Array.isArray(filters.selectedCodes) ? filters.selectedCodes : [];
+	// 	if (currentSelectedCodes.length > 0) {
+	// 		const selectedTitles = currentSelectedCodes
+	// 			.map(code => getCodeTitle(code))
+	// 			.filter(title => title);
+	// 		if (selectedTitles.length > 0) {
+	// 			parts.push(selectedTitles.join(', '));
+	// 		}
+	// 	}
 
-		// 하위 코드의 하위 코드
-		const currentSelectedCodes2 = Array.isArray(filters.selectedCodes2) ? filters.selectedCodes2 : [];
-		if (currentSelectedCodes2.length > 0) {
-			const selectedTitles2 = currentSelectedCodes2
-				.map(code => getCodeTitle(code))
-				.filter(title => title);
-			if (selectedTitles2.length > 0) {
-				parts.push(selectedTitles2.join(', '));
-			}
-		}
+	// 	// 하위 코드의 하위 코드
+	// 	const currentSelectedCodes2 = Array.isArray(filters.selectedCodes2) ? filters.selectedCodes2 : [];
+	// 	if (currentSelectedCodes2.length > 0) {
+	// 		const selectedTitles2 = currentSelectedCodes2
+	// 			.map(code => getCodeTitle(code))
+	// 			.filter(title => title);
+	// 		if (selectedTitles2.length > 0) {
+	// 			parts.push(selectedTitles2.join(', '));
+	// 		}
+	// 	}
 
-		return parts.join(' > ');
-	});
+	// 	return parts.join(' > ');
+	// });
 
 	/**
 	 * 금액 포맷팅 (천단위 콤마만, ₩ 기호 제거)
@@ -647,6 +662,53 @@
 	const months = $derived.by(() => {
 		return Array.from({ length: 12 }, (_, i) => i + 1);
 	});
+
+	/**
+	 * 조직 체크박스 토글
+	 * @param {string} value - 코드 값
+	 * @param {boolean} checked - 체크 여부
+	 */
+	function handleOrgCheck(value, checked) {
+		const next = checked
+			? (selectedOrgCodes.includes(value) ? selectedOrgCodes : [...selectedOrgCodes, value])
+			: selectedOrgCodes.filter((c) => c !== value);
+		selectedOrgCodes = next;
+		filters = { ...filters, parentCodes: next };
+	}
+
+	/**
+	 * 조직 전체 선택/해제
+	 * @param {boolean} selectAll - true: 전체 선택, false: 전체 해제
+	 */
+	function handleOrgSelectAll(selectAll) {
+		const next = selectAll ? secondLevelOrgCodes.map((o) => o.value) : [];
+		selectedOrgCodes = next;
+		filters = { ...filters, parentCodes: next };
+	}
+
+	/**
+	 * 필터 초기화 (년도·조직 초기화 후 URL 갱신)
+	 * @returns {Promise<void>}
+	 */
+	async function handleFilterReset() {
+		const currentYear = new Date().getFullYear().toString();
+		filters = {
+			year: currentYear,
+			parentCodes: [],
+			selectedCodes: [],
+			selectedCodes2: []
+		};
+		selectedOrgCodes = [];
+		displayData = [];
+		evCodeItems = [];
+		childCodes = [];
+		grandChildCodes = [];
+		previousParentCodesStr = null;
+		previousSelectedCodes = [];
+		previousSelectedCodes2 = [];
+		previousYear = currentYear;
+		await updateUrlParams();
+	}
 </script>
 
 <main class="flex-1 overflow-y-auto bg-gray-50">
@@ -664,7 +726,8 @@
 				<!-- 헤더 -->
 				<div class="mb-6">
 					<h1 class="text-2xl font-bold text-gray-900">{title}</h1>
-					{#if breadcrumbText && breadcrumbText.trim() !== ''}
+					<p>엑셀 데이터 확인용 페이지입니다. 데이터를 확인하고 싶은 조직을 선택해주세요.</p>
+					<!-- {#if breadcrumbText && breadcrumbText.trim() !== ''}
 						<div class="breadcrumb-container">
 							{#each breadcrumbText.split(' > ') as part, index (index)}
 								{#if index > 0}
@@ -673,71 +736,51 @@
 								<span class="breadcrumb-item">{part}</span>
 							{/each}
 						</div>
-					{/if}
+					{/if} -->
 				</div>
 
-				<!-- 필터 영역 -->
-				<FilterBar
-					bind:filters={filters}
-					onApply={async () => {
-						// select onchange가 handleApply()를 곧바로 호출하므로, effect보다 먼저 evCodeItems 반영 후 URL 갱신
-						if (filters.parentCode) {
-							evCodeItems = [filters.parentCode];
-							previousParentCode = filters.parentCode;
-						} else {
-							evCodeItems = [];
-							previousParentCode = null;
-						}
-						await updateUrlParams();
-					}}
-					fields={[
-						{
-							key: 'year',
-							type: 'select',
-							label: '년도',
-							options: [
-								{ value: new Date().getFullYear().toString(), label: `${new Date().getFullYear()}년` },
-								{ value: (new Date().getFullYear() - 1).toString(), label: `${new Date().getFullYear() - 1}년` },
-								{ value: (new Date().getFullYear() - 2).toString(), label: `${new Date().getFullYear() - 2}년` }
-							]
-						},
-						{
-							key: 'parentCode',
-							type: 'select',
-							label: '상위 코드',
-							options: secondLevelOrgCodes
-						},
-						// {
-						// 	key: 'selectedCodes',
-						// 	type: 'select-multiple',
-						// 	label: '하위 코드',
-						// 	options: childCodes
-						// },
-						// {
-						// 	key: 'selectedCodes2',
-						// 	type: 'select-multiple',
-						// 	label: '하위 코드의 하위 코드',
-						// 	options: grandChildCodes
-						// }
-					]}
-					onReset={async () => {
-						filters = { 
-							year: new Date().getFullYear().toString(),
-							parentCode: 'SUM_000',
-							selectedCodes: [],
-							selectedCodes2: []
-						};
-						displayData = [];
-						evCodeItems = [];
-						childCodes = [];
-						grandChildCodes = [];
-						previousParentCode = 'SUM_000';
-						previousSelectedCodes = [];
-						previousSelectedCodes2 = [];
-						previousYear = new Date().getFullYear().toString();
-						await updateUrlParams();
-					}}
-				/>
+				<!-- 년도 + 조직 체크박스 (펼쳐진 형태, 10 x 6 그리드) -->
+				<div class="org-checkbox-section">
+					<div class="org-checkbox-header">
+						<div class="org-header-left">
+							<label class="org-header-year-label">
+								<span class="org-checkbox-title">년도</span>
+								<select
+									class="org-header-year-select"
+									value={filters.year}
+									onchange={(e) => {
+										const y = e.target.value;
+										filters = { ...filters, year: y };
+									}}
+								>
+									<option value={new Date().getFullYear().toString()}>{new Date().getFullYear()}년</option>
+									<option value={(new Date().getFullYear() - 1).toString()}>{new Date().getFullYear() - 1}년</option>
+									<option value={(new Date().getFullYear() - 2).toString()}>{new Date().getFullYear() - 2}년</option>
+								</select>
+							</label>
+							<span class="org-checkbox-title">조직</span>
+						</div>
+						<div class="org-checkbox-actions">
+							<button type="button" class="org-checkbox-btn" onclick={() => handleOrgSelectAll(true)}>전체 선택</button>
+							<button type="button" class="org-checkbox-btn" onclick={() => handleOrgSelectAll(false)}>전체 해제</button>
+							<button type="button" class="org-checkbox-btn org-checkbox-btn-reset" onclick={() => handleFilterReset()}>초기화</button>
+						</div>
+					</div>
+					<div class="org-checkbox-grid">
+						{#each secondLevelOrgCodes as option (option.value)}
+							{@const selected = selectedOrgCodes.includes(option.value)}
+							<label class="org-checkbox-item">
+								<input
+									type="checkbox"
+									checked={selected}
+									onchange={(e) => handleOrgCheck(option.value, e.target.checked)}
+									class="org-checkbox-input"
+								/>
+								<span class="org-checkbox-label">{option.label}</span>
+							</label>
+						{/each}
+					</div>
+				</div>
 
 				<!-- 데이터 테이블 -->
 				<div class="bg-white rounded-lg shadow-md overflow-hidden">
@@ -861,5 +904,126 @@
 
 	.text-right {
 		text-align: right;
+	}
+
+	/* 조직 체크박스: 펼쳐진 형태, 가로 10 x 세로 6 그리드 */
+	.org-checkbox-section {
+		background: white;
+		border: 1px solid #e5e7eb;
+		border-radius: 8px;
+		padding: 12px 16px;
+		margin-bottom: 20px;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	}
+
+	.org-checkbox-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 12px;
+		padding-bottom: 8px;
+		border-bottom: 1px solid #e5e7eb;
+	}
+
+	.org-header-left {
+		display: flex;
+		align-items: center;
+		gap: 20px;
+	}
+
+	.org-checkbox-title {
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: #374151;
+	}
+
+	.org-header-year-label {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.org-header-year-select {
+		height: 32px;
+		padding: 0 8px;
+		border: 1px solid #d1d5db;
+		border-radius: 6px;
+		font-size: 0.875rem;
+		background: white;
+		color: #374151;
+		min-width: 90px;
+		cursor: pointer;
+	}
+
+	.org-header-year-select:focus {
+		outline: none;
+		border-color: #2563eb;
+	}
+
+	.org-checkbox-btn-reset {
+		margin-left: 4px;
+		border-color: #f87171;
+		color: #dc2626;
+	}
+
+	.org-checkbox-btn-reset:hover {
+		background: #fef2f2;
+		border-color: #dc2626;
+	}
+
+	.org-checkbox-actions {
+		display: flex;
+		gap: 8px;
+	}
+
+	.org-checkbox-btn {
+		padding: 4px 10px;
+		font-size: 0.8rem;
+		border: 1px solid #d1d5db;
+		border-radius: 6px;
+		background: #f9fafb;
+		color: #374151;
+		cursor: pointer;
+		transition: background 0.15s, border-color 0.15s;
+	}
+
+	.org-checkbox-btn:hover {
+		background: #f3f4f6;
+		border-color: #9ca3af;
+	}
+
+	.org-checkbox-grid {
+		display: grid;
+		grid-template-columns: repeat(10, 1fr);
+		gap: 6px 16px;
+	}
+
+	.org-checkbox-item {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		cursor: pointer;
+		user-select: none;
+		font-size: 0.8rem;
+		color: #374151;
+		min-width: 0;
+	}
+
+	.org-checkbox-item:hover {
+		color: #1f2937;
+	}
+
+	.org-checkbox-input {
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
+		cursor: pointer;
+		accent-color: #2563eb;
+	}
+
+	.org-checkbox-label {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 </style>

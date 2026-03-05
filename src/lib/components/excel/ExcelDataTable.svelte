@@ -31,7 +31,7 @@
 	/** @type {Array<any>} 환경 코드 목록 */
 	let envCodes = $state([]);
 	/** @type {boolean} 환경 코드 로딩 중 여부 */
-	let isLoadingEnvCodes = $state(false);
+	// let isLoadingEnvCodes = $state(false);
 	/** @type {Promise<any> | null} 로딩 중인 Promise (중복 로드 방지) */
 	let loadingPromise = $state(null);
 	/** @type {boolean} 코드 등록 팝업 표시 여부 */
@@ -237,8 +237,8 @@
 			}
 		}
 
-		isLoadingEnvCodes = true;
-		const startTime = performance.now();
+		// isLoadingEnvCodes = true;
+		// const startTime = performance.now();
 
 		const categories = getCategoryFromExcelType(excelType);
 		
@@ -256,13 +256,13 @@
 			});
 
 			envCodes = allCodes;
-			const endTime = performance.now();
+			// const endTime = performance.now();
 			// console.log(`env_code 로드 완료: ${excelType} - ${allCodes.length}개 (${(endTime - startTime).toFixed(2)}ms)`, allCodes);
 		}).catch(err => {
 			console.error('env_code 로드 실패:', err);
 			throw err;
 		}).finally(() => {
-			isLoadingEnvCodes = false;
+			// isLoadingEnvCodes = false;
 			loadingPromise = null;
 		});
 
@@ -750,7 +750,7 @@
 				paramArray.push(registerTargetValue);
 			}
 
-			const { data, error: createError } = await createSetting({
+			const { error: createError } = await createSetting({
 				code: registerCode.trim(),
 				title: registerTitle.trim(),
 				comment: registerComment.trim() || null,
@@ -1104,7 +1104,7 @@
 							<div class="sheet-selector">
 								<label for="sheet-select">시트 선택:</label>
 								<select id="sheet-select" value={selectedSheet} onchange={handleSheetChange}>
-									{#each sheetNames as sheet, index}
+									{#each sheetNames as sheet, index (index)}
 										<option value={sheet}>{index + 1}. {sheet}</option>
 									{/each}
 								</select>
@@ -1162,7 +1162,7 @@
 							<table class="excel-table">
 								<thead>
 									<tr>
-										{#each headers as header, index}
+										{#each headers as header, index (index)}
 											{@const matchingCode = findMatchingCode(header, index)}
 											<th
 												class:frozen={index < frozenColumns}
@@ -1220,9 +1220,9 @@
 									</tr>
 								</thead>
 								<tbody>
-									{#each rows as row, rowIndex}
+									{#each rows as row, rowIndex (rowIndex)}
 										<tr>
-											{#each headers as header, colIndex}
+											{#each headers as header, colIndex (header)}
 												{@const cellValue = row[colIndex] ?? ''}
 												{@const isFirstColumn = colIndex === 0}
 												{@const matchingCode = isFirstColumn ? findMatchingCodeForFirstColumn(cellValue) : null}
@@ -1329,7 +1329,7 @@
 								required
 							>
 								<option value="">선택하세요</option>
-								{#each parentCodeOptions as option}
+								{#each parentCodeOptions as option (option.code)}
 									<option value={option.code}>{option.code} - {option.title}</option>
 								{/each}
 							</select>
@@ -1459,7 +1459,7 @@
 							<div class="form-info">검색 결과가 없습니다.</div>
 						{:else}
 							<div class="code-search-results">
-								{#each parentCodeSearchResults as codeItem}
+								{#each parentCodeSearchResults as codeItem (codeItem.code)}
 									<button
 										class="code-search-item"
 										onclick={() => handleSelectParentCode(codeItem)}
