@@ -899,7 +899,7 @@
 		<!-- 환경설정 코드 목록 -->
 		<DataTable
 			headers={[
-				{ label: '코드', align: 'center' },
+				// { label: '코드', align: 'center' },
 				{ label: '제목' },
 				{ label: '카테고리', align: 'center' },
 				{ label: '표시 순서', align: 'center' },
@@ -917,7 +917,7 @@
 					class="hover:bg-gray-50 {isSearchMode ? 'cursor-default' : 'cursor-pointer'}" 
 					onclick={isSearchMode ? undefined : () => navigateToCode(setting.code)}
 				>
-					<td class="text-center font-mono text-sm font-medium">{setting.code}</td>
+					<!-- <td class="text-center font-mono text-sm font-medium">{setting.code}</td> -->
 					<td class="font-medium">
 						<div class="flex items-center gap-2">
 							{setting.title}

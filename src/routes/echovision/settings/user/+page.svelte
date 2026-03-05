@@ -9,7 +9,7 @@
 		toggleUserStatus,
 		updateUserTopLevelCodes,
 		updateUserPermissions,
-		getUserStatistics,
+		// getUserStatistics,
 		USER_ROLE_LABELS,
 		USER_ROLES,
 		isAdmin
@@ -30,7 +30,7 @@
 	/** @type {Array<any>} 사용자 목록 */
 	let users = $state([]);
 	/** @type {{ total: number; admins: number; activeUsers: number; bannedUsers: number; } | null} */
-	let userStats = $state(null);
+	// let userStats = $state(null);
 	let isLoading = $state(false);
 	let error = $state('');
 
@@ -176,8 +176,8 @@
 			} else if (result.data) {
 				users = result.data;
 				console.log(`로드된 사용자 수: ${result.data.length}`);
-				const statsResult = await getUserStatistics(result.data);
-				userStats = statsResult;
+				// const statsResult = await getUserStatistics(result.data);
+				// userStats = statsResult;
 			} else {
 				error = '사용자 데이터를 불러올 수 없습니다.';
 				users = [];
@@ -196,10 +196,10 @@
 	 * @param {string|null|undefined} role - 역할 문자열
 	 * @returns {string}
 	 */
-	function formatRole(role) {
-		if (!role) return '일반 사용자';
-		return USER_ROLE_LABELS[role] || role || '일반 사용자';
-	}
+	// function formatRole(role) {
+	// 	if (!role) return '일반 사용자';
+	// 	return USER_ROLE_LABELS[role] || role || '일반 사용자';
+	// }
 
 	/**
 	 * 역할 변경 함수
@@ -421,231 +421,224 @@
 </script>
 
 <MainContent>
-	{#snippet children()}
-		{#if authLoading || userProfileLoading}
-					<div class="flex items-center justify-center min-h-[200px]">
-						<div class="text-gray-500">로딩 중...</div>
-					</div>
-				{:else if !user}
-					<div class="flex items-center justify-center min-h-[200px]">
-						<div class="text-gray-500">로그인이 필요합니다.</div>
-					</div>
-				{:else if !isAdminUser}
-					<div class="flex items-center justify-center min-h-[200px]">
-						<div class="text-gray-500">관리자 권한이 필요합니다.</div>
-					</div>
-				{:else}
-					<div class="admin-content-page">
-						<!-- 헤더 -->
-						<div class="mb-6">
-							<h1 class="text-3xl font-bold text-gray-800">사용자 관리</h1>
-							<p class="text-gray-600">사용자 역할 변경, 상태 관리 등 사용자 관리 기능을 제공합니다</p>
+	{#if authLoading || userProfileLoading}
+		<div class="flex items-center justify-center min-h-[200px]">
+			<div class="text-gray-500">로딩 중...</div>
+		</div>
+	{:else if !user}
+		<div class="flex items-center justify-center min-h-[200px]">
+			<div class="text-gray-500">로그인이 필요합니다.</div>
+		</div>
+	{:else if !isAdminUser}
+		<div class="flex items-center justify-center min-h-[200px]">
+			<div class="text-gray-500">관리자 권한이 필요합니다.</div>
+		</div>
+	{:else}
+		<div class="mb-6">
+			<h1 class="text-3xl font-bold text-gray-800">사용자 관리</h1>
+			<p class="text-gray-600">사용자 역할 변경, 상태 관리 등 사용자 관리 기능을 제공합니다</p>
+		</div>
+
+		{#if error}
+			<div class="error-message">{error}</div>
+		{/if}
+
+		<div class="user-section">
+			<!-- 사용자 통계 -->
+			{#if filteredUserStats}
+				<div class="stats-grid">
+					<div class="stat-card">
+						<div class="stat-icon">👥</div>
+						<div class="stat-content">
+							<p class="stat-label">전체 사용자</p>
+							<p class="stat-value">{filteredUserStats.total}</p>
 						</div>
+					</div>
+					<div class="stat-card">
+						<div class="stat-icon">🔐</div>
+						<div class="stat-content">
+							<p class="stat-label">관리자</p>
+							<p class="stat-value">{filteredUserStats.admins}</p>
+						</div>
+					</div>
+					<div class="stat-card">
+						<div class="stat-icon">✅</div>
+						<div class="stat-content">
+							<p class="stat-label">활성 사용자</p>
+							<p class="stat-value">{filteredUserStats.activeUsers}</p>
+						</div>
+					</div>
+					<div class="stat-card">
+						<div class="stat-icon">⛔</div>
+						<div class="stat-content">
+							<p class="stat-label">비활성 사용자</p>
+							<p class="stat-value">{filteredUserStats.bannedUsers}</p>
+						</div>
+					</div>
+				</div>
+			{/if}
 
-						{#if error}
-							<div class="error-message">{error}</div>
-						{/if}
+			<!-- 필터 -->
+			<div class="filter-section">
+				<div class="filter-layout">
+					<!-- 검색 필드 (왼쪽) -->
+					<div class="filter-search">
+						<input
+							type="text"
+							bind:value={userFilters.search}
+							placeholder="이메일, 이름 검색..."
+							class="filter-input search-input"
+						/>
+					</div>
 
-						<div class="user-section">
-							<!-- 사용자 통계 -->
-							{#if filteredUserStats}
-								<div class="stats-grid">
-									<div class="stat-card">
-										<div class="stat-icon">👥</div>
-										<div class="stat-content">
-											<p class="stat-label">전체 사용자</p>
-											<p class="stat-value">{filteredUserStats.total}</p>
-										</div>
-									</div>
-									<div class="stat-card">
-										<div class="stat-icon">🔐</div>
-										<div class="stat-content">
-											<p class="stat-label">관리자</p>
-											<p class="stat-value">{filteredUserStats.admins}</p>
-										</div>
-									</div>
-									<div class="stat-card">
-										<div class="stat-icon">✅</div>
-										<div class="stat-content">
-											<p class="stat-label">활성 사용자</p>
-											<p class="stat-value">{filteredUserStats.activeUsers}</p>
-										</div>
-									</div>
-									<div class="stat-card">
-										<div class="stat-icon">⛔</div>
-										<div class="stat-content">
-											<p class="stat-label">비활성 사용자</p>
-											<p class="stat-value">{filteredUserStats.bannedUsers}</p>
-										</div>
-									</div>
-								</div>
-							{/if}
+					<!-- 필터 옵션 및 버튼 (오른쪽) -->
+					<div class="filter-controls">
+						<select bind:value={userFilters.role} class="filter-input">
+							<option value="">전체 역할</option>
+							{#each Object.entries(USER_ROLE_LABELS) as [value, label] (value)}
+								<option {value}>{label}</option>
+							{/each}
+						</select>
 
-							<!-- 필터 -->
-							<div class="filter-section">
-								<div class="filter-layout">
-									<!-- 검색 필드 (왼쪽) -->
-									<div class="filter-search">
-										<input
-											type="text"
-											bind:value={userFilters.search}
-											placeholder="이메일, 이름 검색..."
-											class="filter-input search-input"
-										/>
-									</div>
+						<select bind:value={userFilters.status} class="filter-input">
+							<option value="">전체 상태</option>
+							<option value="active">활성</option>
+							<option value="banned">비활성</option>
+						</select>
 
-									<!-- 필터 옵션 및 버튼 (오른쪽) -->
-									<div class="filter-controls">
-										<select bind:value={userFilters.role} class="filter-input">
-											<option value="">전체 역할</option>
-											{#each Object.entries(USER_ROLE_LABELS) as [value, label]}
-												<option {value}>{label}</option>
-											{/each}
-										</select>
+						<button onclick={handleApplyFilters} class="btn-icon btn-icon-primary" title="필터 적용">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+							</svg>
+						</button>
+						<button onclick={handleResetFilters} class="btn-icon btn-icon-secondary" title="초기화">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
 
-										<select bind:value={userFilters.status} class="filter-input">
-											<option value="">전체 상태</option>
-											<option value="active">활성</option>
-											<option value="banned">비활성</option>
-										</select>
-
-										<button onclick={handleApplyFilters} class="btn-icon btn-icon-primary" title="필터 적용">
-											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-											</svg>
-										</button>
-										<button onclick={handleResetFilters} class="btn-icon btn-icon-secondary" title="초기화">
-											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-											</svg>
-										</button>
-									</div>
-								</div>
-							</div>
-
-							<!-- 사용자 테이블 -->
-							{#if isLoading}
-								<div class="loading-data">
-									<div class="spinner-small"></div>
-									<p>데이터 로딩 중...</p>
-								</div>
+			<!-- 사용자 테이블 -->
+			{#if isLoading}
+				<div class="loading-data">
+					<div class="spinner-small"></div>
+					<p>데이터 로딩 중...</p>
+				</div>
+			{:else}
+				<div class="table-container">
+					<table class="data-table">
+						<thead>
+							<tr>
+								<th>이메일</th>
+								<th>이름</th>
+								<th>역할</th>
+								<th>권한</th>
+								<!-- <th>최상위 코드</th> -->
+								<th>가입일</th>
+								<th>마지막 로그인</th>
+								<th>상태</th>
+								<th>사이트 접근</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#if filteredUsers.length === 0}
+								<tr>
+									<td colspan="9" class="empty-message">사용자가 없습니다.</td>
+								</tr>
 							{:else}
-								<div class="table-container">
-									<table class="data-table">
-										<thead>
-											<tr>
-												<th>이메일</th>
-												<th>이름</th>
-												<th>역할</th>
-												<th>권한</th>
-												<th>최상위 코드</th>
-												<th>가입일</th>
-												<th>마지막 로그인</th>
-												<th>상태</th>
-												<th>사이트 접근</th>
-											</tr>
-										</thead>
-										<tbody>
-											{#if filteredUsers.length === 0}
-												<tr>
-													<td colspan="9" class="empty-message">사용자가 없습니다.</td>
-												</tr>
-											{:else}
-												{#each filteredUsers as usr}
-													<tr class:banned={usr.banned}>
-														<td>{usr.email}</td>
-														<td>{usr.full_name || '-'}</td>
-														<td>
-															<select
-																class="role-select"
-																value={usr.role || USER_ROLES.USER}
-																onchange={(e) => changeRole(usr.id, e.target.value)}
-																disabled={usr.id === user?.id || usr.role === USER_ROLES.MASTER}
-															>
-																{#each Object.entries(USER_ROLE_LABELS) as [value, label]}
-																	{#if value !== USER_ROLES.MASTER}
-																		<!-- master가 아닌 역할만 선택 가능 -->
-																		<option value={value}>{label}</option>
-																	{:else if usr.role === USER_ROLES.MASTER}
-																		<!-- 현재 역할이 master인 경우에만 master 옵션 표시 (읽기 전용) -->
-																		<option value={value} disabled>{label}</option>
-																	{/if}
-																{/each}
-															</select>
-														</td>
-														<td class="permission-cell">
-															{#each PERMISSION_KEYS as { key, label }}
-																<label class="permission-check" title={label}>
-																	<input
-																		type="checkbox"
-																		checked={usr[key] !== false}
-																		onchange={(e) => changePermission(usr, key, e.currentTarget.checked)}
-																		disabled={usr.role === USER_ROLES.MASTER}
-																	/>
-																	<span>{label}</span>
-																</label>
-															{/each}
-														</td>
-														<td>
-															<div class="flex items-center gap-2">
-																<span class="text-sm">{getTopLevelCodesDisplay(usr)}</span>
-																{#if isAdminUser && usr.role !== USER_ROLES.MASTER}
-																	{@const hasTopLevelCodes = Array.isArray(usr.top_level_codes) && usr.top_level_codes.length > 0}
-																	<button
-																		onclick={() => openTopLevelCodesModal(usr)}
-																		class="btn-icon-small"
-																		title={hasTopLevelCodes ? "최상위 코드 설정" : "최상위 코드 추가"}
-																	>
-																		{#if hasTopLevelCodes}
-																			<!-- 편집 아이콘 -->
-																			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-																			</svg>
-																		{:else}
-																			<!-- 추가 아이콘 (최상위 코드가 없을 때) -->
-																			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-																			</svg>
-																		{/if}
-																	</button>
-																{/if}
-															</div>
-														</td>
-														<td>
-															{usr.created_at
-																? new Date(usr.created_at).toLocaleDateString('ko-KR')
-																: '-'}
-														</td>
-														<td>
-															{usr.last_sign_in_at
-																? new Date(usr.last_sign_in_at).toLocaleDateString('ko-KR')
-																: '-'}
-														</td>
-														<td>
-															<span class="badge badge-{usr.banned ? 'danger' : 'success'}">
-																{usr.banned ? '비활성' : '활성'}
-															</span>
-														</td>
-														<td>
-															<button
-																onclick={() => toggleStatus(usr.id, usr.banned)}
-																class="btn-small {usr.banned ? 'btn-success' : 'btn-danger'}"
-																disabled={usr.id === user?.id}
-															>
-																{usr.banned ? '활성화' : '비활성화'}
-															</button>
-														</td>
-													</tr>
+								{#each filteredUsers as usr (usr.id)}
+									<tr class:banned={usr.banned}>
+										<td>{usr.email}</td>
+										<td>{usr.full_name || '-'}</td>
+										<td>
+											<select
+												class="role-select"
+												value={usr.role || USER_ROLES.USER}
+												onchange={(e) => changeRole(usr.id, e.target.value)}
+												disabled={usr.id === user?.id || usr.role === USER_ROLES.MASTER}
+											>
+												{#each Object.entries(USER_ROLE_LABELS) as [value, label] (value)}
+													{#if value !== USER_ROLES.MASTER}
+														<!-- master가 아닌 역할만 선택 가능 -->
+														<option value={value}>{label}</option>
+													{:else if usr.role === USER_ROLES.MASTER}
+														<!-- 현재 역할이 master인 경우에만 master 옵션 표시 (읽기 전용) -->
+														<option value={value} disabled>{label}</option>
+													{/if}
 												{/each}
-											{/if}
-										</tbody>
-									</table>
-								</div>
+											</select>
+										</td>
+										<td class="permission-cell">
+											{#each PERMISSION_KEYS as { key, label } (key)}
+												<label class="permission-check" title={label}>
+													<input
+														type="checkbox"
+														checked={usr[key] !== false}
+														onchange={(e) => changePermission(usr, key, e.currentTarget.checked)}
+														disabled={usr.role === USER_ROLES.MASTER}
+													/>
+													<span>{label}</span>
+												</label>
+											{/each}
+										</td>
+										<!-- <td>
+											<div class="flex items-center gap-2">
+												<span class="text-sm">{getTopLevelCodesDisplay(usr)}</span>
+												{#if isAdminUser && usr.role !== USER_ROLES.MASTER}
+													{@const hasTopLevelCodes = Array.isArray(usr.top_level_codes) && usr.top_level_codes.length > 0}
+													<button
+														onclick={() => openTopLevelCodesModal(usr)}
+														class="btn-icon-small"
+														title={hasTopLevelCodes ? "최상위 코드 설정" : "최상위 코드 추가"}
+													>
+														{#if hasTopLevelCodes}
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+															</svg>
+														{:else}
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+															</svg>
+														{/if}
+													</button>
+												{/if}
+											</div>
+										</td> -->
+										<td>
+											{usr.created_at
+												? new Date(usr.created_at).toLocaleDateString('ko-KR')
+												: '-'}
+										</td>
+										<td>
+											{usr.last_sign_in_at
+												? new Date(usr.last_sign_in_at).toLocaleDateString('ko-KR')
+												: '-'}
+										</td>
+										<td>
+											<span class="badge badge-{usr.banned ? 'danger' : 'success'}">
+												{usr.banned ? '비활성' : '활성'}
+											</span>
+										</td>
+										<td>
+											<button
+												onclick={() => toggleStatus(usr.id, usr.banned)}
+												class="btn-small {usr.banned ? 'btn-success' : 'btn-danger'}"
+												disabled={usr.id === user?.id}
+											>
+												{usr.banned ? '활성화' : '비활성화'}
+											</button>
+										</td>
+									</tr>
+								{/each}
 							{/if}
-						</div>
-					</div>
-				{/if}
-	{/snippet}
+						</tbody>
+					</table>
+				</div>
+			{/if}
+		</div>
+	{/if}
 </MainContent>
 
 <!-- 최상위 코드 설정 모달 -->
@@ -688,7 +681,7 @@
 					<div class="mb-4 p-3 bg-blue-50 rounded-lg">
 						<p class="text-sm font-medium text-blue-900 mb-2">선택된 코드 ({editingTopLevelCodes.length}개):</p>
 						<div class="flex flex-wrap gap-2">
-							{#each editingTopLevelCodes as code}
+							{#each editingTopLevelCodes as code (code)}
 								{@const option = topLevelCodeOptions.find((/** @type {any} */ opt) => opt.code === code)}
 								<span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
 									{option?.code || code}
@@ -725,7 +718,7 @@
 							{/if}
 						</div>
 					{:else}
-						{#each topLevelCodeOptions as option}
+						{#each topLevelCodeOptions as option (option.code)}
 							<label class="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
 								<input
 									type="checkbox"
@@ -800,7 +793,7 @@
 
 	.filter-section {
 		background: #f8f9ff;
-		padding: 20px;
+		/* padding: 20px; */
 		border-radius: 12px;
 		margin-bottom: 24px;
 	}
