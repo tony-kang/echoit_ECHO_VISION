@@ -393,7 +393,7 @@
 		<div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
 			<DataTable
 				headers={[
-					{ label: '코드' },
+					// { label: '코드' },
 					{ label: '실제 부서명' },
 					{ label: '회계상 부서(조직)' },
 					{ label: '담당자' },
@@ -404,7 +404,7 @@
 			>
 				{#each departments as dept (dept.id)}
 					<tr>
-						<td class="font-mono text-sm">{dept.code}</td>
+						<!-- <td class="font-mono text-sm">{dept.code}</td> -->
 						<td>{dept.title || '-'}</td>
 						<td class="max-w-md text-sm text-gray-700">
 							{paramToDisplayLabels(dept.param)}

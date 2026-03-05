@@ -1,7 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
+	import MainContent from '$lib/C/MainContent.svelte';
 	import CodeManagement from '$lib/components/settings/CodeManagement.svelte';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 
@@ -49,44 +49,34 @@
 	});
 </script>
 
-<div class="main-content-page">
-	<div class="flex h-[calc(100vh-100px)]">
-		<!-- Left Sidebar -->
-		<PrjSidebar />
-
-		<!-- Main Content -->
-		<main class="flex-1 overflow-y-auto bg-gray-50">
-			<div class="p-3">
-				{#if authLoading}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로딩 중...</div>
-					</div>
-				{:else if !user}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로그인이 필요합니다.</div>
-					</div>
-				{:else if !isValidCategory}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">유효하지 않은 카테고리입니다.</div>
-					</div>
-				{:else}
-					<div class="admin-content-page">
-						<!-- 헤더 -->
-						<div class="mb-6">
-							<div class="flex items-center gap-3 mb-2">
-									<h1 class="text-3xl font-bold text-gray-800">{categoryLabel} 컬럼 관리</h1>
-							</div>
-							<!-- <p class="text-gray-600">카테고리: {category}</p> -->
-						</div>
-
-						<!-- 코드 관리 컴포넌트 -->
-						<CodeManagement category={category} />
-					</div>
-				{/if}
+<MainContent>
+	{#if authLoading}
+		<div class="flex items-center justify-center h-full">
+			<div class="text-gray-500">로딩 중...</div>
+		</div>
+	{:else if !user}
+		<div class="flex items-center justify-center h-full">
+			<div class="text-gray-500">로그인이 필요합니다.</div>
+		</div>
+	{:else if !isValidCategory}
+		<div class="flex items-center justify-center h-full">
+			<div class="text-gray-500">유효하지 않은 카테고리입니다.</div>
+		</div>
+	{:else}
+		<div class="admin-content-page">
+			<!-- 헤더 -->
+			<div class="mb-6">
+				<div class="flex items-center gap-3 mb-2">
+						<h1 class="text-3xl font-bold text-gray-800">{categoryLabel} 컬럼 관리</h1>
+				</div>
+				<!-- <p class="text-gray-600">카테고리: {category}</p> -->
 			</div>
-		</main>
-	</div>
-</div>
+
+			<!-- 코드 관리 컴포넌트 -->
+			<CodeManagement category={category} />
+		</div>
+	{/if}
+</MainContent>
 
 <style>
 	.admin-content-page {

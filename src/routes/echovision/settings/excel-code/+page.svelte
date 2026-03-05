@@ -1,7 +1,7 @@
 <script>
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
-	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
+	import MainContent from '$lib/C/MainContent.svelte';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { getSettings } from '$lib/settingsService'; 
 
@@ -94,63 +94,47 @@
 	}
 </script>
 
-<div class="main-content-page">
-	<div class="flex h-[calc(100vh-100px)]">
-		<!-- Left Sidebar -->
-		<PrjSidebar />
-
-		<!-- Main Content -->
-		<main class="flex-1 overflow-y-auto bg-gray-50">
-			<div class="p-3">
-				{#if authLoading}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로딩 중...</div>
-					</div>
-				{:else if !user}
-					<div class="flex items-center justify-center h-full">
-						<div class="text-gray-500">로그인이 필요합니다.</div>
-					</div>
-				{:else}
-					<div class="admin-content-page">
-						<!-- 헤더 -->
-						<div class="mb-6">
-							<h1 class="text-3xl font-bold text-gray-800">환경설정 엑셀 컬럼 관리</h1>
-							<p class="text-gray-600">엑셀파일에서 사용하는 컬럼의 항목을 코드로 관리합니다.</p>
-						</div>
-
-						<!-- 카테고리 목록 -->
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-							{#each categories as category}
-								<button
-									onclick={() => handleCategoryClick(category.code)}
-									class="{category.bgColor} rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
-								>
-									<div class="flex items-center justify-between mb-2">
-										<h2 class="text-xl font-semibold text-gray-800">{category.label}</h2>
-										<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-										</svg>
-									</div>
-									<div class="flex items-center justify-between">
-										<p class="text-sm text-gray-600">카테고리: {category.code}</p>
-										{#if countsLoading}
-											<span class="text-xs text-gray-500">로딩 중...</span>
-										{:else}
-											<span class="text-lg font-bold text-gray-800">{categoryCounts[category.code] || 0}개</span>
-										{/if}
-									</div>
-								</button>
-							{/each}
-						</div>
-					</div>
-				{/if}
+<MainContent>
+	{#if authLoading}
+		<div class="flex items-center justify-center h-full">
+			<div class="text-gray-500">로딩 중...</div>
+		</div>
+	{:else if !user}
+		<div class="flex items-center justify-center h-full">
+			<div class="text-gray-500">로그인이 필요합니다.</div>
+		</div>
+	{:else}
+		<div class="admin-content-page">
+			<!-- 헤더 -->
+			<div class="mb-6">
+				<h1 class="text-3xl font-bold text-gray-800">환경설정 엑셀 컬럼 관리</h1>
+				<p class="text-gray-600">엑셀파일에서 사용하는 컬럼의 항목을 코드로 관리합니다.</p>
 			</div>
-		</main>
-	</div>
-</div>
 
-<style>
-	.admin-content-page {
-		width: 100%;
-	}
-</style>
+			<!-- 카테고리 목록 -->
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+				{#each categories as category (category.code)}
+					<button
+						onclick={() => handleCategoryClick(category.code)}
+						class="{category.bgColor} rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
+					>
+						<div class="flex items-center justify-between mb-2">
+							<h2 class="text-xl font-semibold text-gray-800">{category.label}</h2>
+							<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+							</svg>
+						</div>
+						<div class="flex items-center justify-between">
+							<p class="text-sm text-gray-600">카테고리: {category.code}</p>
+							{#if countsLoading}
+								<span class="text-xs text-gray-500">로딩 중...</span>
+							{:else}
+								<span class="text-lg font-bold text-gray-800">{categoryCounts[category.code] || 0}개</span>
+							{/if}
+						</div>
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+</MainContent>
