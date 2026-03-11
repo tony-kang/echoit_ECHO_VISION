@@ -262,7 +262,7 @@
 </script>
 
 <svelte:head>
-	<title>가결산 실적</title>
+	<title>부서별 가결산 실적</title>
 </svelte:head>
 
 <div class="main-content-page">
@@ -275,9 +275,9 @@
 				<div class="flex items-center justify-center h-full text-gray-500">로그인이 필요합니다.</div>
 			{:else}
 				<div class="max-w-full">
-					<h1 class="text-2xl font-bold text-gray-900 mb-4">가결산 실적</h1>
+					<h1 class="text-2xl font-bold text-gray-900 mb-4">부서별 가결산 실적</h1>
 					<p class="text-gray-600 mb-4">
-						회사·부서·년도·월별로 항목 데이터를 입력/수정할 수 있습니다.
+						부서·년도·월별로 항목 데이터를 입력/수정할 수 있습니다.
 					</p>
 
 					<!-- 필터 -->
