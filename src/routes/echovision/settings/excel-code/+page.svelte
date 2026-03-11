@@ -23,7 +23,7 @@
 	 * @type {Array<{code: string, label: string}>}
 	 */
 	const categories = [
-		// { code: 'all', label: '전체' , bgColor: 'bg-gray-100'},
+		{ code: 'all', label: '전체' , bgColor: 'bg-gray-100'},
 		{ code: 'organization', label: '조직' , bgColor: 'bg-blue-100'},
 		{ code: 'sales', label: '매출' , bgColor: 'bg-green-100'},
 		{ code: 'cost', label: '비용' , bgColor: 'bg-red-100'},

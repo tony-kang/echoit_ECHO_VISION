@@ -5,6 +5,7 @@
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import CodeManagementFormModal from '$lib/components/settings/CodeManagementFormModal.svelte';
+	import OrderEditModal from '$lib/components/settings/OrderEditModal.svelte';
 	import {
 		getSettings,
 		getRootSettings,
@@ -33,8 +34,8 @@
 	let allSettings = $state([]);
 	/** @type {Array<any>} 현재 표시할 환경설정 코드 목록 (필터링 전) */
 	let displayedSettings = $state([]);
-	/** @type {Record<string, any>} 필터 객체 */
-	let filters = $state({ code: '', title: '' });
+	/** @type {Record<string, any>} 필터 객체 (excel-code/all일 때 category 선택값 포함) */
+	let filters = $state({ code: '', title: '', category: '' });
 	/** @type {boolean} DB 검색 모드 여부 */
 	let isSearchMode = $state(false);
 	/** @type {Array<any>} DB 검색 결과 */
@@ -43,6 +44,12 @@
 	/** @type {boolean} 폼 저장 중 여부 */
 	let isSaving = $state(false);
 	let showFormModal = $state(false);
+	/** @type {boolean} 표시순서 전용 모달 표시 여부 */
+	let showOrderModal = $state(false);
+	/** @type {any} 표시순서 수정 대상 항목 */
+	let orderEditSetting = $state(null);
+	/** @type {number} 표시순서 모달에서 편집 중인 order 값 */
+	let orderModalOrder = $state(0);
 	/** @type {any} 수정 중인 항목 */
 	let editingSetting = $state(null);
 	/** @type {Array<any>} 상위 코드 목록 (최상위 항목) */
@@ -93,6 +100,45 @@
 	 * @type {string|null}
 	 */
 	const topCodeParam = $derived(page.url.searchParams.get('topCode'));
+
+	/** excel-code/all에서 카테고리 필터용 쿼리 파라미터 키 */
+	const CATEGORY_PARAM = 'c';
+
+	/** URL의 c 값과 동기화했던 마지막 값 (effect가 사용자 선택을 덮어쓰지 않도록) */
+	let lastSyncedUrlC = $state(undefined);
+
+	/**
+	 * URL 쿼리 파라미터에서 카테고리(c) 읽기 → filters.category 동기화 (URL이 바뀐 경우만, 새로고침/뒤로가기 시 유지)
+	 * c가 있으면 검색 실행해서 리스트에 반영
+	 */
+	$effect(() => {
+		if (category !== 'all') return;
+		const urlC = page.url.searchParams.get(CATEGORY_PARAM) || '';
+		if (lastSyncedUrlC === undefined || lastSyncedUrlC !== urlC) {
+			lastSyncedUrlC = urlC;
+			filters.category = urlC;
+			if (urlC) {
+				performDBSearch();
+			}
+		}
+	});
+
+	/**
+	 * filters.category 변경 시 URL에 c 파라미터 반영 (replaceState로 히스토리 누적 방지)
+	 */
+	$effect(() => {
+		if (category !== 'all') return;
+		const next = (filters.category || '').trim();
+		const current = page.url.searchParams.get(CATEGORY_PARAM) || '';
+		if (next === current) return;
+		const url = new URL(page.url);
+		if (next) {
+			url.searchParams.set(CATEGORY_PARAM, next);
+		} else {
+			url.searchParams.delete(CATEGORY_PARAM);
+		}
+		goto(url.pathname + url.search, { replaceState: true, noScroll: true });
+	});
 
 	/**
 	 * 현재 선택된 상위 코드 결정 (topCode가 없으면 null = 최상위)
@@ -601,6 +647,59 @@
 	}
 
 	/**
+	 * 표시순서 수정 모달 열기
+	 * @param {any} setting - 수정할 항목
+	 */
+	function openOrderModal(setting) {
+		orderEditSetting = setting;
+		orderModalOrder = setting.order ?? 0;
+		showOrderModal = true;
+	}
+
+	/**
+	 * 표시순서 수정 모달 닫기
+	 */
+	function closeOrderModal() {
+		showOrderModal = false;
+		orderEditSetting = null;
+	}
+
+	/**
+	 * 표시순서만 저장 (order 필드만 업데이트)
+	 * @returns {Promise<void>}
+	 */
+	async function saveOrderModal() {
+		if (!orderEditSetting) return;
+		isSaving = true;
+		try {
+			const targetCategory = orderEditSetting.category || (category === 'all' ? 'organization' : category);
+			const orderValue = Number(orderModalOrder);
+			if (!Number.isInteger(orderValue) || orderValue < 0) {
+				alert('표시순서는 0 이상의 정수만 입력 가능합니다.');
+				isSaving = false;
+				return;
+			}
+			const { error } = await updateSetting(orderEditSetting.code, {
+				order: orderValue,
+				category: targetCategory
+			});
+			if (error) {
+				alert(error.message || '표시순서 저장에 실패했습니다.');
+				return;
+			}
+			closeOrderModal();
+			await loadSettings();
+			if (isSearchMode && (filters.code || filters.title || filters.category)) {
+				await performDBSearch();
+			}
+		} catch (e) {
+			alert(e instanceof Error ? e.message : '저장 중 오류가 발생했습니다.');
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	/**
 	 * 환경설정 코드 삭제 핸들러
 	 * @param {any} setting - 환경설정 데이터
 	 * @returns {Promise<void>}
@@ -656,14 +755,20 @@
 	}
 
 	/**
-	 * 검색어 변경 감지 및 검색 모드 자동 해제
+	 * 검색어/필터 변경 감지 및 검색 모드 자동 해제
+	 * excel-code/all일 때는 카테고리 선택도 검색 조건이므로, 코드·제목·카테고리 모두 비었을 때만 해제
 	 */
 	$effect(() => {
 		const codeQueryTrimmed = (filters.code || '').trim();
 		const titleQueryTrimmed = (filters.title || '').trim();
-		
-		// 검색어가 모두 비어있으면 검색 모드 해제
-		if (!codeQueryTrimmed && !titleQueryTrimmed && isSearchMode) {
+		const categorySelected = category === 'all' && (filters.category || '').trim();
+
+		const hasSearchCriteria =
+			codeQueryTrimmed ||
+			titleQueryTrimmed ||
+			(category === 'all' ? !!categorySelected : false);
+
+		if (!hasSearchCriteria && isSearchMode) {
 			isSearchMode = false;
 			searchResults = [];
 		}
@@ -738,45 +843,64 @@
 	 */
 	async function performDBSearch() {
 		if (!user || !category) return;
-		
+
 		const codeQueryTrimmed = (filters.code || '').trim();
 		const titleQueryTrimmed = (filters.title || '').trim();
-		
+
+		// console.log('filters:', codeQueryTrimmed);
+		// console.log('titleQueryTrimmed:', titleQueryTrimmed);
+		// console.log('filters.category:', filters.category);
+		// console.log('category:', category);
+
 		// 검색어가 없으면 검색 모드 해제
-		if (!codeQueryTrimmed && !titleQueryTrimmed) {
+		if (!codeQueryTrimmed && !titleQueryTrimmed && !filters.category) {
 			isSearchMode = false;
 			searchResults = [];
 			isLoading = false;
 			return;
 		}
-		
+
 		isLoading = true;
 		isSearchMode = true;
-		
+
+		/** excel-code/all일 때는 FilterBar에서 선택한 카테고리로 검색, 선택 없으면 'all' */
+		const searchCategory =
+			category === 'all'
+				? (filters.category && String(filters.category).trim()) || 'all'
+				: category;
+
 		try {
 			const { data, error } = await searchSettings({
 				code: codeQueryTrimmed || undefined,
 				title: titleQueryTrimmed || undefined,
-				category: category === 'all' ? 'all' : category
+				category: searchCategory
 			});
-			
+
 			if (error) {
 				console.error('DB 검색 실패:', error);
 				searchResults = [];
 			} else {
-				// 접근 제한 적용
-				const accessibleCodes = accessibleTopLevelCodes;
-				if (accessibleCodes !== null && accessibleCodes.length > 0) {
-					searchResults = (data || []).filter((/** @type {any} */ setting) => {
-						// 최상위 코드인 경우
-						if (!setting.parent_code) {
-							return accessibleCodes.includes(setting.code);
-						}
-						// 하위 코드인 경우, 상위 코드가 접근 가능한지 확인
-						return itopCodeAccessible(setting.code, accessibleCodes, allSettings);
-					});
-				} else {
+				// excel-code/all: 검색 결과 그대로 전체 리스트로 표시 (부모/접근 제한 없음)
+				if (category === 'all') {
 					searchResults = data || [];
+				} else {
+					// 특정 카테고리 페이지: 접근 제한 적용
+					const accessibleCodes = accessibleTopLevelCodes;
+					if (accessibleCodes !== null && accessibleCodes.length > 0) {
+						const list = data || [];
+						const mergedForAccess = [
+							...allSettings,
+							...list.filter((s) => !allSettings.some((a) => a.code === s.code))
+						];
+						searchResults = list.filter((/** @type {any} */ setting) => {
+							if (!setting.parent_code) {
+								return accessibleCodes.includes(setting.code);
+							}
+							return itopCodeAccessible(setting.code, accessibleCodes, mergedForAccess);
+						});
+					} else {
+						searchResults = data || [];
+					}
 				}
 			}
 		} catch (error) {
@@ -794,15 +918,16 @@
 	function handleSearchClear() {
 		filters.code = '';
 		filters.title = '';
+		filters.category = '';
 		isSearchMode = false;
 		searchResults = [];
 	}
 
 	/**
-	 * FilterBar 필드 정의
-	 * @type {Array<{key: string, type: string, placeholder: string}>}
+	 * FilterBar 필드 정의 (기본: 코드/제목). category === 'all'일 때만 카테고리 셀렉트 추가
+	 * @type {Array<{key: string, type: string, placeholder?: string, label?: string, options?: Array<{value: string, label: string}>}>}
 	 */
-	const filterFields = [
+	const baseFilterFields = [
 		{
 			key: 'code',
 			type: 'input',
@@ -814,6 +939,23 @@
 			placeholder: '제목 검색 (부분 일치, Enter: DB 검색)'
 		}
 	];
+
+	/** category가 'all'일 때 카테고리 셀렉트 필드 */
+	const categoryFilterField = {
+		key: 'category',
+		type: 'select',
+		label: '카테고리',
+		options: [
+			{ value: 'organization', label: '조직' },
+			{ value: 'sales', label: '매출' },
+			{ value: 'cost', label: '비용' }
+		]
+	};
+
+	/** FilterBar에 넘길 필드 목록 (category에 따라 파생) */
+	const filterFields = $derived.by(() =>
+		category === 'all' ? [...baseFilterFields, categoryFilterField] : baseFilterFields
+	);
 
 	/**
 	 * FilterBar 액션 버튼 정의
@@ -886,6 +1028,11 @@
 			<div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
 				<p class="text-sm text-blue-700">
 					<strong>DB 검색 모드</strong> - 전체 데이터에서 검색한 결과입니다.
+					{#if category === 'all'}
+						<br /><span class="ml-5">조직등의 표시 순서를 정할 때는 표시순서값을 가능하면 큰값(8자리 이상)으로 설정하세요.</span>
+						<br /><span class="ml-5">조직이 CEO, COO,... 등의 사람인경우  10000 미만 값으로 설정</span>
+						<br /><span class="ml-5">조직이 회사부서인경우 사업부문 2자리 + 사업부 2자리 + 팀 2자리 + Index 2자리 형태로 이상 값으로 설정</span>
+					{/if}
 					{#if filters.code}
 						<span class="ml-2">코드: "{filters.code}"</span>
 					{/if}
@@ -937,7 +1084,16 @@
 							<span class="text-gray-400">-</span>
 						{/if}
 					</td>
-					<td class="text-center">{setting.order || 0}</td>
+					<td
+						class="text-center order-cell-clickable"
+						role="button"
+						tabindex="0"
+						onclick={(e) => { e.stopPropagation(); openOrderModal(setting); }}
+						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); openOrderModal(setting); } }}
+						title="클릭하면 표시순서만 수정"
+					>
+						{setting.order ?? 0}
+					</td>
 					<td class="text-center font-semibold">{setting.value}</td>
 					<td class="text-center">
 						{#if setting.parent_code}
@@ -1007,9 +1163,27 @@
 		onRemoveParam={handleRemoveParam}
 	/>
 
+	<OrderEditModal
+		open={showOrderModal}
+		setting={orderEditSetting}
+		bind:order={orderModalOrder}
+		isSaving={isSaving}
+		onClose={closeOrderModal}
+		onSave={saveOrderModal}
+	/>
+
 <style>
 	.admin-content-page {
 		width: 100%;
+	}
+
+	.order-cell-clickable {
+		cursor: pointer;
+	}
+
+	.order-cell-clickable:hover {
+		background-color: #eff6ff;
+		color: #1d4ed8;
 	}
 
 	.btn-small {

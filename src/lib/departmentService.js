@@ -10,7 +10,7 @@ import { supabase } from './supabaseClient';
 export async function getDepartments() {
 	const { data, error } = await supabase
 		.from('ev_department')
-		.select('id, code, title, param, created_at, updated_at')
+		.select('id, code, title, param, prov_sales_target, created_at, updated_at')
 		.order('code', { ascending: true });
 	if (error) return { data: null, error };
 	return { data: data || [], error: null };
@@ -29,6 +29,7 @@ export async function getDepartmentsWithUsers() {
 			code,
 			title,
 			param,
+			prov_sales_target,
 			ev_department_user (
 				id,
 				user_id,
@@ -98,13 +99,14 @@ export async function createDepartment(payload) {
 /**
  * 부서 수정
  * @param {string} id - 부서 id
- * @param {{ title?: string, param?: string[] | null }} payload
+ * @param {{ title?: string, param?: string[] | null, prov_sales_target?: boolean }} payload
  * @returns {Promise<{ data: object | null, error: Error | null }>}
  */
 export async function updateDepartment(id, payload) {
 	const updateFields = {};
 	if (payload.title !== undefined) updateFields.title = payload.title;
 	if (payload.param !== undefined) updateFields.param = Array.isArray(payload.param) ? payload.param : [];
+	if (payload.prov_sales_target !== undefined) updateFields.prov_sales_target = !!payload.prov_sales_target;
 	if (Object.keys(updateFields).length === 0) return { data: null, error: new Error('수정할 필드가 없습니다.') };
 	const { data, error } = await supabase.from('ev_department').update(updateFields).eq('id', id).select().single();
 	return { data, error: error || null };

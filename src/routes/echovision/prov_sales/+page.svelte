@@ -193,10 +193,10 @@
 
 	/** 테이블 열 정의: 1~3월, 분기합계, 4~6월, 반기합계, 7~9월, 3분기합계, 10~12월, 연도합계 */
 	const COLUMNS = [
-		{ type: 'month', months: [1, 2, 3], labelSum: '분기합계' },
-		{ type: 'month', months: [4, 5, 6], labelSum: '반기합계' },
+		{ type: 'month', months: [1, 2, 3], labelSum: '1분기합계' },
+		{ type: 'month', months: [4, 5, 6], labelSum: '2분기합계' },
 		{ type: 'month', months: [7, 8, 9], labelSum: '3분기합계' },
-		{ type: 'month', months: [10, 11, 12], labelSum: '연도합계' }
+		{ type: 'month', months: [10, 11, 12], labelSum: '4분기합계' }
 	];
 
 	/**

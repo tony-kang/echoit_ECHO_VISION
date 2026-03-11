@@ -36,16 +36,65 @@ export function formatDistanceToNow(dateString) {
  * @param {string|Date} dateString 
  * @returns {string}
  */
+// export function formatDate(dateString) {
+// 	try {
+// 		const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+// 		return date.toLocaleDateString('ko-KR', {
+// 			year: 'numeric',
+// 			month: 'long',
+// 			day: 'numeric'
+// 		});
+// 	} catch {
+// 		return dateString;
+// 	}
+// }
+
+/**
+ * 날짜 포맷팅
+ * @param {string} dateString - 날짜 문자열
+ * @returns {string}
+ */
 export function formatDate(dateString) {
-	try {
-		const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-		return date.toLocaleDateString('ko-KR', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
-		});
-	} catch {
-		return dateString;
-	}
+	if (!dateString) return '';//'-';
+	const date = new Date(dateString);
+	return date.toLocaleString('ko-KR', {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit'
+	});
 }
 
+/**
+ * 날짜만 포맷팅 (시간 제외)
+ * @param {string} dateString - 날짜 문자열
+ * @returns {string}
+ */
+export function formatDateOnly(dateString) {
+	if (!dateString) return '';//'-';
+	const date = new Date(dateString);
+	return date.toISOString().split('T')[0];
+	// return date.toLocaleDateString('ko-KR', {
+	// 	year: 'numeric',
+	// 	month: '2-digit',
+	// 	day: '2-digit'
+	// });
+}
+
+/**
+ * input[type=date] value용 YYYY-MM-DD 문자열
+ * @param {string} dateString - 날짜 문자열
+ * @returns {string}
+ */
+export function toDateInputValue(dateString) {
+	if (!dateString) return '';
+	const s = String(dateString);
+	if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+	const date = new Date(dateString);
+	const y = date.getFullYear();
+	const m = String(date.getMonth() + 1).padStart(2, '0');
+	const d = String(date.getDate()).padStart(2, '0');
+	return `${y}-${m}-${d}`;
+}

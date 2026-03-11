@@ -8,6 +8,7 @@
 		department = null,
 		organizationList = [],
 		selectedOrgCodes = new Set(),
+		provSalesTarget = $bindable(false),
 		onToggle,
 		departmentUsers = [],
 		userList = [],
@@ -46,11 +47,12 @@
 		return userList.filter((u) => !ids.has(u.id));
 	});
 
-	/** 모달이 열릴 때 검색어·담당자 추가 선택 초기화 */
+	/** 모달이 열릴 때 검색어·담당자 추가 선택·가결산 대상 초기화 */
 	$effect(() => {
 		if (open && department) {
 			searchQuery = '';
 			addUserSelect = '';
+			provSalesTarget = department.prov_sales_target ?? false;
 		}
 	});
 
@@ -77,14 +79,11 @@
 </script>
 
 {#if open && department}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="department-edit-modal-overlay"
 		onclick={() => !isSaving && onClose?.()}
 		role="presentation"
 	>
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			class="department-edit-modal-content"
 			onclick={(e) => e.stopPropagation()}
@@ -106,16 +105,14 @@
 				</button>
 			</div>
 			<div class="department-edit-modal-body">
-				<p class="text-sm text-gray-500 mb-3">아래는 회계상의 부서 목록입니다.</p>
-
 				<!-- 선택된 항목 (검색창 위) -->
 				<div class="mb-3">
-					<p class="text-xs font-medium text-gray-500 mb-1.5">선택된 항목 ({selectedOrgs.length}개)</p>
+					<p class="text-xs font-medium text-gray-500 mb-1.5">회계상의 부서 - 선택된 항목 ({selectedOrgs.length}개)</p>
 					<div class="selected-orgs-chips">
 						{#if selectedOrgs.length === 0}
 							<span class="text-sm text-gray-400">선택된 항목이 없습니다.</span>
 						{:else}
-							{#each selectedOrgs as org}
+							{#each selectedOrgs as org (org.code)}
 								<button
 									type="button"
 									onclick={() => onToggle?.(org.code, false)}
@@ -132,21 +129,32 @@
 				</div>
 
 				<!-- 검색 -->
-				<div class="mb-3">
-					<label for="dept-edit-org-search" class="sr-only">조직 검색</label>
-					<input
-						id="dept-edit-org-search"
-						type="search"
-						bind:value={searchQuery}
-						placeholder="코드 또는 부서명으로 검색..."
-						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-					/>
+				 <div class="form-row">
+					<div class="form-group form-col-50">
+						<label for="dept-edit-org-search" class="sr-only">조직 검색</label>
+						<input
+							id="dept-edit-org-search"
+							type="search"
+							bind:value={searchQuery}
+							placeholder="코드 또는 부서명으로 검색..."
+							class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+						/>
+					</div>
+					<div class="form-group form-col-50 flex items-center gap-2 justify-end">
+						<input
+							id="dept-edit-prov-sales-target"
+							type="checkbox"
+							checked={provSalesTarget}
+							onchange={(e) => provSalesTarget = e.currentTarget.checked}
+							class="w-4 h-4 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+						/><label for="dept-edit-prov-sales-target" >가결산 대상 부서</label>
+					</div>
 				</div>
 
 				<!-- 2열 그리드 목록 -->
 				<div class="org-list-label text-xs font-medium text-gray-500 mb-1.5">회계상 부서 선택</div>
 				<div class="org-list-grid">
-					{#each filteredOrganizationList as org}
+					{#each filteredOrganizationList as org (org.code)}
 						<label class="org-list-item">
 							<input
 								type="checkbox"
@@ -223,7 +231,7 @@
 							class="border border-gray-300 rounded-lg px-3 py-2 text-sm min-w-[200px]"
 						>
 							<option value="">사용자 선택</option>
-							{#each addableUsers as u}
+							{#each addableUsers as u (u.id)}
 								<option value={u.id}>{userDisplayName(u)} ({u.email || u.id})</option>
 							{/each}
 						</select>

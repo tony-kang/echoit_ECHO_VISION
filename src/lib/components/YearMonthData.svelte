@@ -63,12 +63,12 @@
 		const urlYear = page.url.searchParams.get('year');
 		const urlEvCodeItems = page.url.searchParams.get('evCodeItems');
 		/** @type {string[]} */
-		let parentCodes = [];
+		let orgCodes = [];
 		if (urlEvCodeItems) {
 			try {
 				const parsed = JSON.parse(decodeURIComponent(urlEvCodeItems));
 				if (Array.isArray(parsed) && parsed.every((/** @type {any} */ p) => typeof p === 'string')) {
-					parentCodes = [...parsed];
+					orgCodes = [...parsed];
 				}
 			} catch {
 				// ignore
@@ -78,7 +78,7 @@
 		return {
 			year: urlYear || new Date().getFullYear().toString(),
 			month: urlMonth || '',
-			parentCodes,
+			orgCodes,
 			selectedCodes: [],
 			selectedCodes2: []
 		};
@@ -110,7 +110,7 @@
 	let previousYear = $state(new Date().getFullYear().toString());
 	/** @type {string | ''} 이전 월 값 (무한루프 방지) */
 	let previousMonth = $state('');
-	/** @type {string | null} 이전 parentCodes 정렬 JSON 문자열 (무한루프 방지) */
+	/** @type {string | null} 이전 orgCodes 정렬 JSON 문자열 (무한루프 방지) */
 	let previousParentCodesStr = $state(null);
 	/** @type {string[]} 이전 선택된 코드 배열 (무한루프 방지) */
 	let previousSelectedCodes = $state([]);
@@ -126,7 +126,7 @@
 	/** @type {string[]} 조직 체크박스 선택 코드 (체크 시 여기만 갱신, URL/초기화 시에만 filters에서 동기화) */
 	let selectedOrgCodes = $state((() => {
 		const f = getInitialFilters();
-		return Array.isArray(f.parentCodes) ? [...f.parentCodes] : [];
+		return Array.isArray(f.orgCodes) ? [...f.orgCodes] : [];
 	})());
 	/** @type {string[]} 해당 연도에 데이터가 있는 org_code 목록 (체크박스 disable 판단용) */
 	let orgCodesWithDataForYear = $state([]);
@@ -151,7 +151,7 @@
 	async function loadEvCodes() {
 		isLoadingEvCodes = true;
 		try {
-			const { data, error } = await getEvCodes({ category });
+			const { data, error } = await getEvCodes({ category });	// 매출 또는 비용 코드 테이블 목록 조회
 			if (error) {
 				console.error('ev_code 로드 실패:', error);
 				evCodes = [];
@@ -168,16 +168,24 @@
 					return (a.item_code || '').localeCompare(b.item_code || '');
 				});
 
-				// 상위 코드가 선택되지 않은 경우에만 기본 evCodeItems 설정
-				const parentCodes = Array.isArray(filters.parentCodes) ? filters.parentCodes : [];
-				if (parentCodes.length === 0) {
-					// ev_sales/ev_cost 데이터를 로드할 때 사용할 evCode의 items를 평탄화하고 중복 제거
-					const allItems = evCodes.flatMap(evCode => evCode.items || []);
-					evCodeItems = [...new Set(allItems)];
-				}
+				// 매출액, 매출원가, 매출총손실, ... 등의 코드 목록
+				console.log('ev_code 목록(정렬 후):', $state.snapshot(evCodes));
 
-				// console.log('ev_code 목록:', $state.snapshot(evCodes));
-				console.log('evCodeItems:', filters.year,  category, $state.snapshot(evCodeItems));
+				// 상위 코드가 선택되지 않은 경우에만 기본 evCodeItems 설정
+				// filters : 주소창의 쿼리 파라미터에 있는 orgCodes
+				// const orgCodes = Array.isArray(filters.orgCodes) ? filters.orgCodes : [];
+				// console.log('주소창 orgCodes:', $state.snapshot(orgCodes));
+				// if (orgCodes.length === 0) {
+				// 	// ev_sales/ev_cost 데이터를 로드할 때 사용할 evCode의 items를 평탄화하고 중복 제거
+				// 	const allItems = evCodes.flatMap(evCode => evCode.items || []);
+				// 	evCodeItems = [...new Set(allItems)];
+				// 	// -> 평탄화 결과는 매출액의 SUM_000, 매출원가의 SUM_000, 매출총손실의 SUM_000, ... 등의 코드 목록
+				// 	// --> allItems = [ 'SUM_000' ] 1개
+				// 	selectedOrgCodes = [...evCodeItems];
+				// 	// 초기에 강제로 셋팅하려는 조직이 있는 경우 여기에서 추가.
+				// }
+
+				
 			}
 		} catch (error) {
 			console.error('ev_code 로드 중 예외 발생:', error);
@@ -206,7 +214,7 @@
 	 * 조직(상위 코드) 다중 선택 시 evCodeItems를 선택된 코드 배열로 설정 → URL 갱신 및 데이터 로드 effect에서 처리
 	 */
 	$effect(() => {
-		const currentParentCodes = Array.isArray(filters.parentCodes) ? [...filters.parentCodes] : [];
+		const currentParentCodes = Array.isArray(filters.orgCodes) ? [...filters.orgCodes] : [];
 		const currentStr = JSON.stringify([...currentParentCodes].sort());
 
 		if (!user || authLoading) return;
@@ -298,19 +306,23 @@
 				const currentStr = untrack(() => JSON.stringify([...evCodeItems].sort()));
 				if (currentStr !== parsedStr) {
 					evCodeItems = [...parsed];
-					filters = { ...untrack(() => filters), parentCodes: [...parsed] };
+					filters = { ...untrack(() => filters), orgCodes: [...parsed] };
 					selectedOrgCodes = [...parsed];
+					console.log('evCodeItems ----- 파싱 성공 :', $state.snapshot(evCodeItems));
 				}
 			} catch {
 				// 파싱 실패 시 무시
+				console.log('evCodeItems ----- 파싱 실패 :', $state.snapshot(evCodeItems));
 			}
 		} else {
-			const currentCodes = untrack(() => (Array.isArray(filters.parentCodes) ? filters.parentCodes : []));
+			const currentCodes = untrack(() => (Array.isArray(filters.orgCodes) ? filters.orgCodes : []));
 			if (currentCodes.length > 0 || untrack(() => evCodeItems.length) > 0) {
 				evCodeItems = [];
-				filters = { ...untrack(() => filters), parentCodes: [] };
+				filters = { ...untrack(() => filters), orgCodes: [] };
 				selectedOrgCodes = [];
+				console.log('evCodeItems ----- :', $state.snapshot(evCodeItems));
 			}
+			// console.log('evCodeItems ----- 초기화 :', $state.snapshot(evCodeItems));
 		}
 	});
 
@@ -446,6 +458,8 @@
 				return;
 			}
 
+			console.log('조직 코드 목록:', $state.snapshot(data));
+
 			const list = (data || []).filter((row) => row.category === ORG_CATEGORY);
 			secondLevelOrgCodes = list.map((row) => ({
 				value: row.code,
@@ -547,9 +561,9 @@
 		let newEvCodeItems = [];
 
 		// 조직(상위 코드)만 선택된 경우 선택된 코드 배열 사용
-		const parentCodes = Array.isArray(filters.parentCodes) ? filters.parentCodes : [];
-		if (parentCodes.length > 0 && allCodes.length === 0) {
-			newEvCodeItems = [...parentCodes];
+		const orgCodes = Array.isArray(filters.orgCodes) ? filters.orgCodes : [];
+		if (orgCodes.length > 0 && allCodes.length === 0) {
+			newEvCodeItems = [...orgCodes];
 		} else if (allCodes.length > 0) {
 			newEvCodeItems = [...new Set(allCodes)];
 		} else {
@@ -674,9 +688,9 @@
 	// 	}
 
 	// 	// 상위 코드(다중)
-	// 	const parentCodes = Array.isArray(filters.parentCodes) ? filters.parentCodes : [];
-	// 	if (parentCodes.length > 0) {
-	// 		const parentTitles = parentCodes.map((code) => getCodeTitle(code)).filter((t) => t);
+	// 	const orgCodes = Array.isArray(filters.orgCodes) ? filters.orgCodes : [];
+	// 	if (orgCodes.length > 0) {
+	// 		const parentTitles = orgCodes.map((code) => getCodeTitle(code)).filter((t) => t);
 	// 		if (parentTitles.length > 0) {
 	// 			parts.push(parentTitles.join(', '));
 	// 		}
@@ -738,7 +752,7 @@
 			? (selectedOrgCodes.includes(value) ? selectedOrgCodes : [...selectedOrgCodes, value])
 			: selectedOrgCodes.filter((c) => c !== value);
 		selectedOrgCodes = next;
-		filters = { ...filters, parentCodes: next };
+		filters = { ...filters, orgCodes: next };
 	}
 
 	/**
@@ -748,7 +762,7 @@
 	function handleOrgSelectAll(selectAll) {
 		const next = selectAll ? secondLevelOrgCodes.map((o) => o.value) : [];
 		selectedOrgCodes = next;
-		filters = { ...filters, parentCodes: next };
+		filters = { ...filters, orgCodes: next };
 	}
 
 	/**
@@ -760,7 +774,7 @@
 		filters = {
 			year: currentYear,
 			month: '',
-			parentCodes: [],
+			orgCodes: [],
 			selectedCodes: [],
 			selectedCodes2: []
 		};

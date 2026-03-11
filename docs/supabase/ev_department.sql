@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.ev_department (
     code TEXT NOT NULL UNIQUE,
     title TEXT NOT NULL,
     param JSONB DEFAULT '[]'::jsonb,
+    prov_sales_target BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

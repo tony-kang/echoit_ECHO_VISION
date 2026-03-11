@@ -16,6 +16,7 @@
 	} from '$lib/departmentService';
 	import { getSettings } from '$lib/settingsService';
 	import { getAllUsers } from '$lib/userService';
+	import { formatDateOnly } from '$lib/utils/dateUtils';
 
 	/** @type {import('@supabase/supabase-js').User | null} (레이아웃에서 인증 처리) */
 	let user = $derived(authStore.user);
@@ -24,6 +25,8 @@
 	let departments = $state([]);
 	/** @type {Array<{ code: string, title: string }>} organization 목록 (수정 팝업용) */
 	let organizationList = $state([]);
+	/** @type {boolean} 가결산 대상 부서 선택 값 */
+	let provSalesTarget = $state(false);
 	/** @type {boolean} 로딩 여부 */
 	let isLoading = $state(false);
 	/** @type {boolean} 저장 중 여부 */
@@ -172,6 +175,7 @@
 	async function openEditPopup(dept) {
 		editingDept = dept;
 		selectedOrgCodes = new SvelteSet(Array.isArray(dept.param) ? dept.param : []);
+		provSalesTarget = dept.prov_sales_target ?? false;
 		departmentUsers = [];
 		userList = [];
 		showEditPopup = true;
@@ -290,7 +294,7 @@
 		isSaving = true;
 		try {
 			const param = Array.from(selectedOrgCodes);
-			const { error: updateErr } = await updateDepartment(editingDept.id, { param });
+			const { error: updateErr } = await updateDepartment(editingDept.id, { param, prov_sales_target: provSalesTarget });
 			if (updateErr) {
 				alert(updateErr.message || '저장에 실패했습니다.');
 				return;
@@ -307,7 +311,7 @@
 					can_edit_business_plan: du.can_edit_business_plan,
 					can_edit_expected_sales: du.can_edit_expected_sales,
 					can_edit_plan_cost: du.can_edit_plan_cost,
-					can_edit_expected_cost: du.can_edit_expected_cost
+					can_edit_expected_cost: du.can_edit_expected_cost,
 				});
 				if (addErr) {
 					alert(addErr.message || '담당자 저장 중 오류가 발생했습니다.');
@@ -395,7 +399,9 @@
 				// { label: '코드' },
 				{ label: '실제 부서명' },
 				{ label: '회계상 부서(조직)' },
+				{ label: '가결산 대상', align: 'center' },
 				{ label: '담당자' },
+				{ label: '등록일', align: 'center' },
 				{ label: '작업', align: 'center' }
 			]}
 			rowCount={departments.length}
@@ -408,8 +414,14 @@
 					<td class="max-w-md text-sm text-gray-700">
 						{paramToDisplayLabels(dept.param)}
 					</td>
+					<td class="max-w-xs text-sm text-gray-700 text-center">
+						{dept.prov_sales_target ? '✅' : ''}
+					</td>
 					<td class="max-w-xs text-sm text-gray-700">
 						{formatDepartmentUsers(departmentUsersMap[dept.id] ?? [])}
+					</td>
+					<td class="text-center">
+						{dept.created_at ? formatDateOnly(dept.created_at) : '-'}
 					</td>
 					<td class="text-center">
 						<button
@@ -447,6 +459,7 @@
 	department={editingDept}
 	organizationList={organizationList}
 	selectedOrgCodes={selectedOrgCodes}
+	bind:provSalesTarget={provSalesTarget}
 	onToggle={toggleOrgSelection}
 	departmentUsers={departmentUsers}
 	userList={userList}

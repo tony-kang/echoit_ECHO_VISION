@@ -564,7 +564,7 @@ export async function getSettingsHierarchy() {
 // ============================================================================
 
 /**
- * ev_code 목록 조회
+ * ev_code (매출,비용 코드 테이블) 목록 조회
  * @param {Object} [options] - 조회 옵션
  * @param {string} [options.category] - 카테고리로 필터링 ('sales' 또는 'cost')
  * @returns {Promise<{data: Array<any>|null, error: Error|null}>}
