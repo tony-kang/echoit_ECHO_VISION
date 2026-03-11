@@ -165,7 +165,7 @@
 
 	<nav class="flex-1 overflow-y-auto p-2 w-64">
 		<div class="space-y-1">
-			{#each prjMenuItems as menuItem}
+			{#each prjMenuItems as menuItem (menuItem.id)}
 				{@const isActive = isActiveMenu(menuItem)}
 				{@const isExpanded = expandedMenu === menuItem.id}
 				<div class="mb-1">
@@ -201,7 +201,7 @@
 
 					{#if menuItem.subMenus?.length && isExpanded}
 						<div class="ml-4 mt-1 space-y-1">
-							{#each menuItem.subMenus as subMenu}
+							{#each menuItem.subMenus as subMenu (subMenu.path)}
 								{@const isSubActive = isActiveSubMenu(subMenu.path)}
 								<button
 									onclick={() => handleSubMenuClick(subMenu.path)}

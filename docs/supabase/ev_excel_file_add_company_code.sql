@@ -5,7 +5,7 @@
 -- ============================================================================
 
 ALTER TABLE public.ev_excel_file
-ADD COLUMN IF NOT EXISTS company_code VARCHAR(100);
+ADD COLUMN IF NOT EXISTS company_code TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_ev_excel_file_company_code ON public.ev_excel_file(company_code);
 

@@ -5,6 +5,8 @@
 -- - code: DEPARTMENT_001 형식 자동 생성
 -- - title: 부서명
 -- - param: organization 코드 배열 (jsonb)
+-- - display_order: 표시 순서 (작은 값이 먼저)
+-- - company_code: 회사 코드 배열 (TEXT[], env_code excel_company 등)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.ev_department (
@@ -13,11 +15,17 @@ CREATE TABLE IF NOT EXISTS public.ev_department (
     title TEXT NOT NULL,
     param JSONB DEFAULT '[]'::jsonb,
     prov_sales_target BOOLEAN NOT NULL DEFAULT false,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    company_code TEXT[] DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_ev_department_code ON public.ev_department(code);
+CREATE INDEX IF NOT EXISTS idx_ev_department_display_order ON public.ev_department(display_order);
+
+COMMENT ON COLUMN public.ev_department.display_order IS '표시 순서 (작은 값이 먼저)';
+COMMENT ON COLUMN public.ev_department.company_code IS '회사 코드 배열 (env_code excel_company 등)';
 
 -- updated_at 자동 갱신
 CREATE OR REPLACE FUNCTION public.ev_department_updated_at()

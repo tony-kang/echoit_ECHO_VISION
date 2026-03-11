@@ -4,6 +4,7 @@
 	import DataTable from '$lib/components/admin/DataTable.svelte';
 	import DepartmentAddModal from './DepartmentAddModal.svelte';
 	import DepartmentEditModal from './DepartmentEditModal.svelte';
+	import OrderEditModal from '$lib/components/settings/OrderEditModal.svelte';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import {
 		getDepartments,
@@ -37,6 +38,12 @@
 	let showEditPopup = $state(false);
 	/** @type {{ id: string, code: string, title: string, param?: string[] | null } | null} 수정 중인 부서 */
 	let editingDept = $state(null);
+	/** @type {boolean} 표시순서 전용 모달 표시 여부 */
+	let showOrderModal = $state(false);
+	/** @type {any} 표시순서 수정 대상 부서 */
+	let orderEditDept = $state(null);
+	/** @type {number} 표시순서 모달에서 편집 중인 값 */
+	let orderModalOrder = $state(0);
 	/** @type {string} 추가 시 부서명 입력 */
 	let newDeptTitle = $state('');
 	/** @type {Set<string>} 수정 팝업에서 선택된 organization 코드 집합 */
@@ -224,6 +231,51 @@
 	}
 
 	/**
+	 * 표시순서 수정 모달 열기
+	 * @param {any} dept - 수정할 부서
+	 */
+	function openOrderModal(dept) {
+		orderEditDept = dept;
+		orderModalOrder = dept.display_order ?? 0;
+		showOrderModal = true;
+	}
+
+	/**
+	 * 표시순서 수정 모달 닫기
+	 */
+	function closeOrderModal() {
+		showOrderModal = false;
+		orderEditDept = null;
+	}
+
+	/**
+	 * 표시순서만 저장 (display_order 필드만 업데이트)
+	 * @returns {Promise<void>}
+	 */
+	async function saveOrderModal() {
+		if (!orderEditDept) return;
+		const orderValue = Number(orderModalOrder);
+		if (!Number.isInteger(orderValue) || orderValue < 0) {
+			alert('표시순서는 0 이상의 정수만 입력 가능합니다.');
+			return;
+		}
+		isSaving = true;
+		try {
+			const { error } = await updateDepartment(orderEditDept.id, { display_order: orderValue });
+			if (error) {
+				alert(error.message || '표시순서 저장에 실패했습니다.');
+				return;
+			}
+			closeOrderModal();
+			await loadDepartments();
+		} catch (e) {
+			alert(e instanceof Error ? e.message : '저장 중 오류가 발생했습니다.');
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	/**
 	 * 수정 팝업에서 organization 선택/해제
 	 * @param {string} code
 	 * @param {boolean} checked
@@ -398,6 +450,7 @@
 			headers={[
 				// { label: '코드' },
 				{ label: '실제 부서명' },
+				{ label: '표시 순서', align: 'center' },
 				{ label: '회계상 부서(조직)' },
 				{ label: '가결산 대상', align: 'center' },
 				{ label: '담당자' },
@@ -411,6 +464,16 @@
 				<tr>
 					<!-- <td class="font-mono text-sm">{dept.code}</td> -->
 					<td>{dept.title || '-'}</td>
+					<td
+						class="text-center order-cell-clickable"
+						role="button"
+						tabindex="0"
+						onclick={(e) => { e.stopPropagation(); openOrderModal(dept); }}
+						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openOrderModal(dept); } }}
+						title="클릭하면 표시순서만 수정"
+					>
+						{dept.display_order ?? '-'}
+					</td>
 					<td class="max-w-md text-sm text-gray-700">
 						{paramToDisplayLabels(dept.param)}
 					</td>
@@ -470,3 +533,22 @@
 	onSave={handleSaveEdit}
 	isSaving={isSaving}
 />
+
+<OrderEditModal
+	open={showOrderModal}
+	setting={orderEditDept ? { code: orderEditDept.code, title: orderEditDept.title, order: orderModalOrder } : null}
+	bind:order={orderModalOrder}
+	isSaving={isSaving}
+	onClose={closeOrderModal}
+	onSave={saveOrderModal}
+/>
+
+<style>
+	.order-cell-clickable {
+		cursor: pointer;
+	}
+	.order-cell-clickable:hover {
+		background-color: #eff6ff;
+		color: #1d4ed8;
+	}
+</style>
