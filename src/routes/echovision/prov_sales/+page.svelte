@@ -6,6 +6,7 @@
 	import {
 		upsertProvisionalSales,
 		getProvisionalSalesByCompanyYear,
+		getProvisionalByYear,
 		PROV_SALES_ITEMS
 	} from '$lib/provSalesService';
 	import { getSettings } from '$lib/settingsService';
@@ -141,12 +142,13 @@
 	 * @returns {Promise<void>}
 	 */
 	async function saveCell(departmentId, month, cellItemKey, value) {
-		if (!companyCode || !selectedYear || isSaving) return;
-		const k = `${departmentId}_${month}_${cellItemKey}`;
-		pendingCells.delete(k);
-		const num = value === '' ? 0 : parseFloat(String(value).replace(/,/g, '')) || 0;
+		if (!selectedYear || isSaving) return;
 		const rowKey = `${departmentId}_${month}`;
 		const existing = rowByDeptMonth.get(rowKey);
+		if (!existing && !companyCode) {
+			// 새 행 저장 시 회사 코드 필요 (DB NOT NULL)
+			return;
+		}
 		const base = existing
 			? { ...existing }
 			: {
@@ -155,6 +157,9 @@
 					year: parseInt(selectedYear, 10),
 					month
 				};
+		const k = `${departmentId}_${month}_${cellItemKey}`;
+		pendingCells.delete(k);
+		const num = value === '' ? 0 : parseFloat(String(value).replace(/,/g, '')) || 0;
 		isSaving = true;
 		try {
 			const { data, error } = await upsertProvisionalSales(base, [
@@ -172,18 +177,17 @@
 		}
 	}
 
-	/** 회사·연도 변경 시 데이터 로드 */
+	/** 회사·연도 변경 시 데이터 로드 (회사 미선택 시 연도만으로 전체 회사 데이터 조회) */
 	async function loadData() {
-		if (!companyCode || !selectedYear) {
+		if (!selectedYear) {
 			rows = [];
 			return;
 		}
 		isLoading = true;
 		try {
-			const { data, error } = await getProvisionalSalesByCompanyYear(
-				companyCode,
-				parseInt(selectedYear, 10)
-			);
+			const { data, error } = companyCode
+				? await getProvisionalSalesByCompanyYear(companyCode, parseInt(selectedYear, 10))
+				: await getProvisionalByYear(parseInt(selectedYear, 10));
 			if (error) rows = [];
 			else rows = data ?? [];
 		} finally {
@@ -226,7 +230,7 @@
 
 	$effect(() => {
 		if (!user || authLoading) return;
-		if (companyCode && selectedYear) loadData();
+		if (selectedYear) loadData();
 	});
 
 	/** 항목 변경 시 편집 중인 셀 초기화 (항목별로 값이 다르므로) */
@@ -278,7 +282,7 @@
 
 					<!-- 필터 -->
 					<div class="flex flex-wrap items-center gap-4 mb-4">
-						<label class="flex items-center gap-2">
+						<!-- <label class="flex items-center gap-2">
 							<span class="text-sm font-medium text-gray-700">회사</span>
 							<select
 								class="prov-select border border-gray-300 rounded px-3 py-1.5 text-sm"
@@ -290,7 +294,7 @@
 									<option value={c.code}>{c.title}</option>
 								{/each}
 							</select>
-						</label>
+						</label> -->
 						<label class="flex items-center gap-2">
 							<span class="text-sm font-medium text-gray-700">년도</span>
 							<select
@@ -305,11 +309,12 @@
 						</label>
 					</div>
 
-					{#if !companyCode}
-						<p class="text-gray-500">회사를 선택하세요.</p>
-					{:else if isLoading}
+					{#if isLoading}
 						<p class="text-gray-500">데이터 로딩 중...</p>
 					{:else}
+						{#if !companyCode && companies.length > 0}
+							<p class="text-gray-500 text-sm mb-2">회사 미선택 시 해당 연도 전체 회사 데이터가 표시됩니다. 저장하려면 회사를 선택하세요.</p>
+						{/if}
 						<div class="overflow-x-auto bg-white rounded-lg shadow border border-gray-200">
 							<table class="prov-table w-full border-collapse">
 								<thead>
@@ -332,7 +337,7 @@
 												<div class="p-2 text-right">매출원가</div>
 											</td>
 											{#each COLUMNS as col (col.labelSum)}
-												{#each col.months as m (m)}
+												{#each col.months as m, idx (idx)}
 													<td class="prov-td">
 														<input
 															type="text"
@@ -352,7 +357,7 @@
 														/>
 													</td>
 												{/each}
-												<td class="prov-td text-right text-gray-600 font-medium">
+												<td class="prov-td quarter-sum text-right text-gray-600 font-medium">
 													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'sales_amount'))}</div>
 													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'cost_of_sales'))}</div>
 												</td>
@@ -409,5 +414,10 @@
 	.prov-select:focus {
 		outline: none;
 		border-color: #2563eb;
+	}
+
+	.prov-td.quarter-sum {
+		background-color: #f5f5f5;
+		width: 150px;
 	}
 </style>
