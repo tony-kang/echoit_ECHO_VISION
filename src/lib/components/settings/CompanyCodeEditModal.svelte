@@ -36,10 +36,10 @@
 				<p class="company-modal-label">
 					<strong>{department.title}</strong>
 					{#if department.code}
-						<span class="company-modal-code">({department.code})</span>
+						<span class="company-modal-code">부서에 연결할 회사를 체크하세요.</span>
 					{/if}
 				</p>
-				<p class="company-modal-hint">연결할 회사를 체크하세요. (env_code excel_company)</p>
+				<p class="company-modal-hint">(체크하지 않으면 모든회사가 대상이 됩니다.)</p>
 				<div class="company-modal-list">
 					{#if companyOptions.length === 0}
 						<p class="company-modal-empty">등록된 회사가 없습니다.</p>

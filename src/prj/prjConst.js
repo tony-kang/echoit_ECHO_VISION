@@ -1,6 +1,6 @@
 const ___prjConst = {
     NAME: 'ECHO VISION',
-    VERSION: '1.1.0',
+    VERSION: '1.1.1',
     company: {
         name: '㈜에코아이티',
         ceo: '홍성호',
@@ -11,6 +11,7 @@ const ___prjConst = {
     },
     app: {
         name: '㈜에코아이티',
+        developer: '우주 E&C'
     },
     copyright: 'Copyright © ECHOIT. All rights reserved.',
 

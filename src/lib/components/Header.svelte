@@ -291,7 +291,7 @@
 									🚪 로그아웃
 								</button>
 								<hr class="my-2 border-gray-200" />
-								<span class="block px-4 py-2 text-sm text-gray-500">Version {___prjConst.VERSION}</span>
+								<span class="block px-4 py-2 text-sm text-gray-500">Version {___prjConst.VERSION} / {___prjConst.app.developer}</span>
 								<hr class="my-2 border-gray-200" />
 								<span class="block px-4 py-2 text-sm text-gray-500">{isDevDomain() ? `개발 환경` : `프로덕션 환경`}({window.location.hostname})</span>
 							</div>
