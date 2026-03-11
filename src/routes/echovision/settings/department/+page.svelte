@@ -5,6 +5,7 @@
 	import DepartmentAddModal from './DepartmentAddModal.svelte';
 	import DepartmentEditModal from './DepartmentEditModal.svelte';
 	import OrderEditModal from '$lib/components/settings/OrderEditModal.svelte';
+	import CompanyCodeEditModal from '$lib/components/settings/CompanyCodeEditModal.svelte';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import {
 		getDepartments,
@@ -44,6 +45,14 @@
 	let orderEditDept = $state(null);
 	/** @type {number} 표시순서 모달에서 편집 중인 값 */
 	let orderModalOrder = $state(0);
+	/** @type {boolean} 회사 선택 모달 표시 여부 */
+	let showCompanyModal = $state(false);
+	/** @type {any} 회사 선택 수정 대상 부서 */
+	let companyEditDept = $state(null);
+	/** @type {Set<string>} 회사 선택 모달에서 선택된 회사 코드 집합 */
+	let selectedCompanyCodes = $state(new Set());
+	/** @type {Array<{ code: string, title: string }>} 회사 목록 (excel_company) */
+	let companyList = $state([]);
 	/** @type {string} 추가 시 부서명 입력 */
 	let newDeptTitle = $state('');
 	/** @type {Set<string>} 수정 팝업에서 선택된 organization 코드 집합 */
@@ -62,6 +71,7 @@
 			dataLoaded = true;
 			loadDepartments();
 			loadOrganizations();
+			loadCompanyList();
 		}
 	});
 
@@ -231,6 +241,28 @@
 	}
 
 	/**
+	 * 회사 목록 로드 (excel_company, 회사 선택 모달용)
+	 * @returns {Promise<void>}
+	 */
+	async function loadCompanyList() {
+		try {
+			const { data, error } = await getSettings({ category: 'excel_company', orderByOrder: true });
+			if (error) {
+				console.error('회사 목록 로드 실패:', error);
+				companyList = [];
+			} else {
+				companyList = (data || []).map((/** @type {{ code: string, title: string }} */ row) => ({
+					code: row.code,
+					title: row.title || row.code
+				}));
+			}
+		} catch (e) {
+			console.error('회사 목록 로드 예외:', e);
+			companyList = [];
+		}
+	}
+
+	/**
 	 * 표시순서 수정 모달 열기
 	 * @param {any} dept - 수정할 부서
 	 */
@@ -267,6 +299,61 @@
 				return;
 			}
 			closeOrderModal();
+			await loadDepartments();
+		} catch (e) {
+			alert(e instanceof Error ? e.message : '저장 중 오류가 발생했습니다.');
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	/**
+	 * 회사 선택 모달 열기
+	 * @param {any} dept - 수정할 부서
+	 */
+	function openCompanyModal(dept) {
+		companyEditDept = dept;
+		selectedCompanyCodes = new SvelteSet(Array.isArray(dept.company_code) ? [...dept.company_code] : []);
+		showCompanyModal = true;
+	}
+
+	/**
+	 * 회사 선택 모달 닫기
+	 */
+	function closeCompanyModal() {
+		showCompanyModal = false;
+		companyEditDept = null;
+	}
+
+	/**
+	 * 회사 선택 모달에서 체크박스 토글
+	 * @param {string} code - 회사 코드
+	 * @param {boolean} checked - 체크 여부
+	 */
+	function toggleCompanySelection(code, checked) {
+		if (checked) {
+			selectedCompanyCodes.add(code);
+		} else {
+			selectedCompanyCodes.delete(code);
+		}
+		selectedCompanyCodes = new SvelteSet(selectedCompanyCodes);
+	}
+
+	/**
+	 * 회사 선택 저장 (company_code만 업데이트)
+	 * @returns {Promise<void>}
+	 */
+	async function saveCompanyModal() {
+		if (!companyEditDept) return;
+		isSaving = true;
+		try {
+			const codes = Array.from(selectedCompanyCodes);
+			const { error } = await updateDepartment(companyEditDept.id, { company_code: codes });
+			if (error) {
+				alert(error.message || '회사 저장에 실패했습니다.');
+				return;
+			}
+			closeCompanyModal();
 			await loadDepartments();
 		} catch (e) {
 			alert(e instanceof Error ? e.message : '저장 중 오류가 발생했습니다.');
@@ -346,7 +433,7 @@
 		isSaving = true;
 		try {
 			const param = Array.from(selectedOrgCodes);
-			const { error: updateErr } = await updateDepartment(editingDept.id, { param, prov_sales_target: provSalesTarget });
+			const { error: updateErr } = await updateDepartment(editingDept.id, { param, prov_sales_target: provSalesTarget, title: editingDept.title });
 			if (updateErr) {
 				alert(updateErr.message || '저장에 실패했습니다.');
 				return;
@@ -398,6 +485,25 @@
 		}
 		return map;
 	});
+
+	/** 회사 코드 → 제목 맵 (excel_company, 회사 셀 표시용) */
+	const companyCodeToTitle = $derived.by(() => {
+		const map = /** @type {Record<string, string>} */ ({});
+		for (const c of companyList) {
+			map[c.code] = c.title;
+		}
+		return map;
+	});
+
+	/**
+	 * 회사 코드 배열을 env_code title로 표시 문자열로 변환
+	 * @param {string[] | null | undefined} companyCodes
+	 * @returns {string}
+	 */
+	function companyCodesToDisplayLabel(companyCodes) {
+		if (!Array.isArray(companyCodes) || companyCodes.length === 0) return '-';
+		return companyCodes.map((code) => companyCodeToTitle[code] || code).join(', ');
+	}
 
 	/**
 	 * param 코드 배열을 제목 문자열로 표시
@@ -451,6 +557,7 @@
 				// { label: '코드' },
 				{ label: '실제 부서명' },
 				{ label: '표시 순서', align: 'center' },
+				{ label: '엑셀 회사' },
 				{ label: '회계상 부서(조직)' },
 				{ label: '가결산 대상', align: 'center' },
 				{ label: '담당자' },
@@ -474,9 +581,19 @@
 					>
 						{dept.display_order ?? '-'}
 					</td>
+					<td
+						class="max-w-xs text-sm text-gray-700 order-cell-clickable"
+						role="button"
+						tabindex="0"
+						onclick={(e) => { e.stopPropagation(); openCompanyModal(dept); }}
+						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCompanyModal(dept); } }}
+						title="클릭하면 회사 선택"
+					>
+						{companyCodesToDisplayLabel(dept.company_code)}
+					</td>
 					<td class="max-w-md text-sm text-gray-700">
 						{paramToDisplayLabels(dept.param)}
-					</td>
+					</td>					
 					<td class="max-w-xs text-sm text-gray-700 text-center">
 						{dept.prov_sales_target ? '✅' : ''}
 					</td>
@@ -541,6 +658,17 @@
 	isSaving={isSaving}
 	onClose={closeOrderModal}
 	onSave={saveOrderModal}
+/>
+
+<CompanyCodeEditModal
+	open={showCompanyModal}
+	department={companyEditDept}
+	companyOptions={companyList}
+	selectedCompanyCodes={selectedCompanyCodes}
+	onToggle={toggleCompanySelection}
+	onClose={closeCompanyModal}
+	onSave={saveCompanyModal}
+	isSaving={isSaving}
 />
 
 <style>

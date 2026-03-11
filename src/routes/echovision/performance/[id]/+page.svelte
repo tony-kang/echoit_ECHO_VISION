@@ -267,13 +267,18 @@
 		if (!selectedOrg) return;
 		isLoading = true;
 		try {
+			console.log('Performance loadData selectedOrg:',$state.snapshot(selectedOrg));
 			// 선택된 조직의 org_code 배열을 evCodeItems로 전달
 			const evCodeItems = selectedOrg.org_code;
+			const companyCodeItems = selectedOrg.company_code;
+
+			console.log('Performance loadData companyCodeItems:',$state.snapshot(companyCodeItems));
 			
 			// 매출 데이터 로드
 			const salesResult = await getSales({
 				year: selectedYear,
 				evCodeItems: evCodeItems,
+				companyCodeItems: companyCodeItems,
 				orderByYear: true,
 				orderByMonth: true
 			});
@@ -282,6 +287,7 @@
 			const costResult = await getCosts({
 				year: selectedYear,
 				evCodeItems: evCodeItems,
+				companyCodeItems: companyCodeItems,
 				orderByYear: true,
 				orderByMonth: true
 			});
@@ -832,7 +838,9 @@
 					org_alias_name: d.title || d.code,
 					org_code: Array.isArray(d.param) ? d.param : [],
 					sales_code: FIXED_SALES_CODES,
-					cost_code: FIXED_COST_CODES
+					cost_code: FIXED_COST_CODES,
+					company_code: Array.isArray(d.company_code) ? d.company_code : [],
+					company_excel: Array.isArray(d.company_excel) ? d.company_excel : []
 				}));
 				orgInfo = list;
 			})

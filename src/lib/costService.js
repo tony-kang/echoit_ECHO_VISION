@@ -32,16 +32,28 @@ import { supabase } from './supabaseClient';
  */
 export async function getCosts(options = {}) {
 	try {
-		const { year, month, evCodeItems, orderByYear = true, orderByMonth = true } = options;
+		const { year, month, evCodeItems, companyCodeItems, orderByYear = true, orderByMonth = true } = options;
 
 		let query = supabase
 			.from('ev_cost')
 			.select('id, year, month, notes, created_at, updated_at, excel_file_id, org_code, excel_file_data');
 
-		// 코드 필터링
-		// if (codes && codes.length > 0) {
-		// 	query = query.in('org_code', codes);
-		// }
+		// companyCodeItems가 있으면 해당 회사 코드의 ev_excel_file.id만 excel_file_id로 필터
+		if (companyCodeItems && Array.isArray(companyCodeItems) && companyCodeItems.length > 0) {
+			const { data: excelFiles, error: excelError } = await supabase
+				.from('ev_excel_file')
+				.select('id')
+				.in('company_code', companyCodeItems);
+			if (excelError) {
+				console.error('ev_excel_file 조회 실패 (companyCodeItems):', excelError);
+				return { data: [], error: excelError };
+			}
+			const excelFileIds = (excelFiles || []).map((r) => r.id).filter(Boolean);
+			if (excelFileIds.length === 0) {
+				return { data: [], error: null };
+			}
+			query = query.in('excel_file_id', excelFileIds);
+		}
 
 		// 연도 필터링
 		if (year !== undefined && year !== null) {

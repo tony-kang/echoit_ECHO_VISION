@@ -24,6 +24,7 @@
 	let searchQuery = $state('');
 	/** @type {string} 담당자 추가 선택 값 (user_id) */
 	let addUserSelect = $state('');
+	/** @type {string} 부서명 검색어 */
 
 	/** 선택된 항목 목록 (코드 기준 organizationList에서 추출) */
 	const selectedOrgs = $derived.by(() =>
@@ -130,7 +131,7 @@
 
 				<!-- 검색 -->
 				 <div class="form-row">
-					<div class="form-group form-col-50">
+					<div class="form-group form-col-30">
 						<label for="dept-edit-org-search" class="sr-only">조직 검색</label>
 						<input
 							id="dept-edit-org-search"
@@ -140,14 +141,28 @@
 							class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
 						/>
 					</div>
-					<div class="form-group form-col-50 flex items-center gap-2 justify-end">
-						<input
-							id="dept-edit-prov-sales-target"
-							type="checkbox"
-							checked={provSalesTarget}
-							onchange={(e) => provSalesTarget = e.currentTarget.checked}
-							class="w-4 h-4 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-						/><label for="dept-edit-prov-sales-target" >가결산 대상 부서</label>
+					<div class="form-group form-col-70">
+						<div class="form-row">
+							<div class="form-group form-col-70">
+								<label for="dept-edit-org-search" class="sr-only">부서명</label>
+								<input
+									id="dept-edit-org-search"
+									type="text"
+									bind:value={department.title}
+									class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+								/>
+							</div>
+							<div class="form-group form-col-30 flex items-center gap-2 justify-end">
+								<input
+									id="dept-edit-prov-sales-target"
+									type="checkbox"
+									checked={provSalesTarget}
+									onchange={(e) => provSalesTarget = e.currentTarget.checked}
+									class="w-4 h-4 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+								/>
+								<label for="dept-edit-prov-sales-target" >가결산 대상 부서</label>
+							</div>
+						</div>
 					</div>
 				</div>
 

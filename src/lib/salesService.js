@@ -19,6 +19,7 @@ import { supabase } from './supabaseClient';
  * @typedef {Object} GetSalesOptions
  * @property {string[]} [codes] - 조회할 코드 배열 (없으면 전체, org_code 필터링)
  * @property {string[]} [evCodeItems] - ev_code의 items 배열 (평탄화된 중복 제거된 배열)
+ * @property {string[]} [companyCodeItems] - 회사 코드 배열 (있으면 해당 company_code인 ev_excel_file.id만 excel_file_id로 필터)
  * @property {number} [year] - 연도 필터
  * @property {number} [month] - 월 필터
  * @property {boolean} [orderByYear] - 연도순 정렬 (기본값: true)
@@ -32,16 +33,28 @@ import { supabase } from './supabaseClient';
  */
 export async function getSales(options = {}) {
 	try {
-		const { year, month, evCodeItems, orderByYear = true, orderByMonth = true } = options;
+		const { year, month, evCodeItems, companyCodeItems, orderByYear = true, orderByMonth = true } = options;
 
 		let query = supabase
 			.from('ev_sales')
 			.select('id, year, month, notes, created_at, updated_at, excel_file_id, org_code, excel_file_data');
 
-		// 코드 필터링 (org_code 사용)
-		// if (codes && codes.length > 0) {
-		// 	query = query.in('org_code', codes);
-		// }
+		// companyCodeItems가 있으면 해당 회사 코드의 ev_excel_file.id만 excel_file_id로 필터
+		if (companyCodeItems && Array.isArray(companyCodeItems) && companyCodeItems.length > 0) {
+			const { data: excelFiles, error: excelError } = await supabase
+				.from('ev_excel_file')
+				.select('id')
+				.in('company_code', companyCodeItems);
+			if (excelError) {
+				console.error('ev_excel_file 조회 실패 (companyCodeItems):', excelError);
+				return { data: [], error: excelError };
+			}
+			const excelFileIds = (excelFiles || []).map((r) => r.id).filter(Boolean);
+			if (excelFileIds.length === 0) {
+				return { data: [], error: null };
+			}
+			query = query.in('excel_file_id', excelFileIds);
+		}
 
 		// 연도 필터링
 		if (year !== undefined && year !== null) {

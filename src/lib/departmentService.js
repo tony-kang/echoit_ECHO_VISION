@@ -10,7 +10,7 @@ import { supabase } from './supabaseClient';
 export async function getDepartments() {
 	const { data, error } = await supabase
 		.from('ev_department')
-		.select('id, code, title, param, prov_sales_target, display_order,created_at, updated_at')
+		.select('id, code, title, param, prov_sales_target, display_order, company_code, created_at, updated_at')
 		.order('display_order', { ascending: true });
 	if (error) return { data: null, error };
 	return { data: data || [], error: null };
@@ -99,7 +99,7 @@ export async function createDepartment(payload) {
 /**
  * 부서 수정
  * @param {string} id - 부서 id
- * @param {{ title?: string, param?: string[] | null, prov_sales_target?: boolean, display_order?: number }} payload
+ * @param {{ title?: string, param?: string[] | null, prov_sales_target?: boolean, display_order?: number, company_code?: string[] | null }} payload
  * @returns {Promise<{ data: object | null, error: Error | null }>}
  */
 export async function updateDepartment(id, payload) {
@@ -108,6 +108,7 @@ export async function updateDepartment(id, payload) {
 	if (payload.param !== undefined) updateFields.param = Array.isArray(payload.param) ? payload.param : [];
 	if (payload.prov_sales_target !== undefined) updateFields.prov_sales_target = !!payload.prov_sales_target;
 	if (payload.display_order !== undefined) updateFields.display_order = Number(payload.display_order);
+	if (payload.company_code !== undefined) updateFields.company_code = Array.isArray(payload.company_code) ? payload.company_code : [];
 	if (Object.keys(updateFields).length === 0) return { data: null, error: new Error('수정할 필드가 없습니다.') };
 	const { data, error } = await supabase.from('ev_department').update(updateFields).eq('id', id).select().single();
 	return { data, error: error || null };
