@@ -10,6 +10,7 @@
 		PROV_SALES_ITEMS
 	} from '$lib/provSalesService';
 	import { getSettings } from '$lib/settingsService';
+	import { getSales } from '$lib/salesService';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { goto } from '$app/navigation';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -18,7 +19,7 @@
 	let user = $derived(authStore.user);
 	let authLoading = $derived(authStore.loading);
 
-	/** @type {Array<{ id: string, code: string, title: string }>} 부서 목록 */
+	/** @type {Array<{ id: string, code: string, title: string, param?: string[] }>} 부서 목록 (param = org_code 배열) */
 	let departments = $state([]);
 	/** @type {Array<{ code: string, title: string }>} 회사 목록 (excel_company) */
 	let companies = $state([]);
@@ -36,6 +37,13 @@
 	let isSaving = $state(false);
 	/** 편집 중인 셀 값 (key: departmentId_month) */
 	let pendingCells = new SvelteMap();
+	/** ev_sales 기반 실제 매출 실적 (SALES_0100 + SALES_0200) 조회용 */
+	let salesData = $state([]);
+	/** 실적 데이터(SALES) 로딩 중 */
+	let salesDataLoading = $state(false);
+
+	/** 실적 산출에 사용할 매출 코드 (ev_sales.excel_file_data 키) */
+	const ACTUAL_SALES_CODES = ['SALES_0100', 'SALES_0200'];
 
 	/** department_id·month 별 행 맵 (한 행이 한 달 데이터) */
 	const rowByDeptMonth = $derived.by(() => {
@@ -46,6 +54,74 @@
 		}
 		return map;
 	});
+
+	/**
+	 * 부서·월별 실제 매출 실적 (ev_sales excel_file_data SALES_0100 + SALES_0200 합계)
+	 * @param {string} departmentId - ev_department.id
+	 * @param {number} month - 1~12
+	 * @returns {number}
+	 */
+	function getActualSales(deptId, month) {
+		const dept = departments.find((d) => d.id === deptId);
+		// console.log('>>> getActualSales', $state.snapshot(dept), month);
+		if (!dept?.param?.length) return 0;
+		const orgCodes = Array.isArray(dept.param) ? dept.param : [];
+		let total = 0;
+		for (const item of salesData) {
+			if (item.month !== month || item.year !== parseInt(selectedYear, 10)) continue;
+			if (!orgCodes.includes(item.org_code)) continue;
+			if (!item.excel_file_data) continue;
+			for (const code of ACTUAL_SALES_CODES) {
+				const v = item.excel_file_data[code];
+				if (v != null) {
+					const n = typeof v === 'string' ? parseFloat(v.replace(/,/g, '')) : Number(v);
+					if (!Number.isNaN(n)) total += n;
+				}
+			}
+		}
+		return total;
+	}
+
+	/**
+	 * 해당 월 매출액 대비 실적 달성률 (실제/가결산 매출액 * 100). 가결산 0이면 null
+	 * @param {string} departmentId - ev_department.id
+	 * @param {number} month - 1~12
+	 * @returns {number | null}
+	 */
+	function getAchievementRate(deptId, month) {
+		const provisional = getCellValue(deptId, month, 'sales_amount');
+
+		if (provisional === 0) return null;
+		const actual = getActualSales(deptId, month);
+		console.log('actual', deptId, month, provisional, actual);
+		return (actual / provisional) * 100;
+	}
+
+	/**
+	 * 달성률 표시 문자열
+	 * @param {string} departmentId - ev_department.id
+	 * @param {number} month - 1~12
+	 * @returns {string}
+	 */
+	function getAchievementRateDisplay(deptId, month) {
+		const rate = getAchievementRate(deptId, month);
+		if (rate === null) return '-';
+		return `${Number(rate.toFixed(1))}%`;
+	}
+
+	/**
+	 * 여러 월 합산 기준 달성률 (실적 합 / 가결산 매출액 합 * 100)
+	 * @param {string} departmentId - ev_department.id
+	 * @param {number[]} months - 월 배열
+	 * @returns {string}
+	 */
+	function getAchievementRateSumDisplay(departmentId, months) {
+		const provisionalSum = months.reduce((s, m) => s + getCellValue(departmentId, m, 'sales_amount'), 0);
+		if (provisionalSum === 0) return '-';
+		const actualSum = months.reduce((s, m) => s + getActualSales(departmentId, m), 0);
+		const rate = (actualSum / provisionalSum) * 100;
+		return `${Number(rate.toFixed(1))}%`;
+	}
 
 	/**
 	 * 부서·월에 해당하는 항목 값 조회 (편집 중이면 pending 반환)
@@ -218,7 +294,8 @@
 			departments = (deptRes.data || []).map((d) => ({
 				id: d.id,
 				code: d.code,
-				title: d.title
+				title: d.title,
+				param: Array.isArray(d.param) ? d.param : []
 			}));
 			companies = (settingsRes.data || []).map((r) => ({
 				code: r.code,
@@ -231,6 +308,38 @@
 	$effect(() => {
 		if (!user || authLoading) return;
 		if (selectedYear) loadData();
+	});
+
+	/** 연도·부서 변경 시 ev_sales 실적 데이터 로드 (SALES_0100, SALES_0200) */
+	$effect(() => {
+		if (!selectedYear || !departments.length) {
+			salesData = [];
+			return;
+		}
+		const evCodeItems = [...new Set(departments.flatMap((d) => (Array.isArray(d.param) ? d.param : [])))];
+		if (evCodeItems.length === 0) {
+			salesData = [];
+			return;
+		}
+		salesDataLoading = true;
+		console.log('---------------1234134----------------- companyCode', companyCode, selectedYear, evCodeItems);
+		getSales({
+			year: parseInt(selectedYear, 10),
+			evCodeItems,
+			companyCodeItems: null, // companyCode ? [companyCode] : undefined,
+			orderByYear: true,
+			orderByMonth: true
+		})
+			.then(({ data }) => {
+				salesData = data ?? [];
+				console.log('---------------1234134----------------- salesData', $state.snapshot(salesData));
+			})
+			.catch(() => {
+				salesData = [];
+			})
+			.finally(() => {
+				salesDataLoading = false;
+			});
 	});
 
 	/** 항목 변경 시 편집 중인 셀 초기화 (항목별로 값이 다르므로) */
@@ -334,6 +443,7 @@
 											<td class="prov-td font-medium sticky left-0 bg-white z-10 min-w-[150px]" style="border-right:0px !important;">{dept.title}</td>
 											<td class="prov-td font-medium sticky left-0 bg-white z-10 min-w-[100px]" style="border-left:0px !important;">
 												<div class="p-2 text-right">매출액</div>
+												<div class="p-2 text-right text-blue-600 font-medium" title="실적(SALES_0100+SALES_0200) 대비 가결산 매출액 달성률">달성률</div>
 												<div class="p-2 text-right">매출원가</div>
 											</td>
 											{#each COLUMNS as col (col.labelSum)}
@@ -347,6 +457,9 @@
 															oninput={(e) => handleCellInput(dept.id, m, 'sales_amount', e.currentTarget.value)}
 															onblur={(e) => saveCell(dept.id, m, 'sales_amount', e.currentTarget.value)}
 														/>
+														<div class="p-2 text-right text-blue-600 text-sm font-medium" title="실적(SALES_0100+SALES_0200) 대비 가결산 매출액 달성률">
+															{salesDataLoading ? '-' : getAchievementRateDisplay(dept.id, m)}
+														</div>
 														<input
 															type="text"
 															class="prov-input w-full text-right"
@@ -359,6 +472,9 @@
 												{/each}
 												<td class="prov-td quarter-sum text-right text-gray-600 font-medium">
 													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'sales_amount'))}</div>
+													<div class="p-2 text-right text-blue-600 text-sm font-medium">
+														{salesDataLoading ? '-' : getAchievementRateSumDisplay(dept.id, col.months)}
+													</div>
 													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'cost_of_sales'))}</div>
 												</td>
 											{/each}
