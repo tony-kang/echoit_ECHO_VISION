@@ -5,9 +5,27 @@ import { supabase } from './supabaseClient';
 
 /**
  * 부서 목록 조회
+ * @param {{ forUserId?: string, isAdmin?: boolean }} [options] - forUserId: 해당 사용자 담당 부서만 조회 시 사용자 id, isAdmin: true면 전체 부서
  * @returns {Promise<{ data: Array<{ id: string, code: string, title: string, param: string[] | null, created_at: string, updated_at: string }> | null, error: Error | null }>}
  */
-export async function getDepartments() {
+export async function getDepartments(options = {}) {
+	const { forUserId, isAdmin: asAdmin } = options;
+	if (forUserId && asAdmin !== true) {
+		const { data: userDeptRows, error: userErr } = await supabase
+			.from('ev_department_user')
+			.select('department_id')
+			.eq('user_id', forUserId);
+		if (userErr) return { data: null, error: userErr };
+		const departmentIds = [...new Set((userDeptRows || []).map((r) => r.department_id).filter(Boolean))];
+		if (departmentIds.length === 0) return { data: [], error: null };
+		const { data, error } = await supabase
+			.from('ev_department')
+			.select('id, code, title, param, prov_sales_target, display_order, company_code, created_at, updated_at')
+			.in('id', departmentIds)
+			.order('display_order', { ascending: true });
+		if (error) return { data: null, error };
+		return { data: data || [], error: null };
+	}
 	const { data, error } = await supabase
 		.from('ev_department')
 		.select('id, code, title, param, prov_sales_target, display_order, company_code, created_at, updated_at')

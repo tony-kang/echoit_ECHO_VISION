@@ -22,7 +22,7 @@ export const PROV_SALES_ITEMS = [
 	{ key: 'net_profit_period', label: '당기 순 이익' }
 ];
 
-const ITEM_KEYS = PROV_SALES_ITEMS.map((i) => i.key);
+// const ITEM_KEYS = PROV_SALES_ITEMS.map((i) => i.key);
 
 /**
  * 회사코드·연도별 가결산 데이터 조회
@@ -41,6 +41,28 @@ export async function getProvisionalSalesByCompanyYear(companyCode, year) {
 		.eq('year', year)
 		.order('department_id', { ascending: true })
 		.order('month', { ascending: true });
+	if (error) {
+		console.error('가결산 실적 조회 실패:', error);
+		return { data: [], error };
+	}
+	return { data: data || [], error: null };
+}
+
+/**
+ * 연도별 가결산 데이터 조회 (회사 무관)
+ * @param {number} year - 연도
+ * @returns {Promise<{ data: Array<any>, error: Error | null }>}
+ */
+export async function getProvisionalByYear(year) {
+	if (!year) {
+		return { data: [], error: null };
+	}
+	const { data, error } = await supabase
+		.from('ev_provisional_sales')
+		.select('*')
+		.eq('year', year)
+		.order('department_id', { ascending: true })
+		.order('month', { ascending: true });
 
 	if (error) {
 		console.error('가결산 실적 조회 실패:', error);
@@ -50,27 +72,29 @@ export async function getProvisionalSalesByCompanyYear(companyCode, year) {
 }
 
 /**
- * 1건 upsert (company_code, department_id, year, month 기준)
+ * 1건 upsert (company_code, department_id, year, month 기준). 테이블 유니크: (company_code, department_id, year, month)
  * @param {{
- *   company_code: string,
+ *   company_code?: string,
  *   department_id: string,
  *   year: number,
  *   month: number,
  *   [key: string]: any
- * }} row - 저장할 행 (항목 키별 금액 포함)
+ * }} row - 저장할 행 (company_code 필수, 항목 키별 금액 포함)
+ * @param {{ key: string, value: number|string }[]} [itemKeys] - 갱신할 항목 키·값 배열
  * @returns {Promise<{ data: any | null, error: Error | null }>}
  */
-export async function upsertProvisionalSales(row) {
+export async function upsertProvisionalSales(row, itemKeys = []) {
 	const { company_code, department_id, year, month } = row;
+	const resolvedCompanyCode = company_code ?? '';
 	const payload = {
-		company_code,
+		company_code: resolvedCompanyCode,
 		department_id,
 		year,
 		month
 	};
-	ITEM_KEYS.forEach((k) => {
-		const v = row[k];
-		payload[k] = v === '' || v === null || v === undefined ? 0 : Number(v);
+	itemKeys.forEach((k) => {
+		const v = k.value;
+		payload[k.key] = v === '' || v === null || v === undefined ? 0 : Number(v);
 	});
 
 	const { data, error } = await supabase

@@ -1,13 +1,14 @@
 <script>
 	import { onMount } from 'svelte';
 	import PrjSidebar from '$lib/components/PrjSidebar.svelte';
-	import { getSettings } from '$lib/settingsService';
 	import { getDepartments } from '$lib/departmentService';
+	import { isAdmin } from '$lib/userService';
 	import {
-		getProvisionalSalesByCompanyYear,
 		upsertProvisionalSales,
+		getProvisionalSalesByCompanyYear,
 		PROV_SALES_ITEMS
 	} from '$lib/provSalesService';
+	import { getSettings } from '$lib/settingsService';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { goto } from '$app/navigation';
 	import { SvelteMap } from 'svelte/reactivity';
@@ -16,10 +17,10 @@
 	let user = $derived(authStore.user);
 	let authLoading = $derived(authStore.loading);
 
-	/** @type {Array<{ code: string, title: string }>} 회사 목록 (excel_company) */
-	let companies = $state([]);
 	/** @type {Array<{ id: string, code: string, title: string }>} 부서 목록 */
 	let departments = $state([]);
+	/** @type {Array<{ code: string, title: string }>} 회사 목록 (excel_company) */
+	let companies = $state([]);
 	/** @type {string} 선택 회사코드 */
 	let companyCode = $state('');
 	/** @type {string} 선택 연도 */
@@ -49,54 +50,84 @@
 	 * 부서·월에 해당하는 항목 값 조회 (편집 중이면 pending 반환)
 	 * @param {string} departmentId - ev_department.id
 	 * @param {number} month - 1~12
+	 * @param {string} [cellItemKey] - 항목 키 (없으면 전역 itemKey 사용)
 	 * @returns {number}
 	 */
-	function getCellValue(departmentId, month) {
-		const k = `${departmentId}_${month}`;
+	function getCellValue(departmentId, month, cellItemKey) {
+		const key = cellItemKey ?? itemKey;
+		const k = `${departmentId}_${month}_${key}`;
 		if (pendingCells.has(k)) {
 			const p = pendingCells.get(k);
 			return p === '' ? 0 : parseFloat(String(p).replace(/,/g, '')) || 0;
 		}
-		const r = rowByDeptMonth.get(k);
+		const r = rowByDeptMonth.get(`${departmentId}_${month}`);
 		if (!r) return 0;
-		const v = r[itemKey];
+		const v = r[key];
 		return v === null || v === undefined ? 0 : Number(v);
 	}
 
 	/**
-	 * 셀 표시 문자열 (input value용)
-	 * @param {string} departmentId - ev_department.id
-	 * @param {number} month - 1~12
+	 * 입력값을 천단위 콤마 포맷 문자열로 변환 (input 표시용)
+	 * @param {string} str - 입력 문자열
 	 * @returns {string}
 	 */
-	function getCellDisplay(departmentId, month) {
-		const k = `${departmentId}_${month}`;
+	function formatInputToDisplay(str) {
+		if (str === '') return '';
+		const num = parseFloat(String(str).replace(/,/g, ''));
+		if (Number.isNaN(num)) return str;
+		if (num === 0) return '';
+		return fmt(num);
+	}
+
+	/**
+	 * 셀 표시 문자열 (input value용, 천단위 콤마)
+	 * @param {string} departmentId - ev_department.id
+	 * @param {number} month - 1~12
+	 * @param {string} [cellItemKey] - 항목 키 (없으면 전역 itemKey 사용)
+	 * @returns {string}
+	 */
+	function getCellDisplay(departmentId, month, cellItemKey) {
+		const key = cellItemKey ?? itemKey;
+		const k = `${departmentId}_${month}_${key}`;
 		if (pendingCells.has(k)) return pendingCells.get(k) ?? '';
-		const r = rowByDeptMonth.get(k);
+		const r = rowByDeptMonth.get(`${departmentId}_${month}`);
 		if (!r) return '';
-		const v = r[itemKey];
+		const v = r[key];
 		if (v === null || v === undefined || v === 0) return '';
-		return String(v);
+		return fmt(Number(v));
+	}
+
+	/**
+	 * 셀 입력 시 포맷 후 pending 반영 (천단위 콤마)
+	 * @param {string} departmentId - ev_department.id
+	 * @param {number} month - 1~12
+	 * @param {string} cellItemKey - 항목 키
+	 * @param {string} value - 입력값
+	 */
+	function handleCellInput(departmentId, month, cellItemKey, value) {
+		setPendingCell(departmentId, month, cellItemKey, formatInputToDisplay(value));
 	}
 
 	/**
 	 * 분기/반기/연도 합계
 	 * @param {string} departmentId - ev_department.id
 	 * @param {number[]} months - 합산할 월 (예: [1,2,3])
+	 * @param {string} [cellItemKey] - 항목 키 (없으면 전역 itemKey 사용)
 	 * @returns {number}
 	 */
-	function getSum(departmentId, months) {
-		return months.reduce((s, m) => s + getCellValue(departmentId, m), 0);
+	function getSum(departmentId, months, cellItemKey) {
+		return months.reduce((s, m) => s + getCellValue(departmentId, m, cellItemKey), 0);
 	}
 
 	/**
 	 * 셀 입력 시 pending 반영
 	 * @param {string} departmentId - ev_department.id
 	 * @param {number} month - 1~12
+	 * @param {string} cellItemKey - 항목 키
 	 * @param {string} value - 입력값
 	 */
-	function setPendingCell(departmentId, month, value) {
-		const k = `${departmentId}_${month}`;
+	function setPendingCell(departmentId, month, cellItemKey, value) {
+		const k = `${departmentId}_${month}_${cellItemKey}`;
 		if (value === '') pendingCells.delete(k);
 		else pendingCells.set(k, value);
 	}
@@ -105,15 +136,17 @@
 	 * 셀 저장 (blur 시)
 	 * @param {string} departmentId - ev_department.id
 	 * @param {number} month - 1~12
+	 * @param {string} cellItemKey - 항목 키
 	 * @param {string} value - 입력값
 	 * @returns {Promise<void>}
 	 */
-	async function saveCell(departmentId, month, value) {
+	async function saveCell(departmentId, month, cellItemKey, value) {
 		if (!companyCode || !selectedYear || isSaving) return;
-		const k = `${departmentId}_${month}`;
+		const k = `${departmentId}_${month}_${cellItemKey}`;
 		pendingCells.delete(k);
 		const num = value === '' ? 0 : parseFloat(String(value).replace(/,/g, '')) || 0;
-		const existing = rowByDeptMonth.get(k);
+		const rowKey = `${departmentId}_${month}`;
+		const existing = rowByDeptMonth.get(rowKey);
 		const base = existing
 			? { ...existing }
 			: {
@@ -122,10 +155,11 @@
 					year: parseInt(selectedYear, 10),
 					month
 				};
-		base[itemKey] = num;
 		isSaving = true;
 		try {
-			const { data, error } = await upsertProvisionalSales(base);
+			const { data, error } = await upsertProvisionalSales(base, [
+				{ key: cellItemKey, value: num }
+			]);
 			if (error) return;
 			if (data) {
 				rows = rows.filter(
@@ -163,18 +197,28 @@
 			return;
 		}
 		(async () => {
-			const [settingsRes, deptRes] = await Promise.all([
-				getSettings({ category: 'excel_company', orderByOrder: true }),
-				getDepartments()
+			// 프로필 로딩 대기 (관리자 여부 확인 후 부서 목록 조회)
+			while (authStore.profileLoading && authStore.user) {
+				await new Promise((r) => setTimeout(r, 50));
+			}
+			const profile = authStore.profile;
+			const isAdminUser = Boolean(profile?.role && isAdmin(profile.role));
+			const [deptRes, settingsRes] = await Promise.all([
+				getDepartments(
+					authStore.user
+						? { forUserId: authStore.user.id, isAdmin: isAdminUser }
+						: {}
+				),
+				getSettings({ category: 'excel_company', orderByOrder: true })
 			]);
-			companies = (settingsRes.data || []).map((r) => ({
-				code: r.code,
-				title: r.title || r.code
-			}));
 			departments = (deptRes.data || []).map((d) => ({
 				id: d.id,
 				code: d.code,
 				title: d.title
+			}));
+			companies = (settingsRes.data || []).map((r) => ({
+				code: r.code,
+				title: r.title || r.code
 			}));
 			if (companies.length > 0 && !companyCode) companyCode = companies[0].code;
 		})();
@@ -237,7 +281,7 @@
 						<label class="flex items-center gap-2">
 							<span class="text-sm font-medium text-gray-700">회사</span>
 							<select
-								class="border rounded px-3 py-1.5 text-sm"
+								class="prov-select border border-gray-300 rounded px-3 py-1.5 text-sm"
 								bind:value={companyCode}
 								onchange={() => loadData()}
 							>
@@ -250,21 +294,13 @@
 						<label class="flex items-center gap-2">
 							<span class="text-sm font-medium text-gray-700">년도</span>
 							<select
-								class="border rounded px-3 py-1.5 text-sm"
+								class="prov-select border border-gray-300 rounded px-3 py-1.5 text-sm"
 								bind:value={selectedYear}
 								onchange={() => loadData()}
 							>
 								<option value={new Date().getFullYear().toString()}>{new Date().getFullYear()}년</option>
 								<option value={(new Date().getFullYear() - 1).toString()}>{new Date().getFullYear() - 1}년</option>
 								<option value={(new Date().getFullYear() - 2).toString()}>{new Date().getFullYear() - 2}년</option>
-							</select>
-						</label>
-						<label class="flex items-center gap-2">
-							<span class="text-sm font-medium text-gray-700">항목</span>
-							<select class="border rounded px-3 py-1.5 text-sm min-w-[220px]" bind:value={itemKey}>
-								{#each PROV_SALES_ITEMS as item (item.key)}
-									<option value={item.key}>{item.label}</option>
-								{/each}
 							</select>
 						</label>
 					</div>
@@ -274,11 +310,11 @@
 					{:else if isLoading}
 						<p class="text-gray-500">데이터 로딩 중...</p>
 					{:else}
-						<div class="overflow-x-auto bg-white rounded-lg shadow border">
+						<div class="overflow-x-auto bg-white rounded-lg shadow border border-gray-200">
 							<table class="prov-table w-full border-collapse">
 								<thead>
 									<tr class="bg-gray-100">
-										<th class="prov-th text-left sticky left-0 bg-gray-100 z-10 min-w-[120px]">부서명</th>
+										<th colSpan="2"class="prov-th text-center sticky left-0 bg-gray-100 z-10">부서명</th>
 										{#each COLUMNS as col (col.labelSum)}
 											{#each col.months as m (m)}
 												<th class="prov-th text-right min-w-[90px]">{m}월</th>
@@ -290,21 +326,35 @@
 								<tbody>
 									{#each departments as dept (dept.id)}
 										<tr class="border-b hover:bg-gray-50">
-											<td class="prov-td font-medium sticky left-0 bg-white z-10">{dept.title}</td>
+											<td class="prov-td font-medium sticky left-0 bg-white z-10 min-w-[150px]" style="border-right:0px !important;">{dept.title}</td>
+											<td class="prov-td font-medium sticky left-0 bg-white z-10 min-w-[100px]" style="border-left:0px !important;">
+												<div class="p-2 text-right">매출액</div>
+												<div class="p-2 text-right">매출원가</div>
+											</td>
 											{#each COLUMNS as col (col.labelSum)}
 												{#each col.months as m (m)}
-													<td class="prov-td text-right">
+													<td class="prov-td">
 														<input
 															type="text"
 															class="prov-input w-full text-right"
-															value={getCellDisplay(dept.id, m)}
-															oninput={(e) => setPendingCell(dept.id, m, e.currentTarget.value)}
-															onblur={(e) => saveCell(dept.id, m, e.currentTarget.value)}
+															title="매출액"
+															value={getCellDisplay(dept.id, m, 'sales_amount')}
+															oninput={(e) => handleCellInput(dept.id, m, 'sales_amount', e.currentTarget.value)}
+															onblur={(e) => saveCell(dept.id, m, 'sales_amount', e.currentTarget.value)}
+														/>
+														<input
+															type="text"
+															class="prov-input w-full text-right"
+															title="매출원가"
+															value={getCellDisplay(dept.id, m, 'cost_of_sales')}
+															oninput={(e) => handleCellInput(dept.id, m, 'cost_of_sales', e.currentTarget.value)}
+															onblur={(e) => saveCell(dept.id, m, 'cost_of_sales', e.currentTarget.value)}
 														/>
 													</td>
 												{/each}
 												<td class="prov-td text-right text-gray-600 font-medium">
-													{fmt(getSum(dept.id, col.months))}
+													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'sales_amount'))}</div>
+													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'cost_of_sales'))}</div>
 												</td>
 											{/each}
 										</tr>
@@ -328,23 +378,35 @@
 	}
 	.prov-table {
 		font-size: 0.875rem;
+		border-color: #e5e7eb;
 	}
 	.prov-th {
 		padding: 10px 8px;
 		border: 1px solid #e5e7eb;
+		border-color: #e5e7eb;
 		color: #374151;
 	}
 	.prov-td {
 		padding: 6px 8px;
 		border: 1px solid #e5e7eb;
+		border-color: #e5e7eb;
 		color: #374151;
 	}
 	.prov-input {
 		border: 1px solid #e5e7eb;
+		border-color: #e5e7eb;
 		border-radius: 4px;
 		padding: 4px 6px;
+		margin: 3px;
 	}
 	.prov-input:focus {
+		outline: none;
+		border-color: #2563eb;
+	}
+	.prov-select {
+		border-color: #d1d5db;
+	}
+	.prov-select:focus {
 		outline: none;
 		border-color: #2563eb;
 	}
