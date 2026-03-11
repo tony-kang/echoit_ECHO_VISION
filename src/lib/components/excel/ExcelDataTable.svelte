@@ -436,7 +436,7 @@
 			// ev_excel_file에서 year, month 정보 가져오기
 			const { data: excelFileData, error: excelFileError } = await supabase
 				.from('ev_excel_file')
-				.select('year, month')
+				.select('year, month, company_code')
 				.eq('storage_path', `excel-files/${filePath}`)
 				.single();
 			

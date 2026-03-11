@@ -26,7 +26,7 @@
 			organization: '조직',
 			sales: '매출',
 			cost: '비용',
-			'excel-company': '엑설등록용 회사'
+			excel_company: '엑설실적 등록용 회사'
 		};
 		return labels[category] || category;
 	});
@@ -36,7 +36,7 @@
 	 * @type {boolean}
 	 */
 	const isValidCategory = $derived.by(() => {
-		return ['all', 'organization', 'sales', 'cost'].includes(category);
+		return ['all', 'organization', 'sales', 'cost', 'excel_company'].includes(category);
 	});
 
 	$effect(() => {

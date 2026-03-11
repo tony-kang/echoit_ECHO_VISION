@@ -16,7 +16,7 @@
 	let user = $derived(authStore.user);
 	let authLoading = $derived(authStore.loading);
 
-	/** @type {Array<{ code: string, title: string }>} 회사 목록 (excel-company) */
+	/** @type {Array<{ code: string, title: string }>} 회사 목록 (excel_company) */
 	let companies = $state([]);
 	/** @type {Array<{ id: string, code: string, title: string }>} 부서 목록 */
 	let departments = $state([]);
@@ -164,7 +164,7 @@
 		}
 		(async () => {
 			const [settingsRes, deptRes] = await Promise.all([
-				getSettings({ category: 'excel-company', orderByOrder: true }),
+				getSettings({ category: 'excel_company', orderByOrder: true }),
 				getDepartments()
 			]);
 			companies = (settingsRes.data || []).map((r) => ({

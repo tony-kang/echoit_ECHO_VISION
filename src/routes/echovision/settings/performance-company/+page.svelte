@@ -8,7 +8,7 @@
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $derived(authStore.user);
 
-	/** @type {Array<{ code: string, title: string, order: number, value: number, created_at?: string, updated_at?: string }>} 엑셀용 회사 목록 (env_code, category=excel-company) */
+	/** @type {Array<{ code: string, title: string, order: number, value: number, created_at?: string, updated_at?: string }>} 엑셀용 회사 목록 (env_code, category=excel_company) */
 	let list = $state([]);
 	/** @type {boolean} 로딩 여부 */
 	let isLoading = $state(false);
@@ -24,7 +24,7 @@
 	/** 모달 표시 여부: 등록 클릭 또는 수정 대상 선택 시 */
 	let modalOpen = $derived(showAddModal || !!editingItem);
 
-	const CATEGORY = 'excel-company';
+	const CATEGORY = 'excel_company';
 
 	$effect(() => {
 		if (user && !dataLoaded) {
@@ -34,7 +34,7 @@
 	});
 
 	/**
-	 * 엑셀용 회사 목록 로드 (env_code, category=excel-company)
+	 * 엑셀용 회사 목록 로드 (env_code, category=excel_company)
 	 * @returns {Promise<void>}
 	 */
 	async function loadList() {

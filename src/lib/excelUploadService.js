@@ -7,9 +7,10 @@ import { supabase } from './supabaseClient';
  * @param {string} excelType - 엑셀 타입 ('sales' 또는 'cost')
  * @param {number} [year] - 연도 (선택사항)
  * @param {number} [month] - 월 (1-12, 선택사항)
+ * @param {string} [companyCode] - 회사 코드 (env_code excel_company 카테고리의 code 값, 선택사항)
  * @returns {Promise<{data: {fileId: string, fileName: string} | null, error: Error | null}>}
  */
-export async function uploadExcelFile(file, excelType, year = null, month = null) {
+export async function uploadExcelFile(file, excelType, year = null, month = null, companyCode = null) {
 	try {
 		if (!file) {
 			return { data: null, error: new Error('파일이 선택되지 않았습니다.') };
@@ -122,6 +123,9 @@ export async function uploadExcelFile(file, excelType, year = null, month = null
 		if (month !== null && month !== undefined && month >= 1 && month <= 12) {
 			updateData.month = month;
 		}
+		if (companyCode != null && String(companyCode).trim() !== '') {
+			updateData.company_code = String(companyCode).trim();
+		}
 
 		const { error: metadataError } = await supabase
 			.from('ev_excel_file')
@@ -229,13 +233,14 @@ export async function deleteExcelFile(filePath) {
 }
 
 /**
- * 엑셀 파일의 년도/월 정보 업데이트
+ * 엑셀 파일의 년도/월/회사코드 정보 업데이트
  * @param {string} filePath - Storage에 저장된 파일 경로
  * @param {number | null} year - 연도 (선택사항)
  * @param {number | null} month - 월 (1-12, 선택사항)
+ * @param {string | null} [companyCode] - 회사 코드 (env_code excel_company의 code 값, 선택사항)
  * @returns {Promise<{data: boolean, error: Error | null}>}
  */
-export async function updateExcelFileYearMonth(filePath, year = null, month = null) {
+export async function updateExcelFileYearMonth(filePath, year = null, month = null, companyCode = null) {
 	try {
 		if (!filePath) {
 			return { data: false, error: new Error('파일 경로가 필요합니다.') };
@@ -255,6 +260,10 @@ export async function updateExcelFileYearMonth(filePath, year = null, month = nu
 			updateData.month = month;
 		} else if (month === null) {
 			updateData.month = null;
+		}
+
+		if (companyCode !== null && companyCode !== undefined) {
+			updateData.company_code = companyCode;
 		}
 
 		const { error } = await supabase
@@ -289,7 +298,7 @@ export async function listExcelFiles(excelType, searchQuery = '') {
 		// ev_excel_file 테이블에서 파일 목록 조회
 		let query = supabase
 			.from('ev_excel_file')
-			.select('id, storage_path, stored_file_name, original_file_name, excel_type, file_size, file_extension, file_path, uploaded_by, created_at, updated_at, year, month')
+			.select('id, storage_path, stored_file_name, original_file_name, excel_type, file_size, file_extension, file_path, uploaded_by, created_at, updated_at, year, month, company_code')
 			.eq('excel_type', excelType);
 		
 		// 검색어가 있으면 원본 파일명으로 LIKE 검색
@@ -327,6 +336,7 @@ export async function listExcelFiles(excelType, searchQuery = '') {
 				updated_at: item.updated_at,
 				year: item.year || null,
 				month: item.month || null,
+				company_code: item.company_code || null,
 				// Storage API와 호환성을 위한 필드
 				metadata: {
 					originalFileName: item.original_file_name,

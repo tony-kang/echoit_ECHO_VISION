@@ -13,7 +13,8 @@
 		all: 0,
 		organization: 0,
 		sales: 0,
-		cost: 0
+		cost: 0,
+		excel_company: 0
 	});
 	/** @type {boolean} 데이터 개수 로딩 중 여부 */
 	let countsLoading = $state(false);
@@ -27,6 +28,7 @@
 		{ code: 'organization', label: '조직' , bgColor: 'bg-blue-100'},
 		{ code: 'sales', label: '매출' , bgColor: 'bg-green-100'},
 		{ code: 'cost', label: '비용' , bgColor: 'bg-red-100'},
+		{ code: 'excel_company', label: '엑설실적 등록용 회사' , bgColor: 'bg-yellow-100'},
 	];
 
 	$effect(() => {
@@ -58,18 +60,20 @@
 		countsLoading = true;
 		try {
 			// 모든 카테고리의 데이터 개수를 병렬로 조회
-			const [allResult, orgResult, salesResult, costResult] = await Promise.all([
+			const [allResult, orgResult, salesResult, costResult, excelCompanyResult] = await Promise.all([
 				getSettings({ category: 'all' }),
 				getSettings({ category: 'organization' }),
 				getSettings({ category: 'sales' }),
-				getSettings({ category: 'cost' })
+				getSettings({ category: 'cost' }),
+				getSettings({ category: 'excel_company' })
 			]);
 
 			categoryCounts = {
 				all: allResult.data?.length || 0,
 				organization: orgResult.data?.length || 0,
 				sales: salesResult.data?.length || 0,
-				cost: costResult.data?.length || 0
+				cost: costResult.data?.length || 0,
+				excel_company: excelCompanyResult.data?.length || 0
 			};
 		} catch (error) {
 			console.error('카테고리별 데이터 개수 로드 실패:', error);
@@ -77,7 +81,8 @@
 				all: 0,
 				organization: 0,
 				sales: 0,
-				cost: 0
+				cost: 0,
+				excel_company: 0
 			};
 		} finally {
 			countsLoading = false;

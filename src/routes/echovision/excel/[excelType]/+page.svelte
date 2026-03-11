@@ -11,6 +11,7 @@
 	import ExcelUploadViewer from '$lib/components/excel/ExcelUploadViewer.svelte';
 	import ExcelDataTable from '$lib/components/excel/ExcelDataTable.svelte';
 	import Pagination from '$lib/components/admin/Pagination.svelte';
+	import { getSettings } from '$lib/settingsService';
 
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $derived(authStore.user);
@@ -47,6 +48,22 @@
 	let viewMonth = $state(null);
 	/** 데이터 보기용 년도/월 저장 중 */
 	let isSavingViewYearMonth = $state(false);
+	/** @type {any | null} 수정할 회사 */
+	let editCompany = $state(null);
+	/** @type {Array<{ code: string, title: string }>} 회사 목록 (excel_company) */
+	let excelCompanies = $state([]);
+
+	$effect(() => {
+		if (authStore.user && !authStore.loading) {
+			loadExcelCompanies();
+		}
+	});
+
+	async function loadExcelCompanies() {
+		const { data } = await getSettings({ category: 'excel_company', orderByOrder: true });
+		excelCompanies = data || [];
+	}
+	
 
 	let listLoaded = $state(false);
 	/** @type {number} 현재 페이지 번호 */
@@ -523,6 +540,17 @@
 	}
 
 	/**
+	 * 회사 코드로 env_code(excel_company)의 회사명 반환
+	 * @param {string | null | undefined} code - 회사 코드 (예: EXCEL-COMP_001)
+	 * @returns {string}
+	 */
+	function getCompanyTitle(code) {
+		if (!code || !String(code).trim()) return '-';
+		const found = excelCompanies.find((c) => c.code === String(code).trim());
+		return found?.title ?? code;
+	}
+
+	/**
 	 * 엑셀 타입 라벨 가져오기
 	 * @param {string} type - 엑셀 타입
 	 * @returns {string}
@@ -554,6 +582,7 @@
 		const currentYear = new Date().getFullYear();
 		editYear = file.year || currentYear;
 		editMonth = file.month || null;
+		editCompany = file.company_code || null;
 	}
 
 	/**
@@ -576,7 +605,7 @@
 		isUpdating = true;
 		try {
 			const filePath = editingFile.fullPath || (excelTypeParam ? `${excelTypeParam}/${editingFile.name}` : editingFile.name);
-			const { error } = await updateExcelFileYearMonth(filePath, editYear, editMonth);
+			const { error } = await updateExcelFileYearMonth(filePath, editYear, editMonth, editCompany);
 
 			if (error) {
 				alert(`년도/월 업데이트 실패: ${error.message}`);
@@ -647,6 +676,7 @@
 							<DataTable
 								headers={[
 									{ label: '파일명', align: 'left' },
+									{ label: '회사', align: 'center' },
 									{ label: '년도', align: 'center' },
 									{ label: '월', align: 'center' },
 									{ label: '데이터 상태', align: 'center' },
@@ -656,9 +686,10 @@
 								rowCount={paginatedFiles.length}
 								emptyMessage="엑셀 파일이 없습니다."
 							>
-								{#each paginatedFiles as file}
+								{#each paginatedFiles as file (file.id)}
 									<tr class="hover:bg-gray-50">
 										<td class="font-medium">{getOriginalFileName(file)}</td>
+										<td class="text-center text-sm text-gray-600">{getCompanyTitle(file.company_code)}</td>
 										<td class="text-center text-sm text-gray-600">{file.year || '-'}</td>
 										<td class="text-center text-sm text-gray-600">{file.month || '-'}</td>
 										<td class="text-center text-sm">
@@ -738,37 +769,52 @@
 						<!-- 년도/월 수정 다이얼로그 -->
 						{#if editingFile}
 							<div class="fixed inset-0 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="edit-dialog-title">
-								<div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+								<div class="bg-white rounded-lg shadow-xl p-6 w-150">
 									<h2 id="edit-dialog-title" class="text-xl font-bold mb-4">년도/월 수정</h2>
 									<div class="mb-4">
 										<p class="text-sm text-gray-600 mb-2">파일명: {getOriginalFileName(editingFile)}</p>
 									</div>
 									<div class="space-y-4">
-										<div>
-											<label for="edit-year" class="block text-sm font-medium text-gray-700 mb-1">년도</label>
-											<select
-												id="edit-year"
-												bind:value={editYear}
-												class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-											>
-												<option value={null}>선택 안함</option>
-												{#each recentYears as year}
-													<option value={year}>{year}년</option>
-												{/each}
-											</select>
-										</div>
-										<div>
-											<label for="edit-month" class="block text-sm font-medium text-gray-700 mb-1">월</label>
-											<select
-												id="edit-month"
-												bind:value={editMonth}
-												class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-											>
-												<option value={null}>선택 안함</option>
-												{#each Array.from({ length: 12 }, (_, i) => i + 1) as month}
-													<option value={month}>{month}월</option>
-												{/each}
-											</select>
+										<div class="form-row">
+											<div class="form-col-20">
+												<label for="edit-year" class="block text-sm font-medium text-gray-700 mb-1">년도</label>
+												<select
+													id="edit-year"
+													bind:value={editYear}
+													class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+												>
+													<option value={null}>선택 안함</option>
+													{#each recentYears as year (year)}
+														<option value={year}>{year}년</option>
+													{/each}
+												</select>
+											</div>
+											<div class="form-col-20">
+												<label for="edit-month" class="block text-sm font-medium text-gray-700 mb-1">월</label>
+												<select
+													id="edit-month"
+													bind:value={editMonth}
+													class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+												>
+													<option value={null}>선택 안함</option>
+													{#each Array.from({ length: 12 }, (_, i) => i + 1) as month (month)}
+														<option value={month}>{month}월</option>
+													{/each}
+												</select>
+											</div>
+											<div class="form-col-60">
+												<label for="edit-company" class="block text-sm font-medium text-gray-700 mb-1">회사</label>
+												<select
+													id="edit-company"
+													bind:value={editCompany}
+													class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+												>
+													<option value={null}>선택 안함</option>
+													{#each excelCompanies as company (company.code)}
+														<option value={company.code}>{company.title}</option>
+													{/each}
+												</select>
+											</div>
 										</div>
 									</div>
 									<div class="flex justify-end gap-2 mt-6">
@@ -806,7 +852,7 @@
 												bind:value={viewYear}
 												class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 											>
-												{#each recentYears as y}
+												{#each recentYears as y (y)}
 													<option value={y}>{y}년</option>
 												{/each}
 											</select>
@@ -819,7 +865,7 @@
 												class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 											>
 												<option value={null}>선택</option>
-												{#each Array.from({ length: 12 }, (_, i) => i + 1) as m}
+												{#each Array.from({ length: 12 }, (_, i) => i + 1) as m (m)}
 													<option value={m}>{m}월</option>
 												{/each}
 											</select>

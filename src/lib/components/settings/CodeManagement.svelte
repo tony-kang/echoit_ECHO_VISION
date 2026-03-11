@@ -832,7 +832,7 @@
 			organization: '조직',
 			sales: '매출',
 			cost: '비용',
-			'excel-company': '엑설등록용 회사'
+			excel_company: '엑설실적 등록용 회사'
 		};
 		return labels[cat] || cat;
 	}
