@@ -169,7 +169,7 @@
 				});
 
 				// 매출액, 매출원가, 매출총손실, ... 등의 코드 목록
-				console.log('ev_code 목록(정렬 후):', $state.snapshot(evCodes));
+				// console.log('ev_code 목록(정렬 후):', $state.snapshot(evCodes));
 
 				// 상위 코드가 선택되지 않은 경우에만 기본 evCodeItems 설정
 				// filters : 주소창의 쿼리 파라미터에 있는 orgCodes
@@ -391,6 +391,9 @@
 			if (!currentYear) {
 				previousYear = null;
 				previousEvCodeItemsStr = null;
+			} else if (currentEvCodeItems.length === 0) {
+				// 조직 전부 해제 시 추적값 초기화 → 다시 선택 시 loadDataByYear 재실행되도록
+				previousEvCodeItemsStr = null;
 			}
 			return;
 		}
@@ -458,7 +461,7 @@
 				return;
 			}
 
-			console.log('조직 코드 목록:', $state.snapshot(data));
+			// console.log('조직 코드 목록:', $state.snapshot(data));
 
 			const list = (data || []).filter((row) => row.category === ORG_CATEGORY);
 			secondLevelOrgCodes = list.map((row) => ({
@@ -752,7 +755,11 @@
 			? (selectedOrgCodes.includes(value) ? selectedOrgCodes : [...selectedOrgCodes, value])
 			: selectedOrgCodes.filter((c) => c !== value);
 		selectedOrgCodes = next;
+		console.log('selectedOrgCodes ----- 조직 체크 :', $state.snapshot(selectedOrgCodes));
 		filters = { ...filters, orgCodes: next };
+		if (next.length === 0) {
+			displayData = [];
+		}
 	}
 
 	/**
@@ -763,6 +770,9 @@
 		const next = selectAll ? secondLevelOrgCodes.map((o) => o.value) : [];
 		selectedOrgCodes = next;
 		filters = { ...filters, orgCodes: next };
+		if (next.length === 0) {
+			displayData = [];
+		}
 	}
 
 	/**
@@ -909,28 +919,28 @@
 								<thead>
 									<tr>
 										<th class="w-60 text-left!">항목</th>
+										<th class="text-right!">합계</th>
 										<!-- <th class="w-8 text-center!">년도</th> -->
 										{#each months as month (month)}
 											<th class="text-right!">{month}월</th>
 										{/each}
-										<th class="text-right!">합계</th>
 									</tr>
 								</thead>
 								<tbody>
 									{#each displayData as item, i (item.evCode?.code ?? `row-${i}`)}
 										<tr>
 											<td class="text-blue-500!">{item.evCode.title}</td>
+											<td class="w-40 text-right! text-blue-900! bg-blue-50 font-bold">
+												{formatAmount(
+													months.reduce((sum, month) => sum + (item.monthData[month] || 0), 0)
+												)}
+											</td>
 											<!-- <td class="text-blue-500!">{item.year}</td> -->
 											{#each months as month (month)}
 												<td class="w-40 text-right!">
 													{formatAmount(item.monthData[month] || 0)}
 												</td>
 											{/each}
-											<td class="w-40 text-right! text-blue-500!">
-												{formatAmount(
-													months.reduce((sum, month) => sum + (item.monthData[month] || 0), 0)
-												)}
-											</td>
 										</tr>
 									{/each}
 								</tbody>

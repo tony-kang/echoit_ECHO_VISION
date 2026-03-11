@@ -34,7 +34,7 @@
 	/** 새로고침 시 현재 경로에 해당하는 메뉴 확장 */
 	$effect(() => {
 		const currentPath = page.url.pathname;
-		console.log('currentPath',currentPath);
+		// console.log('currentPath',currentPath);
 		for (const item of prjMenuItems) {
 			// 하위 메뉴(submenu) path와 일치할 때만 확장
 			const subMatch = item.subMenus?.some(

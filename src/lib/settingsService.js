@@ -24,7 +24,7 @@ import { logAction, ACTION_TYPES, ACTION_CATEGORIES } from './logService';
  */
 export async function getSettings(options = {}) {
 	try {
-		console.log('----->>> getSettings <<<-----', options);
+		// console.log('----->>> getSettings <<<-----', options);
 		const { orderByOrder = true, parentCode, category } = options;
 
 		let query = supabase

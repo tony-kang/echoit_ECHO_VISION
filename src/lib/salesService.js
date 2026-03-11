@@ -75,7 +75,7 @@ export async function getSales(options = {}) {
 			return { data: [], error };
 		}
 
-		console.log('매출 데이터(원본):', year, month, evCodeItems, data);
+		// console.log('매출 데이터(원본):', year, month, evCodeItems, data);
 
 		return { data: data || [], error: null };
 	} catch (error) {
