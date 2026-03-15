@@ -41,6 +41,8 @@
 	let salesData = $state([]);
 	/** 실적 데이터(SALES) 로딩 중 */
 	let salesDataLoading = $state(false);
+	/** @type {boolean} 실적 편집 모드 여부 (true일 때만 입력란 활성화, 기본 비활성) */
+	let isEditMode = $state(false);
 
 	/** 실적 산출에 사용할 매출 코드 (ev_sales.excel_file_data 키) */
 	const ACTUAL_SALES_CODES = ['SALES_0100', 'SALES_0200'];
@@ -63,7 +65,6 @@
 	 */
 	function getActualSales(deptId, month) {
 		const dept = departments.find((d) => d.id === deptId);
-		// console.log('>>> getActualSales', $state.snapshot(dept), month);
 		if (!dept?.param?.length) return 0;
 		const orgCodes = Array.isArray(dept.param) ? dept.param : [];
 		let total = 0;
@@ -93,7 +94,6 @@
 
 		if (provisional === 0) return null;
 		const actual = getActualSales(deptId, month);
-		console.log('actual', deptId, month, provisional, actual);
 		return (actual / provisional) * 100;
 	}
 
@@ -124,18 +124,20 @@
 	}
 
 	/**
-	 * 부서·월에 해당하는 항목 값 조회 (편집 중이면 pending 반환)
+	 * 부서·월에 해당하는 항목 값 조회 (원 단위). 편집 중이면 pending(천단위 입력)을 원으로 환산
 	 * @param {string} departmentId - ev_department.id
 	 * @param {number} month - 1~12
 	 * @param {string} [cellItemKey] - 항목 키 (없으면 전역 itemKey 사용)
-	 * @returns {number}
+	 * @returns {number} 원 단위
 	 */
 	function getCellValue(departmentId, month, cellItemKey) {
 		const key = cellItemKey ?? itemKey;
 		const k = `${departmentId}_${month}_${key}`;
 		if (pendingCells.has(k)) {
 			const p = pendingCells.get(k);
-			return p === '' ? 0 : parseFloat(String(p).replace(/,/g, '')) || 0;
+			if (p === '') return 0;
+			const thousands = parseFloat(String(p).replace(/,/g, '')) || 0;
+			return thousands * 1000;
 		}
 		const r = rowByDeptMonth.get(`${departmentId}_${month}`);
 		if (!r) return 0;
@@ -144,8 +146,8 @@
 	}
 
 	/**
-	 * 입력값을 천단위 콤마 포맷 문자열로 변환 (input 표시용)
-	 * @param {string} str - 입력 문자열
+	 * 입력값(천단위 숫자)을 천단위 콤마 포맷 문자열로 변환 (input 표시용)
+	 * @param {string} str - 입력 문자열 (천단위)
 	 * @returns {string}
 	 */
 	function formatInputToDisplay(str) {
@@ -157,7 +159,7 @@
 	}
 
 	/**
-	 * 셀 표시 문자열 (input value용, 천단위 콤마)
+	 * 셀 표시 문자열 (천단위 표시, 콤마 포맷). DB/행 값은 원 단위이므로 1000으로 나누어 표시
 	 * @param {string} departmentId - ev_department.id
 	 * @param {number} month - 1~12
 	 * @param {string} [cellItemKey] - 항목 키 (없으면 전역 itemKey 사용)
@@ -171,7 +173,7 @@
 		if (!r) return '';
 		const v = r[key];
 		if (v === null || v === undefined || v === 0) return '';
-		return fmt(Number(v));
+		return fmt(Number(v) / 1000);
 	}
 
 	/**
@@ -235,7 +237,8 @@
 				};
 		const k = `${departmentId}_${month}_${cellItemKey}`;
 		pendingCells.delete(k);
-		const num = value === '' ? 0 : parseFloat(String(value).replace(/,/g, '')) || 0;
+		const thousands = value === '' ? 0 : parseFloat(String(value).replace(/,/g, '')) || 0;
+		const num = thousands * 1000;
 		isSaving = true;
 		try {
 			const { data, error } = await upsertProvisionalSales(base, [
@@ -322,17 +325,15 @@
 			return;
 		}
 		salesDataLoading = true;
-		console.log('---------------1234134----------------- companyCode', companyCode, selectedYear, evCodeItems);
 		getSales({
 			year: parseInt(selectedYear, 10),
 			evCodeItems,
-			companyCodeItems: null, // companyCode ? [companyCode] : undefined,
+			companyCodeItems: companyCode ? [companyCode] : undefined,
 			orderByYear: true,
 			orderByMonth: true
 		})
 			.then(({ data }) => {
 				salesData = data ?? [];
-				console.log('---------------1234134----------------- salesData', $state.snapshot(salesData));
 			})
 			.catch(() => {
 				salesData = [];
@@ -386,24 +387,11 @@
 				<div class="max-w-full">
 					<h1 class="text-2xl font-bold text-gray-900 mb-4">부서별 가결산 실적</h1>
 					<p class="text-gray-600 mb-4">
-						부서·년도·월별로 항목 데이터를 입력/수정할 수 있습니다.
+						부서·년도·월별로 항목 데이터를 입력/수정할 수 있습니다. (단위: 천원)
 					</p>
 
 					<!-- 필터 -->
 					<div class="flex flex-wrap items-center gap-4 mb-4">
-						<!-- <label class="flex items-center gap-2">
-							<span class="text-sm font-medium text-gray-700">회사</span>
-							<select
-								class="prov-select border border-gray-300 rounded px-3 py-1.5 text-sm"
-								bind:value={companyCode}
-								onchange={() => loadData()}
-							>
-								<option value="">선택</option>
-								{#each companies as c (c.code)}
-									<option value={c.code}>{c.title}</option>
-								{/each}
-							</select>
-						</label> -->
 						<label class="flex items-center gap-2">
 							<span class="text-sm font-medium text-gray-700">년도</span>
 							<select
@@ -416,6 +404,15 @@
 								<option value={(new Date().getFullYear() - 2).toString()}>{new Date().getFullYear() - 2}년</option>
 							</select>
 						</label>
+						<button
+							type="button"
+							class="px-4 py-[4px] text-sm font-medium rounded border transition-colors {isEditMode
+								? 'bg-gray-200 border-gray-400 text-gray-800 hover:bg-gray-300'
+								: 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'}"
+							onclick={() => (isEditMode = !isEditMode)}
+						>
+							{isEditMode ? '편집 완료' : '실적 편집 (천원 단위)'}
+						</button>
 					</div>
 
 					{#if isLoading}
@@ -433,7 +430,7 @@
 											{#each col.months as m (m)}
 												<th class="prov-th text-right min-w-[90px]">{m}월</th>
 											{/each}
-											<th class="prov-th text-right font-semibold min-w-[100px]">{col.labelSum}</th>
+											<th class="prov-th text-right font-semibold">{col.labelSum}</th>
 										{/each}
 									</tr>
 								</thead>
@@ -443,7 +440,7 @@
 											<td class="prov-td font-medium sticky left-0 bg-white z-10 min-w-[150px]" style="border-right:0px !important;">{dept.title}</td>
 											<td class="prov-td font-medium sticky left-0 bg-white z-10 min-w-[100px]" style="border-left:0px !important;">
 												<div class="p-2 text-right">매출액</div>
-												<div class="p-2 text-right text-blue-600 font-medium" title="실적(SALES_0100+SALES_0200) 대비 가결산 매출액 달성률">달성률</div>
+												<div class="p-2 text-right text-blue-600 font-medium" title="실적(SALES_0100+SALES_0200) 대비 가결산 매출액 달성률">매출 달성률</div>
 												<div class="p-2 text-right">매출원가</div>
 											</td>
 											{#each COLUMNS as col (col.labelSum)}
@@ -454,6 +451,7 @@
 															class="prov-input w-full text-right"
 															title="매출액"
 															value={getCellDisplay(dept.id, m, 'sales_amount')}
+															disabled={!isEditMode}
 															oninput={(e) => handleCellInput(dept.id, m, 'sales_amount', e.currentTarget.value)}
 															onblur={(e) => saveCell(dept.id, m, 'sales_amount', e.currentTarget.value)}
 														/>
@@ -465,17 +463,18 @@
 															class="prov-input w-full text-right"
 															title="매출원가"
 															value={getCellDisplay(dept.id, m, 'cost_of_sales')}
+															disabled={!isEditMode}
 															oninput={(e) => handleCellInput(dept.id, m, 'cost_of_sales', e.currentTarget.value)}
 															onblur={(e) => saveCell(dept.id, m, 'cost_of_sales', e.currentTarget.value)}
 														/>
 													</td>
 												{/each}
 												<td class="prov-td quarter-sum text-right text-gray-600 font-medium">
-													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'sales_amount'))}</div>
+													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'sales_amount') / 1000)}</div>
 													<div class="p-2 text-right text-blue-600 text-sm font-medium">
 														{salesDataLoading ? '-' : getAchievementRateSumDisplay(dept.id, col.months)}
 													</div>
-													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'cost_of_sales'))}</div>
+													<div class="p-2 text-right">{fmt(getSum(dept.id, col.months, 'cost_of_sales') / 1000)}</div>
 												</td>
 											{/each}
 										</tr>
@@ -516,13 +515,19 @@
 	.prov-input {
 		border: 1px solid #e5e7eb;
 		border-color: #e5e7eb;
+		background-color: #f5faf4;
 		border-radius: 4px;
-		padding: 4px 6px;
+		padding: 3px;
 		margin: 3px;
 	}
 	.prov-input:focus {
 		outline: none;
 		border-color: #2563eb;
+	}
+	.prov-input:disabled {
+		background-color: #f3f4f6;
+		cursor: not-allowed;
+		color: #6b7280;
 	}
 	.prov-select {
 		border-color: #d1d5db;
@@ -534,6 +539,6 @@
 
 	.prov-td.quarter-sum {
 		background-color: #f5f5f5;
-		width: 150px;
+		width: 120px;
 	}
 </style>
