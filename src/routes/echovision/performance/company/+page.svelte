@@ -21,7 +21,7 @@
 
 	/** @type {number} 선택된 연도 */
 	let selectedYear = $state(new Date().getFullYear());
-	/** @type {Array<{org_id: string, org_alias_id: string, org_alias_name: string, org_code: string[], sales_code: string[], cost_code: string[]}>} */
+	/** @type {Array<{org_id: string, org_alias_id: string, org_alias_name: string, org_code: string[], company_code: string[], sales_code: string[], cost_code: string[]}>} */
 	let orgInfo = $state([]);
 	/** @type {boolean} 부서 목록 로딩 중 */
 	let orgInfoLoading = $state(false);
@@ -63,8 +63,9 @@
 					org_alias_id: d.code,
 					org_alias_name: d.title || d.code,
 					org_code: Array.isArray(d.param) ? d.param : [],
+					company_code: Array.isArray(d.company_code) ? d.company_code : [],
 					sales_code: FIXED_SALES_CODES,
-					cost_code: FIXED_COST_CODES
+					cost_code: FIXED_COST_CODES,
 				}));
 				orgInfo = list;
 			})
@@ -81,9 +82,22 @@
 		Promise.all(
 			orgInfo.map(async (org) => {
 				const evCodeItems = org.org_code;
+				const companyCodeItems = org.company_code;
 				const [salesRes, costRes, perfRes] = await Promise.all([
-					getSales({ year, evCodeItems, orderByYear: true, orderByMonth: true }),
-					getCosts({ year, evCodeItems, orderByYear: true, orderByMonth: true }),
+					getSales({
+						year,
+						evCodeItems,
+						companyCodeItems,
+						orderByYear: true,
+						orderByMonth: true
+					}),
+					getCosts({
+						year,
+						evCodeItems,
+						companyCodeItems,
+						orderByYear: true,
+						orderByMonth: true
+					}),
 					getPerformance({ year, org_alias_id: org.org_alias_id, orderByYear: true, orderByMonth: true })
 				]);
 				return {
@@ -151,7 +165,7 @@
 
 	/**
 	 * 부서·데이터 기준 월별 데이터 (계획/예상/실제)
-	 * @param {{ org_code: string[], sales_code: string[], cost_code: string[], org_alias_id: string }} org - 조직 정보
+	 * @param {{ org_code: string[], company_code: string[], sales_code: string[], cost_code: string[], org_alias_id: string }} org - 조직 정보
 	 * @param {{ salesData: any[], costData: any[], performanceData: any[] }} data - 해당 부서 데이터
 	 * @param {number} month - 월
 	 * @returns {{ sales: number, cost: number, profit: number, plannedSales: number, forecastSales: number, plannedCost: number, forecastCost: number }}
