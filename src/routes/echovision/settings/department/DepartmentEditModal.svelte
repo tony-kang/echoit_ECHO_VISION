@@ -142,7 +142,7 @@
 						/>
 					</div>
 					<div class="form-group form-col-70">
-						<div class="form-row">
+						<div class="form-row ml-30">
 							<div class="form-group form-col-70">
 								<label for="dept-edit-org-search" class="sr-only">부서명</label>
 								<input
