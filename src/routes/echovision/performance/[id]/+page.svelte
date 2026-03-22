@@ -5,6 +5,8 @@
 	import MonthDataCell from '../MonthDataCell.svelte';
 	import SummaryDataCell from '../SummaryDataCell.svelte';
 	import MonthHeaderCell from '../MonthHeaderCell.svelte';
+	import PerformanceRowLegendColumn from '../PerformanceRowLegendColumn.svelte';
+	import { PLAN_FORECAST_ACTUAL_ROW_DEFS } from '../planActualRowLabels.js';
 	import PerformanceInputModal from '../PerformanceInputModal.svelte';
 	import { authStore } from '$lib/stores/authStore.svelte.js';
 	import { getSales } from '$lib/salesService';
@@ -39,6 +41,34 @@
 	/** @type {'full' | 'split'} 실적 테이블 레이아웃: full=1~12월 가로 한 줄, split=1~6월 위 / 7~12월 아래 */
 	let tableLayoutMode = $state('full'); // 'split'
 
+	/** @type {boolean} 계·예·실 범례 칼럼 및 연간 합계 짧은 라벨 표시 여부 */
+	let showPlanActualLegendColumns = $state(false);
+
+	/**
+	 * 계획·예상·실제 범례 칼럼·라벨 표시 토글
+	 * @returns {void}
+	 */
+	function togglePlanActualLegendColumns() {
+		showPlanActualLegendColumns = !showPlanActualLegendColumns;
+	}
+
+	/** @type {number} 연간 합계 영역에서 왼쪽 표(구분·연간 누계) 가로 비율 % (나머지는 차트) */
+	let yearTotalDataTableWidthPct = $state(20);
+
+	/** 연간 누계 요약 표 구분 열 고정 너비 비율 % (항목·금액 열과 합 100%) */
+	const YEAR_TOTAL_CATEGORY_COL_PCT = 20;
+
+	/** @type {number} 연간 누계 표 항목 열 너비 %(전체 표 기준, table-fixed에서 colgroup으로 적용) */
+	let yearTotalItemColWidthPct = $state(12);
+
+	/** @type {number} 연간 누계 표 금액 열 너비 %(구분·항목 제외 잔여) */
+	const yearTotalAmountColWidthPct = $derived(
+		100 - YEAR_TOTAL_CATEGORY_COL_PCT - yearTotalItemColWidthPct
+	);
+
+	/** @type {number} 연간 합계 차트 영역(.year-total-charts) 최소 높이 rem (scoped CSS min-height:0 제거·인라인으로 적용) */
+	let yearTotalChartsMinHeightRem = $state(30);
+
 	/** @type {Array<{org_id: string, org_alias_id: string, org_alias_name: string, org_code: string[], sales_code: string[], cost_code: string[]}>} ev_department 기반 조직 정보 (org_id = ev_department.id) */
 	let orgInfo = $state([]);
 	/** @type {boolean} 부서 목록 로딩 중 */
@@ -61,7 +91,7 @@
 
 	/** @type {Array<any>} 매출 데이터 */
 	let salesData = $state([]);
-	/** @type {Array<any>} 비용 데이터 */
+	/** @type {Array<any>} 원가 데이터 */
 	let costData = $state([]);
 	/** @type {Array<any>} 목표 데이터 */
 	// let goalData = $state([]);
@@ -79,9 +109,9 @@
 	let salesProfitChartCanvas = $state(null);
 	/** @type {Chart | null} 매출/이익 차트 인스턴스 */
 	let salesProfitChartInstance = $state(null);
-	/** @type {HTMLCanvasElement | null} 매출/비용 차트 캔버스 요소 */
+	/** @type {HTMLCanvasElement | null} 매출/원가 차트 캔버스 요소 */
 	let salesCostChartCanvas = $state(null);
-	/** @type {Chart | null} 매출/비용 차트 인스턴스 */
+	/** @type {Chart | null} 매출/원가 차트 인스턴스 */
 	let salesCostChartInstance = $state(null);
 
 	/** URL 부서 id (ev_department.id, 추측 불가하여 타 부서 접근 방지) */
@@ -160,7 +190,7 @@
 	}
 
 	/**
-	 * 특정 월의 매출/비용 계산
+	 * 특정 월의 매출/원가 계산
 	 * @param {Array<any>} data - 원본 데이터
 	 * @param {number} month - 월
 	 * @param {string[]} orgCodes - 조직 코드 배열
@@ -191,41 +221,79 @@
 	}
 
 	/**
-	 * 분기 데이터 계산
+	 * 분기 데이터 계산 (월별 계획·예상·실적을 동일 구간에서 합산)
 	 * @param {number} quarter - 분기 (1~4)
-	 * @returns {{sales: number, cost: number, profit: number}}
+	 * @returns {{sales: number, cost: number, profit: number, plannedSales: number, forecastSales: number, plannedCost: number, forecastCost: number, plannedProfit: number, forecastProfit: number}}
 	 */
 	function getQuarterData(quarter) {
 		const startMonth = (quarter - 1) * 3 + 1;
 		const endMonth = startMonth + 2;
-		
-		let sales = 0, cost = 0;
+
+		let sales = 0,
+			cost = 0;
+		let plannedSales = 0,
+			forecastSales = 0,
+			plannedCost = 0,
+			forecastCost = 0;
 		for (let month = startMonth; month <= endMonth; month++) {
 			const monthData = getMonthData(month);
 			sales += monthData.sales;
 			cost += monthData.cost;
+			plannedSales += monthData.plannedSales;
+			forecastSales += monthData.forecastSales;
+			plannedCost += monthData.plannedCost;
+			forecastCost += monthData.forecastCost;
 		}
-		
-		return { sales, cost, profit: sales - cost };
+
+		return {
+			sales,
+			cost,
+			profit: sales - cost,
+			plannedSales,
+			forecastSales,
+			plannedCost,
+			forecastCost,
+			plannedProfit: plannedSales - plannedCost,
+			forecastProfit: forecastSales - forecastCost
+		};
 	}
 
 	/**
-	 * 반기 데이터 계산
+	 * 반기 데이터 계산 (월별 계획·예상·실적을 동일 구간에서 합산)
 	 * @param {number} half - 반기 (1~2)
-	 * @returns {{sales: number, cost: number, profit: number}}
+	 * @returns {{sales: number, cost: number, profit: number, plannedSales: number, forecastSales: number, plannedCost: number, forecastCost: number, plannedProfit: number, forecastProfit: number}}
 	 */
 	function getHalfData(half) {
 		const startMonth = (half - 1) * 6 + 1;
 		const endMonth = startMonth + 5;
-		
-		let sales = 0, cost = 0;
+
+		let sales = 0,
+			cost = 0;
+		let plannedSales = 0,
+			forecastSales = 0,
+			plannedCost = 0,
+			forecastCost = 0;
 		for (let month = startMonth; month <= endMonth; month++) {
 			const monthData = getMonthData(month);
 			sales += monthData.sales;
 			cost += monthData.cost;
+			plannedSales += monthData.plannedSales;
+			forecastSales += monthData.forecastSales;
+			plannedCost += monthData.plannedCost;
+			forecastCost += monthData.forecastCost;
 		}
-		
-		return { sales, cost, profit: sales - cost };
+
+		return {
+			sales,
+			cost,
+			profit: sales - cost,
+			plannedSales,
+			forecastSales,
+			plannedCost,
+			forecastCost,
+			plannedProfit: plannedSales - plannedCost,
+			forecastProfit: forecastSales - forecastCost
+		};
 	}
 
 	/**
@@ -283,7 +351,7 @@
 				orderByMonth: true
 			});
 			
-			// 비용 데이터 로드
+			// 원가 데이터 로드
 			const costResult = await getCosts({
 				year: selectedYear,
 				evCodeItems: evCodeItems,
@@ -411,7 +479,7 @@
 				p_expenses: (item.p_expenses || 0) * 1000, // 천원 -> 원 변환
 				f_expenses: (item.f_expenses || 0) * 1000, // 천원 -> 원 변환
 				a_revenue: 0, // 실제 매출은 ev_sales에서 계산
-				a_expenses: 0 // 실제 비용은 ev_cost에서 계산
+				a_expenses: 0 // 실제 원가은 ev_cost에서 계산
 			}));
 
 			const result = await upsertPerformanceBulk(dataToSave);
@@ -438,8 +506,8 @@
 	 * @param {number} month - 월
 	 * @param {number} p_revenue - 계획 매출 (천원 단위)
 	 * @param {number} f_revenue - 예상 매출 (천원 단위)
-	 * @param {number} p_expenses - 계획 비용 (천원 단위)
-	 * @param {number} f_expenses - 예상 비용 (천원 단위)
+	 * @param {number} p_expenses - 계획 원가 (천원 단위)
+	 * @param {number} f_expenses - 예상 원가 (천원 단위)
 	 */
 	// async function updateMonthPerformance(month, p_revenue, f_revenue, p_expenses, f_expenses) {
 	// 	try {
@@ -631,7 +699,7 @@
 	}
 
 	/**
-	 * 매출/비용 차트 생성/업데이트
+	 * 매출/원가 차트 생성/업데이트
 	 */
 	function updateSalesCostChart() {
 		if (!salesCostChartCanvas) return;
@@ -706,7 +774,7 @@
 							tension: 0.1
 						},
 						{
-							label: '계획 비용',
+							label: '계획 원가',
 							data: plannedCostData,
 							borderColor: 'rgb(156, 163, 175)',
 							backgroundColor: 'rgba(156, 163, 175, 0.1)',
@@ -715,7 +783,7 @@
 							tension: 0.1
 						},
 						{
-							label: '예상 비용',
+							label: '예상 원가',
 							data: forecastCostData,
 							borderColor: 'rgb(239, 68, 68)',
 							backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -724,7 +792,7 @@
 							tension: 0.1
 						},
 						{
-							label: '실제 비용',
+							label: '실제 원가',
 							data: actualCostData,
 							borderColor: 'rgb(248, 113, 113)',
 							backgroundColor: 'rgba(248, 113, 113, 0.1)',
@@ -739,7 +807,7 @@
 					plugins: {
 						title: {
 							display: true,
-							text: '매출 & 비용',
+							text: '매출 & 원가',
 							font: { size: 20, weight: 'bold' }
 						},
 						legend: {
@@ -783,7 +851,7 @@
 				}
 			});
 		} catch (error) {
-			console.error('매출/비용 차트 생성 실패:', error);
+			console.error('매출/원가 차트 생성 실패:', error);
 		}
 	}
 
@@ -918,7 +986,7 @@
 	{:else if !canAccessPerformance}
 		<div class="min-w-0">
 			<h1 class="text-3xl font-bold text-gray-800">부서별 실적</h1>
-			<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림 처리됨)</span></p>
+			<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림)</span></p>
 		</div>
 		<div class="flex items-center justify-center min-h-[10vh] border-2 border-red-600 rounded-lg p-4">
 			<p class="text-lg text-red-600">해당 부서의 담당자가 아니어서 접근할 수 없습니다.</p>
@@ -941,7 +1009,7 @@
 		<div class="mb-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 w-full min-w-0 bg-white shadow-sm p-4 rounded-lg">
 			<div class="min-w-0">
 				<h1 class="text-3xl font-bold text-gray-800">부서별 실적 (<span class="text-blue-600">{selectedOrg.org_alias_name}</span>)</h1>
-				<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림 처리됨)</span></p>
+				<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림)</span></p>
 			</div>
 			<div class="flex justify-center items-center gap-4">
 				<div class="flex items-center gap-2">
@@ -967,6 +1035,15 @@
 						<span>1~6월 / 7~12월 분리</span>
 					</label>
 				</fieldset>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+					aria-pressed={showPlanActualLegendColumns}
+					aria-label="계획 예상 실제 범례 칼럼 표시 전환"
+					onclick={togglePlanActualLegendColumns}
+				>
+					{showPlanActualLegendColumns ? '계·전·실 숨기기' : '계·전·실 표시'}
+				</button>
 			</div>
 			<div class="flex flex-row flex-nowrap items-center justify-end gap-4 min-w-0">
 				{#if isLoading}
@@ -995,7 +1072,7 @@
 		</div>
 
 		<!-- 실적 테이블 (레이아웃: 1~12월 가로 | 1~6/7~12 분리) -->
-		<div class="bg-white rounded-lg shadow-sm overflow-x-auto">
+		<div class="rounded-lg shadow-sm overflow-x-auto">
 			{#if tableLayoutMode === 'split'}
 			<!-- 1~6월 위, 7~12월 아래 -->
 			<table class="w-full border-collapse">
@@ -1003,6 +1080,7 @@
 					<!-- 상반기 헤더 -->
 					<tr class="bg-gray-50 border-b border-gray-200">
 						<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
+						<PerformanceRowLegendColumn as="th" visible={showPlanActualLegendColumns} />
 						<MonthHeaderCell month={1} />
 						<MonthHeaderCell month={2} />
 						<MonthHeaderCell month={3} />
@@ -1015,58 +1093,62 @@
 					</tr>
 				</thead>
 				<tbody>
-					<!-- 상반기: 매출 / 비용 / 이익 -->
+					<!-- 상반기: 매출 / 원가 / 이익 -->
 					<tr class="border-b border-gray-200 hover:bg-gray-50">
 						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [1, 2, 3] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 						{/each}
-						<SummaryDataCell type="sales" value={getQuarterData(1).sales} bgColor="blue" />
+						<SummaryDataCell type="sales" planned={getQuarterData(1).plannedSales} expected={getQuarterData(1).forecastSales} actual={getQuarterData(1).sales} bgColor="blue" />
 						{#each [4, 5, 6] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 						{/each}
-						<SummaryDataCell type="sales" value={getQuarterData(2).sales} bgColor="green" />
-						<SummaryDataCell type="sales" value={getHalfData(1).sales} bgColor="yellow" />
+						<SummaryDataCell type="sales" planned={getQuarterData(2).plannedSales} expected={getQuarterData(2).forecastSales} actual={getQuarterData(2).sales} bgColor="green" />
+						<SummaryDataCell type="sales" planned={getHalfData(1).plannedSales} expected={getHalfData(1).forecastSales} actual={getHalfData(1).sales} bgColor="yellow" />
 					</tr>
 					<tr class="border-b border-gray-200 hover:bg-gray-50">
-						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
+						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">원가</td>
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [1, 2, 3] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 						{/each}
-						<SummaryDataCell type="cost" value={getQuarterData(1).cost} bgColor="blue" />
+						<SummaryDataCell type="cost" planned={getQuarterData(1).plannedCost} expected={getQuarterData(1).forecastCost} actual={getQuarterData(1).cost} bgColor="blue" />
 						{#each [4, 5, 6] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 						{/each}
-						<SummaryDataCell type="cost" value={getQuarterData(2).cost} bgColor="green" />
-						<SummaryDataCell type="cost" value={getHalfData(1).cost} bgColor="yellow" />
+						<SummaryDataCell type="cost" planned={getQuarterData(2).plannedCost} expected={getQuarterData(2).forecastCost} actual={getQuarterData(2).cost} bgColor="green" />
+						<SummaryDataCell type="cost" planned={getHalfData(1).plannedCost} expected={getHalfData(1).forecastCost} actual={getHalfData(1).cost} bgColor="yellow" />
 					</tr>
 					<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
 						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [1, 2, 3] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 						{/each}
-						<SummaryDataCell type="profit" value={getQuarterData(1).profit} bgColor="blue-dark" />
+						<SummaryDataCell type="profit" planned={getQuarterData(1).plannedProfit} expected={getQuarterData(1).forecastProfit} actual={getQuarterData(1).profit} bgColor="blue-dark" />
 						{#each [4, 5, 6] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 						{/each}
-						<SummaryDataCell type="profit" value={getQuarterData(2).profit} bgColor="green-dark" />
-						<SummaryDataCell type="profit" value={getHalfData(1).profit} bgColor="yellow-dark" />
+						<SummaryDataCell type="profit" planned={getQuarterData(2).plannedProfit} expected={getQuarterData(2).forecastProfit} actual={getQuarterData(2).profit} bgColor="green-dark" />
+						<SummaryDataCell type="profit" planned={getHalfData(1).plannedProfit} expected={getHalfData(1).forecastProfit} actual={getHalfData(1).profit} bgColor="yellow-dark" />
 					</tr>
 
 					<!-- 구분선 -->
 					<tr class="border-b border-gray-200">
-						<td colspan="10" class="px-4 py-2 bg-gray-100"></td>
+						<td colspan={showPlanActualLegendColumns ? 11 : 10} class="px-4 py-2 bg-gray-100"></td>
 					</tr>
 
 					<!-- 하반기 헤더 (7월~12월) -->
 					<tr class="bg-gray-50 border-b border-gray-200">
 						<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
+						<PerformanceRowLegendColumn as="th" visible={showPlanActualLegendColumns} />
 						<MonthHeaderCell month={7} />
 						<MonthHeaderCell month={8} />
 						<MonthHeaderCell month={9} />
@@ -1078,48 +1160,51 @@
 						<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">하반기 합계</th>
 					</tr>
 
-					<!-- 하반기: 매출 / 비용 / 이익 -->
+					<!-- 하반기: 매출 / 원가 / 이익 -->
 					<tr class="border-b border-gray-200 hover:bg-gray-50">
 						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [7, 8, 9] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 						{/each}
-						<SummaryDataCell type="sales" value={getQuarterData(3).sales} bgColor="blue" />
+						<SummaryDataCell type="sales" planned={getQuarterData(3).plannedSales} expected={getQuarterData(3).forecastSales} actual={getQuarterData(3).sales} bgColor="blue" />
 						{#each [10, 11, 12] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 						{/each}
-						<SummaryDataCell type="sales" value={getQuarterData(4).sales} bgColor="green" />
-						<SummaryDataCell type="sales" value={getHalfData(2).sales} bgColor="yellow" />
+						<SummaryDataCell type="sales" planned={getQuarterData(4).plannedSales} expected={getQuarterData(4).forecastSales} actual={getQuarterData(4).sales} bgColor="green" />
+						<SummaryDataCell type="sales" planned={getHalfData(2).plannedSales} expected={getHalfData(2).forecastSales} actual={getHalfData(2).sales} bgColor="yellow" />
 					</tr>
 					<tr class="border-b border-gray-200 hover:bg-gray-50">
-						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
+						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">원가</td>
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [7, 8, 9] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 						{/each}
-						<SummaryDataCell type="cost" value={getQuarterData(3).cost} bgColor="blue" />
+						<SummaryDataCell type="cost" planned={getQuarterData(3).plannedCost} expected={getQuarterData(3).forecastCost} actual={getQuarterData(3).cost} bgColor="blue" />
 						{#each [10, 11, 12] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 						{/each}
-						<SummaryDataCell type="cost" value={getQuarterData(4).cost} bgColor="green" />
-						<SummaryDataCell type="cost" value={getHalfData(2).cost} bgColor="yellow" />
+						<SummaryDataCell type="cost" planned={getQuarterData(4).plannedCost} expected={getQuarterData(4).forecastCost} actual={getQuarterData(4).cost} bgColor="green" />
+						<SummaryDataCell type="cost" planned={getHalfData(2).plannedCost} expected={getHalfData(2).forecastCost} actual={getHalfData(2).cost} bgColor="yellow" />
 					</tr>
 					<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
 						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [7, 8, 9] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 						{/each}
-						<SummaryDataCell type="profit" value={getQuarterData(3).profit} bgColor="blue-dark" />
+						<SummaryDataCell type="profit" planned={getQuarterData(3).plannedProfit} expected={getQuarterData(3).forecastProfit} actual={getQuarterData(3).profit} bgColor="blue-dark" />
 						{#each [10, 11, 12] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 						{/each}
-						<SummaryDataCell type="profit" value={getQuarterData(4).profit} bgColor="green-dark" />
-						<SummaryDataCell type="profit" value={getHalfData(2).profit} bgColor="yellow-dark" />
+						<SummaryDataCell type="profit" planned={getQuarterData(4).plannedProfit} expected={getQuarterData(4).forecastProfit} actual={getQuarterData(4).profit} bgColor="green-dark" />
+						<SummaryDataCell type="profit" planned={getHalfData(2).plannedProfit} expected={getHalfData(2).forecastProfit} actual={getHalfData(2).profit} bgColor="yellow-dark" />
 					</tr>
 				</tbody>
 			</table>
@@ -1129,6 +1214,7 @@
 				<thead>
 					<tr class="bg-gray-50 border-b border-gray-200">
 						<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
+						<PerformanceRowLegendColumn as="th" visible={showPlanActualLegendColumns} />
 						<MonthHeaderCell month={1} />
 						<MonthHeaderCell month={2} />
 						<MonthHeaderCell month={3} />
@@ -1138,6 +1224,7 @@
 						<MonthHeaderCell month={6} />
 						<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">2분기 합계</th>
 						<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">상반기 합계</th>
+						<PerformanceRowLegendColumn as="th" visible={showPlanActualLegendColumns} />
 						<MonthHeaderCell month={7} />
 						<MonthHeaderCell month={8} />
 						<MonthHeaderCell month={9} />
@@ -1152,162 +1239,252 @@
 				<tbody>
 					<tr class="border-b border-gray-200 hover:bg-gray-50">
 						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [1, 2, 3] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 						{/each}
-						<SummaryDataCell type="sales" value={getQuarterData(1).sales} bgColor="blue" />
+						<SummaryDataCell type="sales" planned={getQuarterData(1).plannedSales} expected={getQuarterData(1).forecastSales} actual={getQuarterData(1).sales} bgColor="blue" />
 						{#each [4, 5, 6] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 						{/each}
-						<SummaryDataCell type="sales" value={getQuarterData(2).sales} bgColor="green" />
-						<SummaryDataCell type="sales" value={getHalfData(1).sales} bgColor="yellow" />
+						<SummaryDataCell type="sales" planned={getQuarterData(2).plannedSales} expected={getQuarterData(2).forecastSales} actual={getQuarterData(2).sales} bgColor="green" />
+						<SummaryDataCell type="sales" planned={getHalfData(1).plannedSales} expected={getHalfData(1).forecastSales} actual={getHalfData(1).sales} bgColor="yellow" />
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [7, 8, 9] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 						{/each}
-						<SummaryDataCell type="sales" value={getQuarterData(3).sales} bgColor="blue" />
+						<SummaryDataCell type="sales" planned={getQuarterData(3).plannedSales} expected={getQuarterData(3).forecastSales} actual={getQuarterData(3).sales} bgColor="blue" />
 						{#each [10, 11, 12] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+							<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 						{/each}
-						<SummaryDataCell type="sales" value={getQuarterData(4).sales} bgColor="green" />
-						<SummaryDataCell type="sales" value={getHalfData(2).sales} bgColor="yellow" />
+						<SummaryDataCell type="sales" planned={getQuarterData(4).plannedSales} expected={getQuarterData(4).forecastSales} actual={getQuarterData(4).sales} bgColor="green" />
+						<SummaryDataCell type="sales" planned={getHalfData(2).plannedSales} expected={getHalfData(2).forecastSales} actual={getHalfData(2).sales} bgColor="yellow" />
 					</tr>
 					<tr class="border-b border-gray-200 hover:bg-gray-50">
-						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
+						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">원가</td>
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [1, 2, 3] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 						{/each}
-						<SummaryDataCell type="cost" value={getQuarterData(1).cost} bgColor="blue" />
+						<SummaryDataCell type="cost" planned={getQuarterData(1).plannedCost} expected={getQuarterData(1).forecastCost} actual={getQuarterData(1).cost} bgColor="blue" />
 						{#each [4, 5, 6] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 						{/each}
-						<SummaryDataCell type="cost" value={getQuarterData(2).cost} bgColor="green" />
-						<SummaryDataCell type="cost" value={getHalfData(1).cost} bgColor="yellow" />
+						<SummaryDataCell type="cost" planned={getQuarterData(2).plannedCost} expected={getQuarterData(2).forecastCost} actual={getQuarterData(2).cost} bgColor="green" />
+						<SummaryDataCell type="cost" planned={getHalfData(1).plannedCost} expected={getHalfData(1).forecastCost} actual={getHalfData(1).cost} bgColor="yellow" />
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [7, 8, 9] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 						{/each}
-						<SummaryDataCell type="cost" value={getQuarterData(3).cost} bgColor="blue" />
+						<SummaryDataCell type="cost" planned={getQuarterData(3).plannedCost} expected={getQuarterData(3).forecastCost} actual={getQuarterData(3).cost} bgColor="blue" />
 						{#each [10, 11, 12] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+							<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 						{/each}
-						<SummaryDataCell type="cost" value={getQuarterData(4).cost} bgColor="green" />
-						<SummaryDataCell type="cost" value={getHalfData(2).cost} bgColor="yellow" />
+						<SummaryDataCell type="cost" planned={getQuarterData(4).plannedCost} expected={getQuarterData(4).forecastCost} actual={getQuarterData(4).cost} bgColor="green" />
+						<SummaryDataCell type="cost" planned={getHalfData(2).plannedCost} expected={getHalfData(2).forecastCost} actual={getHalfData(2).cost} bgColor="yellow" />
 					</tr>
 					<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
 						<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [1, 2, 3] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 						{/each}
-						<SummaryDataCell type="profit" value={getQuarterData(1).profit} bgColor="blue-dark" />
+						<SummaryDataCell type="profit" planned={getQuarterData(1).plannedProfit} expected={getQuarterData(1).forecastProfit} actual={getQuarterData(1).profit} bgColor="blue-dark" />
 						{#each [4, 5, 6] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 						{/each}
-						<SummaryDataCell type="profit" value={getQuarterData(2).profit} bgColor="green-dark" />
-						<SummaryDataCell type="profit" value={getHalfData(1).profit} bgColor="yellow-dark" />
+						<SummaryDataCell type="profit" planned={getQuarterData(2).plannedProfit} expected={getQuarterData(2).forecastProfit} actual={getQuarterData(2).profit} bgColor="green-dark" />
+						<SummaryDataCell type="profit" planned={getHalfData(1).plannedProfit} expected={getHalfData(1).forecastProfit} actual={getHalfData(1).profit} bgColor="yellow-dark" />
+						<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 						{#each [7, 8, 9] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 						{/each}
-						<SummaryDataCell type="profit" value={getQuarterData(3).profit} bgColor="blue-dark" />
+						<SummaryDataCell type="profit" planned={getQuarterData(3).plannedProfit} expected={getQuarterData(3).forecastProfit} actual={getQuarterData(3).profit} bgColor="blue-dark" />
 						{#each [10, 11, 12] as month (month)}
 							{@const monthData = getMonthData(month)}
-							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+							<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 						{/each}
-						<SummaryDataCell type="profit" value={getQuarterData(4).profit} bgColor="green-dark" />
-						<SummaryDataCell type="profit" value={getHalfData(2).profit} bgColor="yellow-dark" />
+						<SummaryDataCell type="profit" planned={getQuarterData(4).plannedProfit} expected={getQuarterData(4).forecastProfit} actual={getQuarterData(4).profit} bgColor="green-dark" />
+						<SummaryDataCell type="profit" planned={getHalfData(2).plannedProfit} expected={getHalfData(2).forecastProfit} actual={getHalfData(2).profit} bgColor="yellow-dark" />
 					</tr>
 				</tbody>
 			</table>
 			{/if}
 
-			<!-- 연간 합계 -->
-			<table class="w-full border-collapse mt-4 text-sm font-semibold">
-				<thead>
-					<tr class="bg-gray-100 border-b border-gray-200">
-						<th class="w-[5%] px-4 py-3 text-center text-gray-700 border-r border-gray-200">구분</th>
-						<th class="w-[15%] px-4 py-3 text-center text-gray-700">합계</th>
-						<th class="w-[80%] px-4 py-3 text-center text-gray-700"></th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr class="border-b border-gray-200">
-						<td class="px-2 py-3 text-center text-gray-700 border-r border-gray-200">매출</td>
-						<td class="px-2 py-3 text-gray-900 border-r border-gray-200">
-							<div class="space-y-1">
-								<div class="flex justify-between items-center">
-									<span class="text-gray-500 opacity-70">계획</span>
-									<span class="relative cursor-default amount-tooltip-trigger text-gray-700" aria-label={toKoreanAmount(yearTotal.plannedSales)}>{formatCurrency(yearTotal.plannedSales)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(yearTotal.plannedSales)}</span></span>
-								</div>
-								<div class="flex justify-between items-center">
-									<span class="text-blue-600 opacity-70">예상</span>
-									<span class="relative cursor-default amount-tooltip-trigger text-blue-700" aria-label={toKoreanAmount(yearTotal.forecastSales)}>{formatCurrency(yearTotal.forecastSales)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(yearTotal.forecastSales)}</span></span>
-								</div>
-								<div class="flex justify-between items-center">
-									<span class="text-gray-500 opacity-70">실제</span>
-									<span class="relative cursor-default amount-tooltip-trigger text-gray-700" aria-label={toKoreanAmount(yearTotal.sales)}>{formatCurrency(yearTotal.sales)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(yearTotal.sales)}</span></span>
-								</div>
+			<!-- 연간 합계: 왼쪽 표(구분·연간 누계) + 오른쪽 차트(헤더~본문 전체 높이에 맞춤) -->
+			<div class="mt-4 space-y-2">
+				<div class="flex items-center justify-items-start gap-10">
+					<!-- <label class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+						<span class="shrink-0 font-medium">연간 누계 · 항목 열 너비</span>
+						<input
+							type="range"
+							class="h-2 w-full max-w-xs cursor-pointer accent-blue-600"
+							min="10"
+							max="40"
+							step="1"
+							bind:value={yearTotalItemColWidthPct}
+							aria-label="연간 누계 표 항목 열 가로 비율"
+						/>
+					</label> -->
+					<label class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+						<span class="shrink-0 font-medium">연간누계 차트 높이</span>
+						<input
+							type="range"
+							class="h-2 w-full max-w-xs cursor-pointer accent-blue-600"
+							min="12"
+							max="50"
+							step="1"
+							bind:value={yearTotalChartsMinHeightRem}
+							aria-label="연간 합계 차트 영역 최소 높이 rem"
+						/>
+					</label>
+				</div>
+				<div
+					class="year-total-summary-wrap flex w-full items-stretch border border-gray-200 rounded-lg overflow-hidden bg-white"
+				>
+					<div
+						class="shrink-0 overflow-x-auto border-r border-gray-200"
+						style="width: {yearTotalDataTableWidthPct}%; min-width: 14rem;"
+					>
+						<table
+							class="year-total-summary-table w-full min-w-0 table-fixed border-collapse text-sm font-semibold"
+						>
+							<colgroup>
+								<col style="width: {YEAR_TOTAL_CATEGORY_COL_PCT}%;" />
+								<col style="width: {yearTotalItemColWidthPct}%;" />
+								<col style="width: {yearTotalAmountColWidthPct}%;" />
+							</colgroup>
+							<thead>
+								<tr class="bg-gray-100 border-b border-gray-200">
+									<th class="px-4 py-3 text-center text-gray-700 border-r border-gray-200" rowspan="2"
+										>구분</th
+									>
+									<th class="px-2 py-3 text-center text-gray-700 border-r border-gray-200" colspan="2"
+										>연간 누계</th
+									>
+								</tr>
+								<tr class="bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600">
+									<th class="px-2 py-2 text-center border-r border-gray-200">항목</th>
+									<th class="px-2 py-2 text-center border-r border-gray-200">금액</th>
+								</tr>
+							</thead>
+							<tbody>
+							{#each PLAN_FORECAST_ACTUAL_ROW_DEFS as def, idx (def.fullLabel)}
+								{@const amounts = [yearTotal.plannedSales, yearTotal.forecastSales, yearTotal.sales]}
+								{@const val = amounts[idx]}
+								{@const valClass = idx === 0 ? 'text-gray-700' : idx === 1 ? 'text-blue-700' : 'text-gray-700'}
+								<tr class="border-b border-gray-200">
+									{#if idx === 0}
+										<td
+											class="px-2 py-1.5 text-center text-gray-700 border-r border-gray-200 align-top"
+											rowspan="3">매출</td
+										>
+									{/if}
+									<td
+										class="px-2 py-1.5 text-center font-medium border-r border-gray-200 align-top {def.labelClass}"
+										title={def.fullLabel}>{def.shortLabel}</td
+									>
+									<td class="px-2 py-1.5 text-right border-r border-gray-200 align-top">
+										<span
+											class="relative inline-block cursor-default amount-tooltip-trigger {valClass}"
+											aria-label={toKoreanAmount(val)}
+											>{formatCurrency(val)}<span class="amount-tooltip" role="tooltip"
+												>{toKoreanAmount(val)}</span
+											></span
+										>
+									</td>
+								</tr>
+							{/each}
+							{#each PLAN_FORECAST_ACTUAL_ROW_DEFS as def, idx (def.fullLabel)}
+								{@const amounts = [yearTotal.plannedCost, yearTotal.forecastCost, yearTotal.cost]}
+								{@const val = amounts[idx]}
+								{@const valClass = idx === 0 ? 'text-gray-700' : idx === 1 ? 'text-blue-700' : 'text-gray-700'}
+								<tr class="border-b border-gray-200">
+									{#if idx === 0}
+										<td
+											class="px-2 py-1.5 text-center text-gray-700 border-r border-gray-200 align-top"
+											rowspan="3">원가</td
+										>
+									{/if}
+									<td
+										class="px-2 py-1.5 text-center font-medium border-r border-gray-200 align-top {def.labelClass}"
+										title={def.fullLabel}>{def.shortLabel}</td
+									>
+									<td class="px-2 py-1.5 text-right border-r border-gray-200 align-top">
+										<span
+											class="relative inline-block cursor-default amount-tooltip-trigger {valClass}"
+											aria-label={toKoreanAmount(val)}
+											>{formatCurrency(val)}<span class="amount-tooltip" role="tooltip"
+												>{toKoreanAmount(val)}</span
+											></span
+										>
+									</td>
+								</tr>
+							{/each}
+							{#each PLAN_FORECAST_ACTUAL_ROW_DEFS as def, idx (def.fullLabel)}
+								{@const amounts = [yearTotal.plannedProfit, yearTotal.forecastProfit, yearTotal.profit]}
+								{@const val = amounts[idx]}
+								{@const valClass =
+									idx === 2
+										? yearTotal.profit >= 0
+											? 'text-green-600'
+											: 'text-red-600'
+										: idx === 0
+											? 'text-gray-700'
+											: 'text-blue-700'}
+								<tr class="border-b border-gray-200 bg-blue-50">
+									{#if idx === 0}
+										<td
+											class="px-2 py-1.5 text-center text-gray-700 border-r border-gray-200 align-top"
+											rowspan="3">이익</td
+										>
+									{/if}
+									<td
+										class="px-2 py-1.5 text-center font-medium border-r border-gray-200 align-top {idx === 2
+											? valClass
+											: def.labelClass}"
+										title={def.fullLabel}>{def.shortLabel}</td
+									>
+									<td class="px-2 py-1.5 text-right border-r border-gray-200 align-top">
+										<span
+											class="relative inline-block cursor-default amount-tooltip-trigger font-medium {valClass}"
+											aria-label={toKoreanAmount(val)}
+											>{formatCurrency(val)}<span class="amount-tooltip" role="tooltip"
+												>{toKoreanAmount(val)}</span
+											></span
+										>
+									</td>
+								</tr>
+							{/each}
+							</tbody>
+						</table>
+					</div>
+					<div
+						class="year-total-charts flex min-w-0 flex-1 flex-col self-stretch bg-gray-50 p-3"
+						style="min-height: {yearTotalChartsMinHeightRem}rem;"
+					>
+						<div class="flex min-h-0 flex-1 flex-row gap-3">
+							<div class="year-total-chart-slot min-h-0 min-w-0 flex-1">
+								<canvas bind:this={salesProfitChartCanvas} class="year-total-chart-canvas"></canvas>
 							</div>
-						</td>
-						<td rowspan="3" class="px-4 py-3 align-top">
-							<div class="flex flex-row gap-4 w-full min-w-[800px]">
-								<div class="flex-1 h-[400px] relative">
-									<canvas bind:this={salesProfitChartCanvas} class="w-full h-full"></canvas>
-								</div>
-								<div class="flex-1 h-[400px] relative">
-									<canvas bind:this={salesCostChartCanvas} class="w-full h-full"></canvas>
-								</div>
+							<div class="year-total-chart-slot min-h-0 min-w-0 flex-1">
+								<canvas bind:this={salesCostChartCanvas} class="year-total-chart-canvas"></canvas>
 							</div>
-						</td>
-					</tr>
-					<tr class="border-b border-gray-200">
-						<td class="px-4 py-3 text-center text-gray-700 border-r border-gray-200">비용</td>
-						<td class="px-4 py-3 text-gray-900 border-r border-gray-200">
-							<div class="space-y-1">
-								<div class="flex justify-between items-center">
-									<span class="text-gray-500 opacity-70">계획</span>
-									<span class="relative cursor-default amount-tooltip-trigger text-gray-700" aria-label={toKoreanAmount(yearTotal.plannedCost)}>{formatCurrency(yearTotal.plannedCost)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(yearTotal.plannedCost)}</span></span>
-								</div>
-								<div class="flex justify-between items-center">
-									<span class="text-blue-600 opacity-70">예상</span>
-									<span class="relative cursor-default amount-tooltip-trigger text-blue-700" aria-label={toKoreanAmount(yearTotal.forecastCost)}>{formatCurrency(yearTotal.forecastCost)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(yearTotal.forecastCost)}</span></span>
-								</div>
-								<div class="flex justify-between items-center">
-									<span class="text-gray-500 opacity-70">실제</span>
-									<span class="relative cursor-default amount-tooltip-trigger text-gray-700" aria-label={toKoreanAmount(yearTotal.cost)}>{formatCurrency(yearTotal.cost)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(yearTotal.cost)}</span></span>
-								</div>
-							</div>
-						</td>
-					</tr>
-					<tr class="bg-blue-50">
-						<td class="px-4 py-3 text-center text-gray-700 border-r border-gray-200">이익</td>
-						<td class="px-4 py-3 text-gray-900 border-r border-gray-200">
-							<div class="space-y-1">
-								<div class="flex justify-between items-center">
-									<span class="text-gray-500 opacity-70">계획</span>
-									<span class="relative cursor-default amount-tooltip-trigger text-gray-700" aria-label={toKoreanAmount(yearTotal.plannedProfit)}>{formatCurrency(yearTotal.plannedProfit)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(yearTotal.plannedProfit)}</span></span>
-								</div>
-								<div class="flex justify-between items-center">
-									<span class="text-blue-600 opacity-70">예상</span>
-									<span class="relative cursor-default amount-tooltip-trigger text-blue-700" aria-label={toKoreanAmount(yearTotal.forecastProfit)}>{formatCurrency(yearTotal.forecastProfit)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(yearTotal.forecastProfit)}</span></span>
-								</div>
-								<div class="flex justify-between items-center">
-									<span class="{yearTotal.profit >= 0 ? 'text-green-600' : 'text-red-600'} opacity-70">실제</span>
-									<span class="relative cursor-default amount-tooltip-trigger {yearTotal.profit >= 0 ? 'text-green-600' : 'text-red-600'}" aria-label={toKoreanAmount(yearTotal.profit)}>{formatCurrency(yearTotal.profit)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(yearTotal.profit)}</span></span>
-								</div>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 		{/if}
 	{/if}
@@ -1334,6 +1511,23 @@
 {/if}
 
 <style>
+	/* 연간 합계: 표(헤더+본문) 높이에 맞춰 차트 열이 세로로 꽉 참 */
+	.year-total-summary-wrap {
+		align-items: stretch;
+	}
+	/* .year-total-charts min-height:0 제거 — Tailwind min-h-* 및 인라인 min-height가 먹도록 함(내부 flex는 min-h-0 유지) */
+	.year-total-chart-slot {
+		position: relative;
+		min-height: 0;
+	}
+	.year-total-chart-canvas {
+		position: absolute;
+		inset: 0;
+		width: 100% !important;
+		height: 100% !important;
+		max-width: 100%;
+		max-height: 100%;
+	}
 	.amount-tooltip-trigger .amount-tooltip {
 		visibility: hidden;
 		opacity: 0;

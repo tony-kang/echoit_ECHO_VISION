@@ -496,13 +496,43 @@
 	});
 
 	/**
-	 * 회사 코드 배열을 env_code title로 표시 문자열로 변환
-	 * @param {string[] | null | undefined} companyCodes
+	 * 문자열을 음이 아닌 정수 해시로 변환 (회사 코드별 색 인덱스용)
+	 * @param {string} str
+	 * @returns {number}
+	 */
+	function hashStringToPositiveInt(str) {
+		let h = 0;
+		for (let i = 0; i < str.length; i++) {
+			h = (h << 5) - h + str.charCodeAt(i);
+			h |= 0;
+		}
+		return Math.abs(h);
+	}
+
+	/** @type {readonly string[]} 회사 코드 배지용 Tailwind 클래스 팔레트 */
+	const COMPANY_CODE_CHIP_PALETTE = [
+		'bg-amber-100 text-amber-900 ring-1 ring-inset ring-amber-200/80',
+		'bg-sky-100 text-sky-900 ring-1 ring-inset ring-sky-200/80',
+		'bg-emerald-100 text-emerald-900 ring-1 ring-inset ring-emerald-200/80',
+		'bg-violet-100 text-violet-900 ring-1 ring-inset ring-violet-200/80',
+		'bg-rose-100 text-rose-900 ring-1 ring-inset ring-rose-200/80',
+		'bg-cyan-100 text-cyan-900 ring-1 ring-inset ring-cyan-200/80',
+		'bg-orange-100 text-orange-900 ring-1 ring-inset ring-orange-200/80',
+		'bg-indigo-100 text-indigo-900 ring-1 ring-inset ring-indigo-200/80',
+		'bg-lime-100 text-lime-900 ring-1 ring-inset ring-lime-200/80',
+		'bg-fuchsia-100 text-fuchsia-900 ring-1 ring-inset ring-fuchsia-200/80',
+		'bg-teal-100 text-teal-900 ring-1 ring-inset ring-teal-200/80',
+		'bg-blue-100 text-blue-900 ring-1 ring-inset ring-blue-200/80'
+	];
+
+	/**
+	 * 회사 코드마다 고정되는 배지용 Tailwind 클래스
+	 * @param {string} code
 	 * @returns {string}
 	 */
-	function companyCodesToDisplayLabel(companyCodes) {
-		if (!Array.isArray(companyCodes) || companyCodes.length === 0) return '-';
-		return companyCodes.map((code) => companyCodeToTitle[code] || code).join(', ');
+	function companyCodeChipClass(code) {
+		const idx = hashStringToPositiveInt(String(code)) % COMPANY_CODE_CHIP_PALETTE.length;
+		return COMPANY_CODE_CHIP_PALETTE[idx];
 	}
 
 	/**
@@ -582,14 +612,50 @@
 						{dept.display_order ?? '-'}
 					</td>
 					<td
-						class="max-w-xs text-sm text-gray-700 order-cell-clickable"
+						class="max-w-lg min-w-40 text-sm order-cell-clickable company-code-cell"
 						role="button"
 						tabindex="0"
 						onclick={(e) => { e.stopPropagation(); openCompanyModal(dept); }}
 						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCompanyModal(dept); } }}
-						title="클릭하면 회사 선택"
+						title="클릭하면 엑셀 회사를 선택·수정할 수 있습니다"
+						aria-label="엑셀 회사 선택·수정"
 					>
-						{companyCodesToDisplayLabel(dept.company_code)}
+						<div class="flex flex-wrap items-center gap-1.5">
+							{#if !Array.isArray(dept.company_code) || dept.company_code.length === 0}
+								<span class="text-gray-400">-</span>
+							{:else}
+								{#each dept.company_code as code (code)}
+									<span
+										class="company-code-chip inline-flex max-w-full shrink-0 items-center truncate rounded-md px-2 py-0.5 text-xs font-semibold {companyCodeChipClass(
+											code
+										)}"
+										title={companyCodeToTitle[code] || code}
+									>
+										{companyCodeToTitle[code] || code}
+									</span>
+								{/each}
+							{/if}
+							<span
+								class="company-code-edit-hint inline-flex shrink-0 items-center gap-0.5 rounded border border-dashed border-gray-300 bg-white/60 px-1.5 py-0.5 text-[11px] font-medium text-gray-500"
+								aria-hidden="true"
+							>
+								<svg
+									class="h-3.5 w-3.5 shrink-0 text-gray-500"
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke-width="1.5"
+									stroke="currentColor"
+									aria-hidden="true"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
+									/>
+								</svg>
+							</span>
+						</div>
 					</td>
 					<td class="max-w-md text-sm text-gray-700">
 						{paramToDisplayLabels(dept.param)}
@@ -677,6 +743,13 @@
 	}
 	.order-cell-clickable:hover {
 		background-color: #eff6ff;
+		color: #1d4ed8;
+	}
+	.company-code-cell:hover .company-code-edit-hint {
+		border-color: #93c5fd;
+		color: #1d4ed8;
+	}
+	.company-code-cell:hover .company-code-edit-hint svg {
 		color: #1d4ed8;
 	}
 </style>

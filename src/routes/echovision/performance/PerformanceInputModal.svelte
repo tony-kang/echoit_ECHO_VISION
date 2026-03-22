@@ -57,7 +57,7 @@
 			<!-- 모달 본문 -->
 			<div class="p-6">
 				<div class="mb-4 text-sm text-gray-600">
-					각 월별로 계획 및 예상 매출/비용을 입력해주세요. (단위: 천원)
+					각 월별로 계획/전망 매출/원가를 입력해 주세요.(단위:천원)
 				</div>
 
 				<div class="overflow-x-auto">
@@ -65,14 +65,14 @@
 						<thead>
 							<tr class="bg-gray-50 border-b border-gray-200">
 								<th class="w-[10%] text-right px-4 py-3 text-sm font-semibold text-gray-700">{selectedYear} 년</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">계획 매출</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">예상 매출</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">계획 비용</th>
-								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">예상 비용</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">매출 계획</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">매출 전망</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">계획 원가</th>
+								<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">비용 전망</th>
 							</tr>
 						</thead>
 						<tbody>
-							{#each inputData as item, index}
+							{#each inputData as item (item.month)}
 								<tr class="hover:bg-gray-50">
 									<td class="w-[10%] text-right px-4 py-1 text-sm font-medium text-gray-700">{item.month} 월</td>
 									<td class="px-4 py-1">

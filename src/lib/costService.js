@@ -19,6 +19,7 @@ import { supabase } from './supabaseClient';
  * @typedef {Object} GetCostOptions
  * @property {string[]} [codes] - 조회할 코드 배열 (없으면 전체)
  * @property {string[]} [evCodeItems] - ev_code의 items 배열 (평탄화된 중복 제거된 배열)
+ * @property {string[]} [companyCodeItems] - 회사 코드 배열 (있으면 해당 company_code인 ev_excel_file.id만 excel_file_id로 필터, 빈 배열이면 미적용)
  * @property {number} [year] - 연도 필터
  * @property {number} [month] - 월 필터
  * @property {boolean} [orderByYear] - 연도순 정렬 (기본값: true)
