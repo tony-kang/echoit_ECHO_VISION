@@ -52,6 +52,23 @@
 		showPlanActualLegendColumns = !showPlanActualLegendColumns;
 	}
 
+	/** @type {number} 연간 합계 영역에서 왼쪽 표(구분·연간 누계) 가로 비율 % (나머지는 차트) */
+	let yearTotalDataTableWidthPct = $state(20);
+
+	/** 연간 누계 요약 표 구분 열 고정 너비 비율 % (항목·금액 열과 합 100%) */
+	const YEAR_TOTAL_CATEGORY_COL_PCT = 20;
+
+	/** @type {number} 연간 누계 표 항목 열 너비 %(전체 표 기준, table-fixed에서 colgroup으로 적용) */
+	let yearTotalItemColWidthPct = $state(12);
+
+	/** @type {number} 연간 누계 표 금액 열 너비 %(구분·항목 제외 잔여) */
+	const yearTotalAmountColWidthPct = $derived(
+		100 - YEAR_TOTAL_CATEGORY_COL_PCT - yearTotalItemColWidthPct
+	);
+
+	/** @type {number} 연간 합계 차트 영역(.year-total-charts) 최소 높이 rem (scoped CSS min-height:0 제거·인라인으로 적용) */
+	let yearTotalChartsMinHeightRem = $state(30);
+
 	/** @type {Array<{org_id: string, org_alias_id: string, org_alias_name: string, org_code: string[], sales_code: string[], cost_code: string[]}>} ev_department 기반 조직 정보 (org_id = ev_department.id) */
 	let orgInfo = $state([]);
 	/** @type {boolean} 부서 목록 로딩 중 */
@@ -1025,7 +1042,7 @@
 					aria-label="계획 예상 실제 범례 칼럼 표시 전환"
 					onclick={togglePlanActualLegendColumns}
 				>
-					{showPlanActualLegendColumns ? '계·예·실 숨기기' : '계·예·실 표시'}
+					{showPlanActualLegendColumns ? '계·전·실 숨기기' : '계·전·실 표시'}
 				</button>
 			</div>
 			<div class="flex flex-row flex-nowrap items-center justify-end gap-4 min-w-0">
@@ -1055,7 +1072,7 @@
 		</div>
 
 		<!-- 실적 테이블 (레이아웃: 1~12월 가로 | 1~6/7~12 분리) -->
-		<div class="bg-white rounded-lg shadow-sm overflow-x-auto">
+		<div class="rounded-lg shadow-sm overflow-x-auto">
 			{#if tableLayoutMode === 'split'}
 			<!-- 1~6월 위, 7~12월 아래 -->
 			<table class="w-full border-collapse">
@@ -1305,116 +1322,169 @@
 			</table>
 			{/if}
 
-			<!-- 연간 합계 -->
-			<table class="w-full border-collapse mt-4 text-sm font-semibold">
-				<thead>
-					<tr class="bg-gray-100 border-b border-gray-200">
-						<th class="w-[5%] px-4 py-3 text-center text-gray-700 border-r border-gray-200">구분</th>
-						<th class="w-[15%] px-4 py-3 text-center text-gray-700">합계</th>
-						<th class="w-[80%] px-4 py-3 text-center text-gray-700"></th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr class="border-b border-gray-200">
-						<td class="px-2 py-3 text-center text-gray-700 border-r border-gray-200">매출</td>
-						<td class="px-2 py-3 text-gray-900 border-r border-gray-200">
-							<div class="space-y-1">
-								{#each PLAN_FORECAST_ACTUAL_ROW_DEFS as def, idx (def.fullLabel)}
-									{@const amounts = [yearTotal.plannedSales, yearTotal.forecastSales, yearTotal.sales]}
-									{@const val = amounts[idx]}
-									{@const valClass = idx === 0 ? 'text-gray-700' : idx === 1 ? 'text-blue-700' : 'text-gray-700'}
-									<div
-										class={showPlanActualLegendColumns
-											? 'flex justify-between items-center gap-2'
-											: 'text-right'}
+			<!-- 연간 합계: 왼쪽 표(구분·연간 누계) + 오른쪽 차트(헤더~본문 전체 높이에 맞춤) -->
+			<div class="mt-4 space-y-2">
+				<div class="flex items-center justify-items-start gap-10">
+					<!-- <label class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+						<span class="shrink-0 font-medium">연간 누계 · 항목 열 너비</span>
+						<input
+							type="range"
+							class="h-2 w-full max-w-xs cursor-pointer accent-blue-600"
+							min="10"
+							max="40"
+							step="1"
+							bind:value={yearTotalItemColWidthPct}
+							aria-label="연간 누계 표 항목 열 가로 비율"
+						/>
+					</label> -->
+					<label class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+						<span class="shrink-0 font-medium">연간누계 차트 높이</span>
+						<input
+							type="range"
+							class="h-2 w-full max-w-xs cursor-pointer accent-blue-600"
+							min="12"
+							max="50"
+							step="1"
+							bind:value={yearTotalChartsMinHeightRem}
+							aria-label="연간 합계 차트 영역 최소 높이 rem"
+						/>
+					</label>
+				</div>
+				<div
+					class="year-total-summary-wrap flex w-full items-stretch border border-gray-200 rounded-lg overflow-hidden bg-white"
+				>
+					<div
+						class="shrink-0 overflow-x-auto border-r border-gray-200"
+						style="width: {yearTotalDataTableWidthPct}%; min-width: 14rem;"
+					>
+						<table
+							class="year-total-summary-table w-full min-w-0 table-fixed border-collapse text-sm font-semibold"
+						>
+							<colgroup>
+								<col style="width: {YEAR_TOTAL_CATEGORY_COL_PCT}%;" />
+								<col style="width: {yearTotalItemColWidthPct}%;" />
+								<col style="width: {yearTotalAmountColWidthPct}%;" />
+							</colgroup>
+							<thead>
+								<tr class="bg-gray-100 border-b border-gray-200">
+									<th class="px-4 py-3 text-center text-gray-700 border-r border-gray-200" rowspan="2"
+										>구분</th
 									>
-										{#if showPlanActualLegendColumns}
-											<span class="{def.labelClass} text-sm font-medium shrink-0" title={def.fullLabel}>{def.shortLabel}</span>
-										{/if}
-										<span
-											class="relative cursor-default amount-tooltip-trigger {valClass}"
-											aria-label={toKoreanAmount(val)}
-											>{formatCurrency(val)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(val)}</span></span
-										>
-									</div>
-								{/each}
-							</div>
-						</td>
-						<td rowspan="3" class="px-4 py-3 align-top">
-							<div class="flex flex-row gap-4 w-full min-w-[800px]">
-								<div class="flex-1 h-[400px] relative">
-									<canvas bind:this={salesProfitChartCanvas} class="w-full h-full"></canvas>
-								</div>
-								<div class="flex-1 h-[400px] relative">
-									<canvas bind:this={salesCostChartCanvas} class="w-full h-full"></canvas>
-								</div>
-							</div>
-						</td>
-					</tr>
-					<tr class="border-b border-gray-200">
-						<td class="px-4 py-3 text-center text-gray-700 border-r border-gray-200">원가</td>
-						<td class="px-4 py-3 text-gray-900 border-r border-gray-200">
-							<div class="space-y-1">
-								{#each PLAN_FORECAST_ACTUAL_ROW_DEFS as def, idx (def.fullLabel)}
-									{@const amounts = [yearTotal.plannedCost, yearTotal.forecastCost, yearTotal.cost]}
-									{@const val = amounts[idx]}
-									{@const valClass = idx === 0 ? 'text-gray-700' : idx === 1 ? 'text-blue-700' : 'text-gray-700'}
-									<div
-										class={showPlanActualLegendColumns
-											? 'flex justify-between items-center gap-2'
-											: 'text-right'}
+									<th class="px-2 py-3 text-center text-gray-700 border-r border-gray-200" colspan="2"
+										>연간 누계</th
 									>
-										{#if showPlanActualLegendColumns}
-											<span class="{def.labelClass} text-sm font-medium shrink-0" title={def.fullLabel}>{def.shortLabel}</span>
-										{/if}
-										<span
-											class="relative cursor-default amount-tooltip-trigger {valClass}"
-											aria-label={toKoreanAmount(val)}
-											>{formatCurrency(val)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(val)}</span></span
+								</tr>
+								<tr class="bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600">
+									<th class="px-2 py-2 text-center border-r border-gray-200">항목</th>
+									<th class="px-2 py-2 text-center border-r border-gray-200">금액</th>
+								</tr>
+							</thead>
+							<tbody>
+							{#each PLAN_FORECAST_ACTUAL_ROW_DEFS as def, idx (def.fullLabel)}
+								{@const amounts = [yearTotal.plannedSales, yearTotal.forecastSales, yearTotal.sales]}
+								{@const val = amounts[idx]}
+								{@const valClass = idx === 0 ? 'text-gray-700' : idx === 1 ? 'text-blue-700' : 'text-gray-700'}
+								<tr class="border-b border-gray-200">
+									{#if idx === 0}
+										<td
+											class="px-2 py-1.5 text-center text-gray-700 border-r border-gray-200 align-top"
+											rowspan="3">매출</td
 										>
-									</div>
-								{/each}
-							</div>
-						</td>
-					</tr>
-					<tr class="bg-blue-50">
-						<td class="px-4 py-3 text-center text-gray-700 border-r border-gray-200">이익</td>
-						<td class="px-4 py-3 text-gray-900 border-r border-gray-200">
-							<div class="space-y-1">
-								{#each PLAN_FORECAST_ACTUAL_ROW_DEFS as def, idx (def.fullLabel)}
-									{@const amounts = [yearTotal.plannedProfit, yearTotal.forecastProfit, yearTotal.profit]}
-									{@const val = amounts[idx]}
-									{@const valClass =
-										idx === 2
-											? yearTotal.profit >= 0
-												? 'text-green-600'
-												: 'text-red-600'
-											: idx === 0
-												? 'text-gray-700'
-												: 'text-blue-700'}
-									<div
-										class={showPlanActualLegendColumns
-											? 'flex justify-between items-center gap-2'
-											: 'text-right'}
+									{/if}
+									<td
+										class="px-2 py-1.5 text-center font-medium border-r border-gray-200 align-top {def.labelClass}"
+										title={def.fullLabel}>{def.shortLabel}</td
 									>
-										{#if showPlanActualLegendColumns}
-											<span
-												class="{idx === 2 ? valClass : def.labelClass} text-sm font-medium shrink-0"
-												title={def.fullLabel}>{def.shortLabel}</span
-											>
-										{/if}
+									<td class="px-2 py-1.5 text-right border-r border-gray-200 align-top">
 										<span
-											class="relative cursor-default amount-tooltip-trigger font-medium {valClass}"
+											class="relative inline-block cursor-default amount-tooltip-trigger {valClass}"
 											aria-label={toKoreanAmount(val)}
-											>{formatCurrency(val)}<span class="amount-tooltip" role="tooltip">{toKoreanAmount(val)}</span></span
+											>{formatCurrency(val)}<span class="amount-tooltip" role="tooltip"
+												>{toKoreanAmount(val)}</span
+											></span
 										>
-									</div>
-								{/each}
+									</td>
+								</tr>
+							{/each}
+							{#each PLAN_FORECAST_ACTUAL_ROW_DEFS as def, idx (def.fullLabel)}
+								{@const amounts = [yearTotal.plannedCost, yearTotal.forecastCost, yearTotal.cost]}
+								{@const val = amounts[idx]}
+								{@const valClass = idx === 0 ? 'text-gray-700' : idx === 1 ? 'text-blue-700' : 'text-gray-700'}
+								<tr class="border-b border-gray-200">
+									{#if idx === 0}
+										<td
+											class="px-2 py-1.5 text-center text-gray-700 border-r border-gray-200 align-top"
+											rowspan="3">원가</td
+										>
+									{/if}
+									<td
+										class="px-2 py-1.5 text-center font-medium border-r border-gray-200 align-top {def.labelClass}"
+										title={def.fullLabel}>{def.shortLabel}</td
+									>
+									<td class="px-2 py-1.5 text-right border-r border-gray-200 align-top">
+										<span
+											class="relative inline-block cursor-default amount-tooltip-trigger {valClass}"
+											aria-label={toKoreanAmount(val)}
+											>{formatCurrency(val)}<span class="amount-tooltip" role="tooltip"
+												>{toKoreanAmount(val)}</span
+											></span
+										>
+									</td>
+								</tr>
+							{/each}
+							{#each PLAN_FORECAST_ACTUAL_ROW_DEFS as def, idx (def.fullLabel)}
+								{@const amounts = [yearTotal.plannedProfit, yearTotal.forecastProfit, yearTotal.profit]}
+								{@const val = amounts[idx]}
+								{@const valClass =
+									idx === 2
+										? yearTotal.profit >= 0
+											? 'text-green-600'
+											: 'text-red-600'
+										: idx === 0
+											? 'text-gray-700'
+											: 'text-blue-700'}
+								<tr class="border-b border-gray-200 bg-blue-50">
+									{#if idx === 0}
+										<td
+											class="px-2 py-1.5 text-center text-gray-700 border-r border-gray-200 align-top"
+											rowspan="3">이익</td
+										>
+									{/if}
+									<td
+										class="px-2 py-1.5 text-center font-medium border-r border-gray-200 align-top {idx === 2
+											? valClass
+											: def.labelClass}"
+										title={def.fullLabel}>{def.shortLabel}</td
+									>
+									<td class="px-2 py-1.5 text-right border-r border-gray-200 align-top">
+										<span
+											class="relative inline-block cursor-default amount-tooltip-trigger font-medium {valClass}"
+											aria-label={toKoreanAmount(val)}
+											>{formatCurrency(val)}<span class="amount-tooltip" role="tooltip"
+												>{toKoreanAmount(val)}</span
+											></span
+										>
+									</td>
+								</tr>
+							{/each}
+							</tbody>
+						</table>
+					</div>
+					<div
+						class="year-total-charts flex min-w-0 flex-1 flex-col self-stretch bg-gray-50 p-3"
+						style="min-height: {yearTotalChartsMinHeightRem}rem;"
+					>
+						<div class="flex min-h-0 flex-1 flex-row gap-3">
+							<div class="year-total-chart-slot min-h-0 min-w-0 flex-1">
+								<canvas bind:this={salesProfitChartCanvas} class="year-total-chart-canvas"></canvas>
 							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
+							<div class="year-total-chart-slot min-h-0 min-w-0 flex-1">
+								<canvas bind:this={salesCostChartCanvas} class="year-total-chart-canvas"></canvas>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 		{/if}
 	{/if}
@@ -1441,6 +1511,23 @@
 {/if}
 
 <style>
+	/* 연간 합계: 표(헤더+본문) 높이에 맞춰 차트 열이 세로로 꽉 참 */
+	.year-total-summary-wrap {
+		align-items: stretch;
+	}
+	/* .year-total-charts min-height:0 제거 — Tailwind min-h-* 및 인라인 min-height가 먹도록 함(내부 flex는 min-h-0 유지) */
+	.year-total-chart-slot {
+		position: relative;
+		min-height: 0;
+	}
+	.year-total-chart-canvas {
+		position: absolute;
+		inset: 0;
+		width: 100% !important;
+		height: 100% !important;
+		max-width: 100%;
+		max-height: 100%;
+	}
 	.amount-tooltip-trigger .amount-tooltip {
 		visibility: hidden;
 		opacity: 0;
