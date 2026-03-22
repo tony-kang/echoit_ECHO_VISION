@@ -7,45 +7,43 @@
 	 *   type: 'sales' | 'cost' | 'profit',
 	 *   planned: number,
 	 *   expected: number,
-	 *   actual: number,
-	 *   month: number
+	 *   actual: number
 	 * }}
 	 */
-	let { type, planned, expected, actual, month } = $props();
+	let { type, planned, expected, actual } = $props();
 
 	/**
-	 * 이익인 경우 색상 클래스 반환
+	 * 이익인 경우 실제 금액 색상
 	 * @returns {string}
 	 */
-	const profitColorClass = $derived(type === 'profit' && actual >= 0 ? 'text-green-600' : type === 'profit' && actual < 0 ? 'text-red-600' : '');
+	const profitColorClass = $derived(
+		type === 'profit' && actual >= 0 ? 'text-green-600' : type === 'profit' && actual < 0 ? 'text-red-600' : 'text-gray-700'
+	);
 </script>
 
-<td class="px-1 py-1 text-sm text-gray-900 border-r border-gray-200 group">
-	<div class="space-y-1">
-		<div class="flex justify-between items-center">
-			<span class="text-gray-500 {month === 1 || month === 7 ? 'opacity-70' : 'opacity-0 group-hover:opacity-70'}">계획</span>
+<td class="px-1 py-1 text-sm text-gray-900 border-r border-gray-200">
+	<div class="space-y-1 text-right">
+		<div>
 			<span
-				class="relative cursor-default text-gray-700 amount-tooltip-trigger"
+				class="relative cursor-default text-gray-700 amount-tooltip-trigger inline-block"
 				aria-label={toKoreanAmount(planned)}
 			>
 				{formatCurrency(planned)}
 				<span class="amount-tooltip" role="tooltip">{toKoreanAmount(planned)}</span>
 			</span>
 		</div>
-		<div class="flex justify-between items-center">
-			<span class="text-blue-600 {month === 1 || month === 7 ? 'opacity-70' : 'opacity-0 group-hover:opacity-70'}">예상</span>
+		<div>
 			<span
-				class="relative cursor-default text-blue-700 amount-tooltip-trigger"
+				class="relative cursor-default text-blue-700 amount-tooltip-trigger inline-block"
 				aria-label={toKoreanAmount(expected)}
 			>
 				{formatCurrency(expected)}
 				<span class="amount-tooltip" role="tooltip">{toKoreanAmount(expected)}</span>
 			</span>
 		</div>
-		<div class="flex justify-between items-center">
-			<span class="{profitColorClass} {month === 1 || month === 7 ? 'opacity-70' : 'opacity-0 group-hover:opacity-70'}">실제</span>
+		<div>
 			<span
-				class="relative cursor-default amount-tooltip-trigger {profitColorClass}"
+				class="relative cursor-default amount-tooltip-trigger inline-block font-medium {profitColorClass}"
 				aria-label={toKoreanAmount(actual)}
 			>
 				{formatCurrency(actual)}

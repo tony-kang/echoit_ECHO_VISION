@@ -179,55 +179,112 @@
 	}
 
 	/**
-	 * 부서·데이터 기준 분기 데이터
+	 * 부서·데이터 기준 분기 데이터 (월별 계획·예상·실적 합산)
 	 * @param {object} org - 조직 정보
 	 * @param {object} data - 해당 부서 데이터
 	 * @param {number} quarter - 분기 (1~4)
-	 * @returns {{ sales: number, cost: number, profit: number }}
+	 * @returns {{ sales: number, cost: number, profit: number, plannedSales: number, forecastSales: number, plannedCost: number, forecastCost: number, plannedProfit: number, forecastProfit: number }}
 	 */
 	function getQuarterDataForOrg(org, data, quarter) {
 		const startMonth = (quarter - 1) * 3 + 1;
-		let sales = 0, cost = 0;
+		let sales = 0,
+			cost = 0;
+		let plannedSales = 0,
+			forecastSales = 0,
+			plannedCost = 0,
+			forecastCost = 0;
 		for (let m = startMonth; m <= startMonth + 2; m++) {
 			const md = getMonthDataForOrg(org, data, m);
 			sales += md.sales;
 			cost += md.cost;
+			plannedSales += md.plannedSales;
+			forecastSales += md.forecastSales;
+			plannedCost += md.plannedCost;
+			forecastCost += md.forecastCost;
 		}
-		return { sales, cost, profit: sales - cost };
+		return {
+			sales,
+			cost,
+			profit: sales - cost,
+			plannedSales,
+			forecastSales,
+			plannedCost,
+			forecastCost,
+			plannedProfit: plannedSales - plannedCost,
+			forecastProfit: forecastSales - forecastCost
+		};
 	}
 
 	/**
-	 * 부서·데이터 기준 반기 데이터
+	 * 부서·데이터 기준 반기 데이터 (월별 계획·예상·실적 합산)
 	 * @param {object} org - 조직 정보
 	 * @param {object} data - 해당 부서 데이터
 	 * @param {number} half - 반기 (1~2)
-	 * @returns {{ sales: number, cost: number, profit: number }}
+	 * @returns {{ sales: number, cost: number, profit: number, plannedSales: number, forecastSales: number, plannedCost: number, forecastCost: number, plannedProfit: number, forecastProfit: number }}
 	 */
 	function getHalfDataForOrg(org, data, half) {
 		const startMonth = (half - 1) * 6 + 1;
-		let sales = 0, cost = 0;
+		let sales = 0,
+			cost = 0;
+		let plannedSales = 0,
+			forecastSales = 0,
+			plannedCost = 0,
+			forecastCost = 0;
 		for (let m = startMonth; m <= startMonth + 5; m++) {
 			const md = getMonthDataForOrg(org, data, m);
 			sales += md.sales;
 			cost += md.cost;
+			plannedSales += md.plannedSales;
+			forecastSales += md.forecastSales;
+			plannedCost += md.plannedCost;
+			forecastCost += md.forecastCost;
 		}
-		return { sales, cost, profit: sales - cost };
+		return {
+			sales,
+			cost,
+			profit: sales - cost,
+			plannedSales,
+			forecastSales,
+			plannedCost,
+			forecastCost,
+			plannedProfit: plannedSales - plannedCost,
+			forecastProfit: forecastSales - forecastCost
+		};
 	}
 
 	/**
-	 * 부서·데이터 기준 연간 합계
+	 * 부서·데이터 기준 연간 합계 (월별 계획·예상·실적 합산)
 	 * @param {object} org - 조직 정보
 	 * @param {object} data - 해당 부서 데이터
-	 * @returns {{ sales: number, cost: number, profit: number }}
+	 * @returns {{ sales: number, cost: number, profit: number, plannedSales: number, forecastSales: number, plannedCost: number, forecastCost: number, plannedProfit: number, forecastProfit: number }}
 	 */
 	function getYearTotalForOrg(org, data) {
-		let sales = 0, cost = 0;
+		let sales = 0,
+			cost = 0;
+		let plannedSales = 0,
+			forecastSales = 0,
+			plannedCost = 0,
+			forecastCost = 0;
 		for (let m = 1; m <= 12; m++) {
 			const md = getMonthDataForOrg(org, data, m);
 			sales += md.sales;
 			cost += md.cost;
+			plannedSales += md.plannedSales;
+			forecastSales += md.forecastSales;
+			plannedCost += md.plannedCost;
+			forecastCost += md.forecastCost;
 		}
-		return { sales, cost, profit: sales - cost };
+		return {
+			sales,
+			cost,
+			profit: sales - cost,
+			plannedSales,
+			forecastSales,
+			plannedCost,
+			forecastCost,
+			plannedProfit: plannedSales - plannedCost,
+			forecastProfit: forecastSales - forecastCost
+		};
 	}
 </script>
 
@@ -253,7 +310,7 @@
 			<div class="mb-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 w-full min-w-0 bg-white shadow-sm p-4 rounded-lg">
 				<div class="min-w-0">
 					<h1 class="text-3xl font-bold text-gray-800">전사 실적</h1>
-                    <p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림 처리됨)</span></p>
+                    <p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림)</span></p>
 				</div>
 				<div class="flex justify-center items-center gap-2">
 					<label for="company-year-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">연도</label>
@@ -304,84 +361,91 @@
 						<tbody>
 							{#each orgInfo as org, orgIndex (org.org_id)}
 								{@const data = dataByDept[org.org_id]}
+								{@const ytot = getYearTotalForOrg(org, data)}
+								{@const q1 = getQuarterDataForOrg(org, data, 1)}
+								{@const q2 = getQuarterDataForOrg(org, data, 2)}
+								{@const q3 = getQuarterDataForOrg(org, data, 3)}
+								{@const q4 = getQuarterDataForOrg(org, data, 4)}
+								{@const h1 = getHalfDataForOrg(org, data, 1)}
+								{@const h2 = getHalfDataForOrg(org, data, 2)}
 								<tr class="border-b border-gray-200 hover:bg-gray-50 {orgIndex >= 0 ? 'company-performance-dept-first' : ''}">
 									<td rowspan="3" class="px-4 py-3 text-center text-sm font-semibold text-gray-800 align-middle border-r border-gray-200 bg-gray-50">{org.org_alias_name}</td>
 									<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">매출</td>
-									<SummaryDataCell type="sales" value={getYearTotalForOrg(org, data).sales} bgColor="yellow-dark" />
+									<SummaryDataCell type="sales" planned={ytot.plannedSales} expected={ytot.forecastSales} actual={ytot.sales} bgColor="yellow-dark" />
 									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 									{/each}
-									<SummaryDataCell type="sales" value={getQuarterDataForOrg(org, data, 1).sales} bgColor="blue" />
+									<SummaryDataCell type="sales" planned={q1.plannedSales} expected={q1.forecastSales} actual={q1.sales} bgColor="blue" />
 									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 									{/each}
-									<SummaryDataCell type="sales" value={getQuarterDataForOrg(org, data, 2).sales} bgColor="green" />
-									<SummaryDataCell type="sales" value={getHalfDataForOrg(org, data, 1).sales} bgColor="yellow" />
+									<SummaryDataCell type="sales" planned={q2.plannedSales} expected={q2.forecastSales} actual={q2.sales} bgColor="green" />
+									<SummaryDataCell type="sales" planned={h1.plannedSales} expected={h1.forecastSales} actual={h1.sales} bgColor="yellow" />
 									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 									{/each}
-									<SummaryDataCell type="sales" value={getQuarterDataForOrg(org, data, 3).sales} bgColor="blue" />
+									<SummaryDataCell type="sales" planned={q3.plannedSales} expected={q3.forecastSales} actual={q3.sales} bgColor="blue" />
 									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} {month} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
 									{/each}
-									<SummaryDataCell type="sales" value={getQuarterDataForOrg(org, data, 4).sales} bgColor="green" />
-									<SummaryDataCell type="sales" value={getHalfDataForOrg(org, data, 2).sales} bgColor="yellow" />
+									<SummaryDataCell type="sales" planned={q4.plannedSales} expected={q4.forecastSales} actual={q4.sales} bgColor="green" />
+									<SummaryDataCell type="sales" planned={h2.plannedSales} expected={h2.forecastSales} actual={h2.sales} bgColor="yellow" />
 								</tr>
 								<tr class="border-b border-gray-200 hover:bg-gray-50">
 									<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">비용</td>
-									<SummaryDataCell type="cost" value={getYearTotalForOrg(org, data).cost} bgColor="yellow-dark" />
+									<SummaryDataCell type="cost" planned={ytot.plannedCost} expected={ytot.forecastCost} actual={ytot.cost} bgColor="yellow-dark" />
 									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 									{/each}
-									<SummaryDataCell type="cost" value={getQuarterDataForOrg(org, data, 1).cost} bgColor="blue" />
+									<SummaryDataCell type="cost" planned={q1.plannedCost} expected={q1.forecastCost} actual={q1.cost} bgColor="blue" />
 									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 									{/each}
-									<SummaryDataCell type="cost" value={getQuarterDataForOrg(org, data, 2).cost} bgColor="green" />
-									<SummaryDataCell type="cost" value={getHalfDataForOrg(org, data, 1).cost} bgColor="yellow" />
+									<SummaryDataCell type="cost" planned={q2.plannedCost} expected={q2.forecastCost} actual={q2.cost} bgColor="green" />
+									<SummaryDataCell type="cost" planned={h1.plannedCost} expected={h1.forecastCost} actual={h1.cost} bgColor="yellow" />
 									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 									{/each}
-									<SummaryDataCell type="cost" value={getQuarterDataForOrg(org, data, 3).cost} bgColor="blue" />
+									<SummaryDataCell type="cost" planned={q3.plannedCost} expected={q3.forecastCost} actual={q3.cost} bgColor="blue" />
 									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} {month} />
+										<MonthDataCell type="cost" planned={monthData.plannedCost} expected={monthData.forecastCost} actual={monthData.cost} />
 									{/each}
-									<SummaryDataCell type="cost" value={getQuarterDataForOrg(org, data, 4).cost} bgColor="green" />
-									<SummaryDataCell type="cost" value={getHalfDataForOrg(org, data, 2).cost} bgColor="yellow" />
+									<SummaryDataCell type="cost" planned={q4.plannedCost} expected={q4.forecastCost} actual={q4.cost} bgColor="green" />
+									<SummaryDataCell type="cost" planned={h2.plannedCost} expected={h2.forecastCost} actual={h2.cost} bgColor="yellow" />
 								</tr>
 								<tr class="border-b border-gray-200 hover:bg-gray-50 bg-blue-50">
 									<td class="text-center px-4 py-3 text-sm font-medium text-gray-700 border-r border-gray-200">이익</td>
-									<SummaryDataCell type="profit" value={getYearTotalForOrg(org, data).profit} bgColor="yellow-dark" />
+									<SummaryDataCell type="profit" planned={ytot.plannedProfit} expected={ytot.forecastProfit} actual={ytot.profit} bgColor="yellow-dark" />
 									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 									{/each}
-									<SummaryDataCell type="profit" value={getQuarterDataForOrg(org, data, 1).profit} bgColor="blue-dark" />
+									<SummaryDataCell type="profit" planned={q1.plannedProfit} expected={q1.forecastProfit} actual={q1.profit} bgColor="blue-dark" />
 									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 									{/each}
-									<SummaryDataCell type="profit" value={getQuarterDataForOrg(org, data, 2).profit} bgColor="green-dark" />
-									<SummaryDataCell type="profit" value={getHalfDataForOrg(org, data, 1).profit} bgColor="yellow-dark" />
+									<SummaryDataCell type="profit" planned={q2.plannedProfit} expected={q2.forecastProfit} actual={q2.profit} bgColor="green-dark" />
+									<SummaryDataCell type="profit" planned={h1.plannedProfit} expected={h1.forecastProfit} actual={h1.profit} bgColor="yellow-dark" />
 									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 									{/each}
-									<SummaryDataCell type="profit" value={getQuarterDataForOrg(org, data, 3).profit} bgColor="blue-dark" />
+									<SummaryDataCell type="profit" planned={q3.plannedProfit} expected={q3.forecastProfit} actual={q3.profit} bgColor="blue-dark" />
 									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} {month} />
+										<MonthDataCell type="profit" planned={monthData.plannedSales - monthData.plannedCost} expected={monthData.forecastSales - monthData.forecastCost} actual={monthData.profit} />
 									{/each}
-									<SummaryDataCell type="profit" value={getQuarterDataForOrg(org, data, 4).profit} bgColor="green-dark" />
-									<SummaryDataCell type="profit" value={getHalfDataForOrg(org, data, 2).profit} bgColor="yellow-dark" />
+									<SummaryDataCell type="profit" planned={q4.plannedProfit} expected={q4.forecastProfit} actual={q4.profit} bgColor="green-dark" />
+									<SummaryDataCell type="profit" planned={h2.plannedProfit} expected={h2.forecastProfit} actual={h2.profit} bgColor="yellow-dark" />
 								</tr>
 							{/each}
 						</tbody>
