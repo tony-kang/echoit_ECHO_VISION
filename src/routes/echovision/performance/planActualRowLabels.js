@@ -22,17 +22,17 @@ export const PERFORMANCE_ROW_LABEL_ACTUAL_FULL = '실제';
  */
 export const PLAN_FORECAST_ACTUAL_ROW_DEFS = [
 	{
-		shortLabel: '계',
+		shortLabel: '계획',
 		fullLabel: PERFORMANCE_ROW_LABEL_PLAN_FULL,
 		labelClass: 'text-gray-500'
 	},
 	{
-		shortLabel: '전',
+		shortLabel: '전망',
 		fullLabel: PERFORMANCE_ROW_LABEL_FORECAST_FULL,
 		labelClass: 'text-blue-600'
 	},
 	{
-		shortLabel: '실',
+		shortLabel: '실제',
 		fullLabel: PERFORMANCE_ROW_LABEL_ACTUAL_FULL,
 		labelClass: 'text-gray-600'
 	}

@@ -53,7 +53,7 @@
 	let selectedOrgIndex = $state(0);
 
 	/** @type {boolean} 계·예·실 범례 칼럼 및 연간 합계 짧은 라벨 표시 여부 */
-	let showPlanActualLegendColumns = $state(false);
+	let showPlanActualLegendColumns = $state(true);
 
 	/**
 	 * 계획·예상·실제 범례 칼럼·라벨 표시 토글

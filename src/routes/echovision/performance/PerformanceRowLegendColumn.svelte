@@ -16,7 +16,7 @@
 			return 'hidden w-0 min-w-0 max-w-0 p-0 border-0 overflow-hidden';
 		}
 		if (as === 'th') {
-			return 'px-2 py-3 text-sm border-r border-gray-200 align-middle bg-gray-50 w-6 min-w-[1.5rem]';
+			return 'px-2 py-3 text-sm border-r border-gray-200 align-middle bg-gray-50 w-6 min-w-[3rem]';
 		}
 		return 'px-1 py-1 text-sm text-gray-900 border-r border-gray-200 align-middle bg-gray-50/80';
 	}
