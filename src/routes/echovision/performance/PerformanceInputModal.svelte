@@ -37,16 +37,24 @@
 </script>
 
 {#if open}
-	<div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-		<div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4">
+		<div
+			class="flex max-h-[90vh] w-full min-w-0 max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="performance-input-modal-title"
+			tabindex="-1"
+		>
 			<!-- 모달 헤더 -->
-			<div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-				<h2 class="text-xl font-bold text-gray-800">
+			<div
+				class="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-4"
+			>
+				<h2 id="performance-input-modal-title" class="wrap-break-word text-lg font-bold text-gray-800 sm:text-xl">
 					{selectedYear}년 {orgAliasName} 경영실적 {hasPerformanceData ? '수정' : '입력'}
 				</h2>
 				<button
 					onclick={onClose}
-					class="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+					class="shrink-0 text-2xl font-bold text-gray-400 hover:text-gray-600"
 					type="button"
 					aria-label="닫기"
 				>
@@ -54,14 +62,16 @@
 				</button>
 			</div>
 
-			<!-- 모달 본문 -->
-			<div class="p-6">
-				<div class="mb-4 text-sm text-gray-600">
-					각 월별로 계획/전망 매출/원가를 입력해 주세요.(단위:천원)
-				</div>
+			<!-- 모달 본문: 세로·가로 스크롤 (표 min-width로 좁은 화면에서 가로 스크롤) -->
+			<div class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
+				<div class="p-4 sm:p-6">
+					<div class="mb-3 text-sm text-gray-600 sm:mb-4">
+						각 월별로 계획/전망 매출/원가를 입력해 주세요.(단위:천원)
+					</div>
+					<p class="mb-2 text-xs text-gray-500 md:hidden">입력란이 많을 때 표를 좌우로 스크롤할 수 있습니다.</p>
 
-				<div class="overflow-x-auto">
-					<table class="w-full border-collapse">
+					<div class="-mx-1 overflow-x-auto overscroll-x-contain px-1 pb-1">
+						<table class="w-full min-w-136 border-collapse">
 						<thead>
 							<tr class="bg-gray-50 border-b border-gray-200">
 								<th class="w-[10%] text-right px-4 py-3 text-sm font-semibold text-gray-700">{selectedYear} 년</th>
@@ -142,12 +152,15 @@
 								</tr>
 							{/each}
 						</tbody>
-					</table>
+						</table>
+					</div>
 				</div>
 			</div>
 
 			<!-- 모달 푸터 -->
-			<div class="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+			<div
+				class="flex shrink-0 items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3 sm:px-6 sm:py-4"
+			>
 				<button
 					onclick={onClose}
 					class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"

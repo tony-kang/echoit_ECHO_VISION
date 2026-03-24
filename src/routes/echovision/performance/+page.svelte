@@ -935,7 +935,7 @@
 						class="ml-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
 						type="button"
 					>
-						예상실적 수정
+						전망실적 수정
 					</button>
 				{/if}
 			</div>
@@ -958,7 +958,7 @@
 						class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium"
 						type="button"
 					>
-						예상실적 입력
+						전망실적 입력
 					</button>
 				</div>
 			</div>

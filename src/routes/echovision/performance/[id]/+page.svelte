@@ -917,6 +917,10 @@
 	});
 
 	onMount(() => {
+		/** 좁은 뷰포트에서는 분할 테이블이 가로 스크롤 폭을 줄임 */
+		if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+			tableLayoutMode = 'split';
+		}
 		// canvas가 마운트된 후 차트 초기화 시도
 		setTimeout(() => {
 			if (!isLoading) {
@@ -1005,39 +1009,48 @@
 				<p class="text-gray-600">해당 부서를 찾을 수 없습니다.</p>
 			</div>
 		{:else}
-		<!-- 헤더 + 필터 (한 row, 연도는 중앙) -->
-		<div class="mb-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 w-full min-w-0 bg-white shadow-sm p-4 rounded-lg">
+		<div class="performance-dept-root w-full min-w-0 max-w-full">
+		<!-- 헤더 + 필터: 모바일 세로 스택, 넓은 화면에서 3열 -->
+		<div
+			class="mb-4 grid w-full min-w-0 max-w-full grid-cols-1 gap-4 rounded-lg bg-white p-3 shadow-sm sm:mb-6 sm:p-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-center xl:gap-4"
+		>
 			<div class="min-w-0">
-				<h1 class="text-3xl font-bold text-gray-800">부서별 실적 (<span class="text-blue-600">{selectedOrg.org_alias_name}</span>)</h1>
-				<p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림)</span></p>
+				<h1 class="wrap-break-word text-xl font-bold text-gray-800 sm:text-2xl lg:text-3xl">
+					부서별 실적 (<span class="text-blue-600">{selectedOrg.org_alias_name}</span>)
+				</h1>
+				<p class="mt-2 text-sm text-gray-600 sm:text-base">
+					부서별 월별/분기별 실적을 확인할 수 있습니다.
+					<span class="text-blue-500">(단위: 천원 , 천단위 반올림)</span>
+				</p>
+				<p class="mt-1 text-xs text-gray-500 md:hidden">표는 좌우로 스크롤할 수 있습니다.</p>
 			</div>
-			<div class="flex justify-center items-center gap-4">
+			<div class="flex min-w-0 flex-wrap items-center justify-start gap-3 sm:justify-center xl:justify-center">
 				<div class="flex items-center gap-2">
-					<label for="year-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">연도</label>
+					<label for="year-select" class="whitespace-nowrap text-sm font-medium text-gray-700">연도</label>
 					<select
 						id="year-select"
 						bind:value={selectedYear}
-						class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+						class="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
 						{#each recentYears as year (year)}
 							<option value={year}>{year}년</option>
 						{/each}
 					</select>
 				</div>
-				<fieldset class="flex items-center gap-4 border-0 p-0">
+				<fieldset class="flex flex-wrap items-center gap-3 border-0 p-0 sm:gap-4">
 					<legend class="sr-only">실적 테이블 레이아웃</legend>
-					<label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+					<label class="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
 						<input type="radio" name="table-layout" value="full" bind:group={tableLayoutMode} class="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500" />
-						<span>1~12월 가로</span>
+						<span class="whitespace-nowrap">1~12월 가로</span>
 					</label>
-					<label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+					<label class="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
 						<input type="radio" name="table-layout" value="split" bind:group={tableLayoutMode} class="rounded-full border-gray-300 text-blue-600 focus:ring-blue-500" />
-						<span>1~6월 / 7~12월 분리</span>
+						<span class="whitespace-nowrap">1~6 / 7~12 분리</span>
 					</label>
 				</fieldset>
 				<button
 					type="button"
-					class="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+					class="whitespace-nowrap rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
 					aria-pressed={showPlanActualLegendColumns}
 					aria-label="계획 예상 실제 범례 칼럼 표시 전환"
 					onclick={togglePlanActualLegendColumns}
@@ -1045,7 +1058,7 @@
 					{showPlanActualLegendColumns ? '계·전·실 숨기기' : '계·전·실 표시'}
 				</button>
 			</div>
-			<div class="flex flex-row flex-nowrap items-center justify-end gap-4 min-w-0">
+			<div class="flex min-w-0 flex-row flex-wrap items-center justify-start gap-3 xl:justify-end">
 				{#if isLoading}
 					<div class="text-sm text-gray-500 whitespace-nowrap">데이터 로딩 중...</div>
 				{:else if hasPerformanceData}
@@ -1054,7 +1067,7 @@
 						class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium whitespace-nowrap"
 						type="button"
 					>
-						예상실적 수정
+						전망실적 수정
 					</button>
 				{:else}
 					<div class="flex items-center gap-3 min-w-0">
@@ -1064,7 +1077,7 @@
 							class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium whitespace-nowrap"
 							type="button"
 						>
-							예상실적 입력
+							전망실적 입력
 						</button>
 					</div>
 				{/if}
@@ -1072,10 +1085,10 @@
 		</div>
 
 		<!-- 실적 테이블 (레이아웃: 1~12월 가로 | 1~6/7~12 분리) -->
-		<div class="rounded-lg shadow-sm overflow-x-auto">
+		<div class="performance-table-scroll max-w-full min-w-0 overflow-x-auto rounded-lg shadow-sm">
 			{#if tableLayoutMode === 'split'}
 			<!-- 1~6월 위, 7~12월 아래 -->
-			<table class="w-full border-collapse">
+			<table class="performance-main-table w-full min-w-208 border-collapse">
 				<thead>
 					<!-- 상반기 헤더 -->
 					<tr class="bg-gray-50 border-b border-gray-200">
@@ -1210,7 +1223,7 @@
 			</table>
 			{:else}
 			<!-- 1~12월 가로 한 줄 -->
-			<table class="w-full border-collapse">
+			<table class="performance-main-table w-full min-w-6xl border-collapse">
 				<thead>
 					<tr class="bg-gray-50 border-b border-gray-200">
 						<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
@@ -1351,10 +1364,10 @@
 					</label>
 				</div>
 				<div
-					class="year-total-summary-wrap flex w-full items-stretch border border-gray-200 rounded-lg overflow-hidden bg-white"
+					class="year-total-summary-wrap flex w-full min-w-0 max-w-full flex-col items-stretch overflow-hidden rounded-lg border border-gray-200 bg-white md:flex-row"
 				>
 					<div
-						class="shrink-0 overflow-x-auto border-r border-gray-200"
+						class="year-total-left-col shrink-0 overflow-x-auto border-b border-gray-200 md:border-b-0 md:border-r"
 						style="width: {yearTotalDataTableWidthPct}%; min-width: 14rem;"
 					>
 						<table
@@ -1471,20 +1484,21 @@
 						</table>
 					</div>
 					<div
-						class="year-total-charts flex min-w-0 flex-1 flex-col self-stretch bg-gray-50 p-3"
+						class="year-total-charts flex min-h-0 min-w-0 w-full flex-1 flex-col self-stretch bg-gray-50 p-2 sm:p-3"
 						style="min-height: {yearTotalChartsMinHeightRem}rem;"
 					>
-						<div class="flex min-h-0 flex-1 flex-row gap-3">
-							<div class="year-total-chart-slot min-h-0 min-w-0 flex-1">
+						<div class="year-total-charts-inner flex min-h-0 flex-1 flex-col gap-3 sm:flex-row">
+							<div class="year-total-chart-slot min-h-48 min-w-0 flex-1 sm:min-h-0">
 								<canvas bind:this={salesProfitChartCanvas} class="year-total-chart-canvas"></canvas>
 							</div>
-							<div class="year-total-chart-slot min-h-0 min-w-0 flex-1">
+							<div class="year-total-chart-slot min-h-48 min-w-0 flex-1 sm:min-h-0">
 								<canvas bind:this={salesCostChartCanvas} class="year-total-chart-canvas"></canvas>
 							</div>
 						</div>
 					</div>
 				</div>
 			</div>
+		</div>
 		</div>
 		{/if}
 	{/if}
@@ -1514,6 +1528,13 @@
 	/* 연간 합계: 표(헤더+본문) 높이에 맞춰 차트 열이 세로로 꽉 참 */
 	.year-total-summary-wrap {
 		align-items: stretch;
+	}
+	/* 모바일: 인라인 width(%)를 덮어 표·차트를 세로 풀폭으로 */
+	@media (max-width: 767px) {
+		.year-total-left-col {
+			width: 100% !important;
+			min-width: 0 !important;
+		}
 	}
 	/* .year-total-charts min-height:0 제거 — Tailwind min-h-* 및 인라인 min-height가 먹도록 함(내부 flex는 min-h-0 유지) */
 	.year-total-chart-slot {

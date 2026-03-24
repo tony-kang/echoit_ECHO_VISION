@@ -17,7 +17,7 @@
         {#if useContainerOnly}
             {@render children()}
         {:else}
-            <main class="flex-1 overflow-y-auto bg-gray-50">
+            <main class="min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
                 <div class="p-3">
                     {@render children()}
                 </div>

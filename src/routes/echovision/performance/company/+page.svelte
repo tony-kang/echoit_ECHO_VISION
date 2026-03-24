@@ -320,25 +320,31 @@
 				<p class="text-gray-600">등록된 부서가 없습니다.</p>
 			</div>
 		{:else}
-			<!-- 상단: 전사 실적 + 연도 선택 (예상실적 버튼 없음) -->
-			<div class="mb-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 w-full min-w-0 bg-white shadow-sm p-4 rounded-lg">
+			<!-- 상단: 전사 실적 + 연도 (모바일 세로, md 이상 가로) -->
+			<div
+				class="mb-4 flex w-full min-w-0 max-w-full flex-col gap-4 rounded-lg bg-white p-3 shadow-sm sm:mb-6 sm:p-4 md:flex-row md:items-center md:justify-between md:gap-6"
+			>
 				<div class="min-w-0">
-					<h1 class="text-3xl font-bold text-gray-800">전사 실적</h1>
-                    <p class="text-gray-600 mt-2">부서별 월별/분기별 실적을 확인할 수 있습니다. <span class="text-blue-500">(단위: 천원 , 천단위 반올림)</span></p>
+					<h1 class="wrap-break-word text-xl font-bold text-gray-800 sm:text-2xl lg:text-3xl">전사 실적</h1>
+					<p class="mt-2 text-sm text-gray-600 sm:text-base">
+						부서별 월별/분기별 실적을 확인할 수 있습니다.
+						<span class="text-blue-500">(단위: 천원 , 천단위 반올림)</span>
+					</p>
 				</div>
-				<div class="flex justify-center items-center gap-2">
-					<label for="company-year-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">연도</label>
+				<div class="flex shrink-0 flex-wrap items-center gap-2 md:justify-end">
+					<label for="company-year-select" class="whitespace-nowrap text-sm font-medium text-gray-700"
+						>연도</label
+					>
 					<select
 						id="company-year-select"
 						bind:value={selectedYear}
-						class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+						class="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
 						{#each recentYears as year (year)}
 							<option value={year}>{year}년</option>
 						{/each}
 					</select>
 				</div>
-				<div class="min-w-0"></div>
 			</div>
 
 			{#if isLoading}
