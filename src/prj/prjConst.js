@@ -1,6 +1,6 @@
 const ___prjConst = {
-    NAME: 'ECHO VISION',
-    VERSION: '1.1.2',
+    NAME: 'ECHOIT VISION',
+    VERSION: '1.1.3',
     company: {
         name: '㈜에코아이티',
         ceo: '홍성호',

@@ -196,7 +196,7 @@
 
 			<!-- Desktop Navigation (가운데) - PC에서 표시 -->
 			{#if !authLoading && user}
-				<nav class="desktop-only flex grow justify-center items-center space-x-4 xl:space-x-6">
+				<nav class="desktop-only flex grow justify-center items-center xl:space-x-2">
 					<!-- 경영지표 관리 아이콘 -->
 					<button
 						onclick={goToLogistics}
@@ -209,7 +209,7 @@
 					</button>
 
 					<!-- 주요일정 아이콘 -->
-					<button
+					<!-- <button
 						onclick={goToSchedules}
 						class="flex items-center justify-center p-2 text-gray-700 hover:text-blue-600 transition-colors"
 						aria-label="주요일정"
@@ -217,7 +217,7 @@
 						<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
 						</svg>
-					</button>
+					</button> -->
 
 					<!-- 게시판 아이콘 -->
 					<!-- <a 
