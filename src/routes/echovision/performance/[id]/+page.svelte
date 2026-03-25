@@ -89,8 +89,10 @@
 		new Date().getFullYear() - 2
 	]);
 
-	/** @type {Array<any>} 매출 데이터 */
+	/** @type {Array<any>} 매출 데이터 (선택 연도) */
 	let salesData = $state([]);
+	/** @type {Array<any>} 매출 데이터 (전년도, YoY 매출 비교용) */
+	let prevYearSalesData = $state([]);
 	/** @type {Array<any>} 원가 데이터 */
 	let costData = $state([]);
 	/** @type {Array<any>} 목표 데이터 */
@@ -190,18 +192,20 @@
 	}
 
 	/**
-	 * 특정 월의 매출/원가 계산
+	 * 특정 월·연도의 매출/원가 계산 (ev_sales / ev_cost 행 합산)
 	 * @param {Array<any>} data - 원본 데이터
-	 * @param {number} month - 월
+	 * @param {number} month - 월 (1~12)
 	 * @param {string[]} orgCodes - 조직 코드 배열
 	 * @param {string[]} targetCodes - 대상 코드 배열 (SUM_000 등)
+	 * @param {number} [year] - 연도 (생략 시 selectedYear)
 	 * @returns {number}
 	 */
-	function calculateMonthValue(data, month, orgCodes, targetCodes) {
+	function calculateMonthValue(data, month, orgCodes, targetCodes, year) {
+		const y = year ?? selectedYear;
 		let total = 0;
-		
+
 		for (const item of data) {
-			if (item.month !== month || item.year !== selectedYear) continue;
+			if (item.month !== month || item.year !== y) continue;
 			if (!orgCodes.includes(item.org_code)) continue;
 			if (!item.excel_file_data) continue;
 			
@@ -218,6 +222,57 @@
 		}
 		
 		return total;
+	}
+
+	/**
+	 * 해당 월 실적 매출이 전년 동월 실적 매출보다 큰지 (비용·이익 행에는 미사용)
+	 * @param {number} month - 월 (1~12)
+	 * @returns {boolean}
+	 */
+	function isSalesBeatPriorYear(month) {
+		if (!selectedOrg) return false;
+		const priorYear = selectedYear - 1;
+		const currentSales = calculateMonthValue(
+			salesData,
+			month,
+			selectedOrg.org_code,
+			selectedOrg.sales_code,
+			selectedYear
+		);
+		const priorSales = calculateMonthValue(
+			prevYearSalesData,
+			month,
+			selectedOrg.org_code,
+			selectedOrg.sales_code,
+			priorYear
+		);
+		return currentSales > priorSales;
+	}
+
+	/**
+	 * 월 헤더 YoY 팝업용 실적 매출 (원 단위)
+	 * @param {number} month - 월 (1~12)
+	 * @returns {{ current: number, prior: number }}
+	 */
+	function getMonthSalesYoY(month) {
+		if (!selectedOrg) return { current: 0, prior: 0 };
+		const priorY = selectedYear - 1;
+		return {
+			current: calculateMonthValue(
+				salesData,
+				month,
+				selectedOrg.org_code,
+				selectedOrg.sales_code,
+				selectedYear
+			),
+			prior: calculateMonthValue(
+				prevYearSalesData,
+				month,
+				selectedOrg.org_code,
+				selectedOrg.sales_code,
+				priorY
+			)
+		};
 	}
 
 	/**
@@ -341,32 +396,35 @@
 			const companyCodeItems = selectedOrg.company_code;
 
 			console.log('Performance loadData companyCodeItems:',$state.snapshot(companyCodeItems));
-			
-			// 매출 데이터 로드
-			const salesResult = await getSales({
-				year: selectedYear,
-				evCodeItems: evCodeItems,
-				companyCodeItems: companyCodeItems,
-				orderByYear: true,
-				orderByMonth: true
-			});
-			
-			// 원가 데이터 로드
-			const costResult = await getCosts({
-				year: selectedYear,
-				evCodeItems: evCodeItems,
-				companyCodeItems: companyCodeItems,
-				orderByYear: true,
-				orderByMonth: true
-			});
-			
-			if (salesResult.data) {
-				salesData = salesResult.data;
-			}
-			
-			if (costResult.data) {
-				costData = costResult.data;
-			}
+
+			const priorYear = selectedYear - 1;
+			const [salesResult, priorSalesResult, costResult] = await Promise.all([
+				getSales({
+					year: selectedYear,
+					evCodeItems: evCodeItems,
+					companyCodeItems: companyCodeItems,
+					orderByYear: true,
+					orderByMonth: true
+				}),
+				getSales({
+					year: priorYear,
+					evCodeItems: evCodeItems,
+					companyCodeItems: companyCodeItems,
+					orderByYear: true,
+					orderByMonth: true
+				}),
+				getCosts({
+					year: selectedYear,
+					evCodeItems: evCodeItems,
+					companyCodeItems: companyCodeItems,
+					orderByYear: true,
+					orderByMonth: true
+				})
+			]);
+
+			salesData = salesResult.data ?? [];
+			prevYearSalesData = priorSalesResult.data ?? [];
+			costData = costResult.data ?? [];
 			
 			// 경영실적 데이터 로드
 			const performanceResult = await getPerformance({
@@ -385,6 +443,9 @@
 			console.log('Performance loadData performanceData:',selectedYear, $state.snapshot(performanceData));
 		} catch (error) {
 			console.error('데이터 로드 실패:', error);
+			salesData = [];
+			prevYearSalesData = [];
+			costData = [];
 		} finally {
 			isLoading = false;
 		}
@@ -1094,13 +1155,13 @@
 								<tr class="bg-gray-50 border-b border-gray-200">
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
 									<PerformanceRowLegendColumn as="th" visible={showPlanActualLegendColumns} />
-									<MonthHeaderCell month={1} />
-									<MonthHeaderCell month={2} />
-									<MonthHeaderCell month={3} />
+									<MonthHeaderCell month={1} yoySalesCompare={getMonthSalesYoY(1)} compareYear={selectedYear} />
+									<MonthHeaderCell month={2} yoySalesCompare={getMonthSalesYoY(2)} compareYear={selectedYear} />
+									<MonthHeaderCell month={3} yoySalesCompare={getMonthSalesYoY(3)} compareYear={selectedYear} />
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200">1분기 합계</th>
-									<MonthHeaderCell month={4} />
-									<MonthHeaderCell month={5} />
-									<MonthHeaderCell month={6} />
+									<MonthHeaderCell month={4} yoySalesCompare={getMonthSalesYoY(4)} compareYear={selectedYear} />
+									<MonthHeaderCell month={5} yoySalesCompare={getMonthSalesYoY(5)} compareYear={selectedYear} />
+									<MonthHeaderCell month={6} yoySalesCompare={getMonthSalesYoY(6)} compareYear={selectedYear} />
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">2분기 합계</th>
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">상반기 합계</th>
 								</tr>
@@ -1112,12 +1173,12 @@
 									<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(1).plannedSales} expected={getQuarterData(1).forecastSales} actual={getQuarterData(1).sales} bgColor="blue" />
 									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(2).plannedSales} expected={getQuarterData(2).forecastSales} actual={getQuarterData(2).sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={getHalfData(1).plannedSales} expected={getHalfData(1).forecastSales} actual={getHalfData(1).sales} bgColor="yellow" />
@@ -1162,13 +1223,13 @@
 								<tr class="bg-gray-50 border-b border-gray-200">
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
 									<PerformanceRowLegendColumn as="th" visible={showPlanActualLegendColumns} />
-									<MonthHeaderCell month={7} />
-									<MonthHeaderCell month={8} />
-									<MonthHeaderCell month={9} />
+									<MonthHeaderCell month={7} yoySalesCompare={getMonthSalesYoY(7)} compareYear={selectedYear} />
+									<MonthHeaderCell month={8} yoySalesCompare={getMonthSalesYoY(8)} compareYear={selectedYear} />
+									<MonthHeaderCell month={9} yoySalesCompare={getMonthSalesYoY(9)} compareYear={selectedYear} />
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200">3분기 합계</th>
-									<MonthHeaderCell month={10} />
-									<MonthHeaderCell month={11} />
-									<MonthHeaderCell month={12} />
+									<MonthHeaderCell month={10} yoySalesCompare={getMonthSalesYoY(10)} compareYear={selectedYear} />
+									<MonthHeaderCell month={11} yoySalesCompare={getMonthSalesYoY(11)} compareYear={selectedYear} />
+									<MonthHeaderCell month={12} yoySalesCompare={getMonthSalesYoY(12)} compareYear={selectedYear} />
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">4분기 합계</th>
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">하반기 합계</th>
 								</tr>
@@ -1179,12 +1240,12 @@
 									<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(3).plannedSales} expected={getQuarterData(3).forecastSales} actual={getQuarterData(3).sales} bgColor="blue" />
 									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(4).plannedSales} expected={getQuarterData(4).forecastSales} actual={getQuarterData(4).sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={getHalfData(2).plannedSales} expected={getHalfData(2).forecastSales} actual={getHalfData(2).sales} bgColor="yellow" />
@@ -1228,23 +1289,23 @@
 								<tr class="bg-gray-50 border-b border-gray-200">
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-r border-gray-200">구분</th>
 									<PerformanceRowLegendColumn as="th" visible={showPlanActualLegendColumns} />
-									<MonthHeaderCell month={1} />
-									<MonthHeaderCell month={2} />
-									<MonthHeaderCell month={3} />
+									<MonthHeaderCell month={1} yoySalesCompare={getMonthSalesYoY(1)} compareYear={selectedYear} />
+									<MonthHeaderCell month={2} yoySalesCompare={getMonthSalesYoY(2)} compareYear={selectedYear} />
+									<MonthHeaderCell month={3} yoySalesCompare={getMonthSalesYoY(3)} compareYear={selectedYear} />
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200">1분기 합계</th>
-									<MonthHeaderCell month={4} />
-									<MonthHeaderCell month={5} />
-									<MonthHeaderCell month={6} />
+									<MonthHeaderCell month={4} yoySalesCompare={getMonthSalesYoY(4)} compareYear={selectedYear} />
+									<MonthHeaderCell month={5} yoySalesCompare={getMonthSalesYoY(5)} compareYear={selectedYear} />
+									<MonthHeaderCell month={6} yoySalesCompare={getMonthSalesYoY(6)} compareYear={selectedYear} />
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">2분기 합계</th>
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">상반기 합계</th>
 									<PerformanceRowLegendColumn as="th" visible={showPlanActualLegendColumns} />
-									<MonthHeaderCell month={7} />
-									<MonthHeaderCell month={8} />
-									<MonthHeaderCell month={9} />
+									<MonthHeaderCell month={7} yoySalesCompare={getMonthSalesYoY(7)} compareYear={selectedYear} />
+									<MonthHeaderCell month={8} yoySalesCompare={getMonthSalesYoY(8)} compareYear={selectedYear} />
+									<MonthHeaderCell month={9} yoySalesCompare={getMonthSalesYoY(9)} compareYear={selectedYear} />
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-blue-50 border-r border-gray-200">3분기 합계</th>
-									<MonthHeaderCell month={10} />
-									<MonthHeaderCell month={11} />
-									<MonthHeaderCell month={12} />
+									<MonthHeaderCell month={10} yoySalesCompare={getMonthSalesYoY(10)} compareYear={selectedYear} />
+									<MonthHeaderCell month={11} yoySalesCompare={getMonthSalesYoY(11)} compareYear={selectedYear} />
+									<MonthHeaderCell month={12} yoySalesCompare={getMonthSalesYoY(12)} compareYear={selectedYear} />
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-green-50 border-r border-gray-200">4분기 합계</th>
 									<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 bg-yellow-50 border-r border-gray-200">하반기 합계</th>
 								</tr>
@@ -1255,24 +1316,24 @@
 									<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(1).plannedSales} expected={getQuarterData(1).forecastSales} actual={getQuarterData(1).sales} bgColor="blue" />
 									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(2).plannedSales} expected={getQuarterData(2).forecastSales} actual={getQuarterData(2).sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={getHalfData(1).plannedSales} expected={getHalfData(1).forecastSales} actual={getHalfData(1).sales} bgColor="yellow" />
 									<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(3).plannedSales} expected={getQuarterData(3).forecastSales} actual={getQuarterData(3).sales} bgColor="blue" />
 									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(4).plannedSales} expected={getQuarterData(4).forecastSales} actual={getQuarterData(4).sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={getHalfData(2).plannedSales} expected={getHalfData(2).forecastSales} actual={getHalfData(2).sales} bgColor="yellow" />

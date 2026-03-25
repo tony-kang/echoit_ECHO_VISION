@@ -7,10 +7,11 @@
 	 *   type: 'sales' | 'cost' | 'profit',
 	 *   planned: number,
 	 *   expected: number,
-	 *   actual: number
+	 *   actual: number,
+	 *   yoySalesBeatPrev?: boolean
 	 * }}
 	 */
-	let { type, planned, expected, actual } = $props();
+	let { type, planned, expected, actual, yoySalesBeatPrev = false } = $props();
 
 	/**
 	 * 이익인 경우 실제 금액 색상
@@ -41,7 +42,19 @@
 				<span class="amount-tooltip" role="tooltip">{toKoreanAmount(expected)}</span>
 			</span>
 		</div>
-		<div>
+		<div
+			class="relative min-h-4.5"
+			class:pl-2={type === 'sales' && yoySalesBeatPrev}
+		>
+			{#if type === 'sales' && yoySalesBeatPrev}
+				<span
+					class="pointer-events-none absolute left-0 top-1/2 z-1 -translate-y-1/2 select-none text-[0.65rem] leading-none"
+					title="전년 동월 실적 매출보다 증가"
+					aria-hidden="true"
+				>
+					🏅
+				</span>
+			{/if}
 			<span
 				class="relative cursor-default amount-tooltip-trigger inline-block font-medium {profitColorClass}"
 				aria-label={toKoreanAmount(actual)}
