@@ -1,5 +1,5 @@
 <script>
-	import { formatCurrency, toKoreanAmount } from '$lib/utils/moneyUtil.js';
+	import YoySalesCompareLayer from './YoySalesCompareLayer.svelte';
 
 	/**
 	 * 컴포넌트 Props
@@ -27,20 +27,20 @@
 	/** @type {boolean} 비교 레이어 팝업 열림 */
 	let layerOpen = $state(false);
 
-	/** @type {HTMLElement | null} 헤더 셀 루트 (외부 클릭 판별) */
+	/** @type {HTMLElement | null} 헤더 셀 루트 */
 	let rootEl = $state(null);
 
-	/** @type {HTMLElement | null} 고정 위치 팝업 (외부 클릭 판별) */
-	let layerPopupEl = $state(null);
-
-	/** @type {number} 레이어 팝업 top (fixed, 뷰포트 px) */
+	/** @type {number} 레이어 top (뷰포트 px) */
 	let popupTopPx = $state(0);
 
-	/** @type {number} 레이어 팝업 가로 중심 left (fixed, 뷰포트 px) */
+	/** @type {number} 레이어 가로 중심 left (뷰포트 px) */
 	let popupLeftPx = $state(0);
 
+	/** 레이어 제목 요소 id (문서 내 유일 권장) */
+	const ariaTitleId = $derived(`yoy-header-title-${String(month)}`);
+
 	/**
-	 * 비교 레이어 열림 토글
+	 * 비교 레이어 토글
 	 * @param {MouseEvent} event - 클릭 이벤트
 	 * @returns {void}
 	 */
@@ -57,53 +57,12 @@
 	}
 
 	/**
-	 * 증감액 (원): 당해 − 전년
-	 * @returns {number}
+	 * 외부 클릭 판별용 앵커
+	 * @returns {HTMLElement | null}
 	 */
-	const salesDelta = $derived(
-		yoySalesCompare ? yoySalesCompare.current - yoySalesCompare.prior : 0
-	);
-
-	$effect(() => {
-		if (!layerOpen) return;
-		/**
-		 * 문서 클릭 시 레이어 닫기 (헤더·팝업 밖)
-		 * @param {PointerEvent} e
-		 * @returns {void}
-		 */
-		function onDocPointerDown(e) {
-			const t = e.target;
-			if (!(t instanceof Node)) return;
-			if (rootEl?.contains(t)) return;
-			if (layerPopupEl?.contains(t)) return;
-			layerOpen = false;
-		}
-		/**
-		 * Escape로 레이어 닫기
-		 * @param {KeyboardEvent} e
-		 * @returns {void}
-		 */
-		function onKeyDown(e) {
-			if (e.key === 'Escape') layerOpen = false;
-		}
-		/**
-		 * 스크롤 시 팝업 위치가 어긋나므로 닫기
-		 * @returns {void}
-		 */
-		function onScrollOrResize() {
-			layerOpen = false;
-		}
-		document.addEventListener('pointerdown', onDocPointerDown, true);
-		document.addEventListener('keydown', onKeyDown);
-		window.addEventListener('scroll', onScrollOrResize, true);
-		window.addEventListener('resize', onScrollOrResize);
-		return () => {
-			document.removeEventListener('pointerdown', onDocPointerDown, true);
-			document.removeEventListener('keydown', onKeyDown);
-			window.removeEventListener('scroll', onScrollOrResize, true);
-			window.removeEventListener('resize', onScrollOrResize);
-		};
-	});
+	function getAnchorEl() {
+		return rootEl;
+	}
 </script>
 
 <th
@@ -135,48 +94,17 @@
 		</div>
 	{/if}
 
-	{#if layerOpen && yoyEnabled && yoySalesCompare && compareYear != null}
-		<div
-			bind:this={layerPopupEl}
-			class="yoy-layer-popup fixed z-100 w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left shadow-lg ring-1 ring-black/5"
-			style="top: {popupTopPx}px; left: {popupLeftPx}px;"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="yoy-layer-title-{month}"
-			tabindex="-1"
-		>
-			<p id="yoy-layer-title-{month}" class="mb-2 border-b border-gray-100 pb-1.5 text-xs font-semibold text-gray-800">
-				{monthLabel} 실적 매출 비교 <span class="font-normal text-gray-500">(천원)</span>
-			</p>
-			<dl class="space-y-1.5 text-xs text-gray-700">
-				<div class="flex justify-between gap-2">
-					<dt class="text-gray-500">{compareYear}년</dt>
-					<dd class="font-mono font-medium tabular-nums text-gray-900">
-						{formatCurrency(yoySalesCompare.current)}
-					</dd>
-				</div>
-				<div class="flex justify-between gap-2">
-					<dt class="text-gray-500">{compareYear - 1}년</dt>
-					<dd class="font-mono font-medium tabular-nums text-gray-900">
-						{formatCurrency(yoySalesCompare.prior)}
-					</dd>
-				</div>
-				<div class="flex justify-between gap-2 border-t border-gray-100 pt-1.5">
-					<dt class="text-gray-600">증감</dt>
-					<dd
-						class="font-mono font-semibold tabular-nums {salesDelta > 0
-							? 'text-green-600'
-							: salesDelta < 0
-								? 'text-red-600'
-								: 'text-gray-700'}"
-					>
-						{salesDelta > 0 ? '+' : ''}{formatCurrency(salesDelta)}
-					</dd>
-				</div>
-			</dl>
-			<p class="mt-2 text-[0.65rem] leading-snug text-gray-400">
-				{toKoreanAmount(yoySalesCompare.current)} / {toKoreanAmount(yoySalesCompare.prior)}
-			</p>
-		</div>
+	{#if yoyEnabled && yoySalesCompare && compareYear != null}
+		<YoySalesCompareLayer
+			bind:open={layerOpen}
+			{monthLabel}
+			compareYear={compareYear}
+			current={yoySalesCompare.current}
+			prior={yoySalesCompare.prior}
+			{popupTopPx}
+			{popupLeftPx}
+			ariaTitleId={ariaTitleId}
+			{getAnchorEl}
+		/>
 	{/if}
 </th>

@@ -25,8 +25,10 @@
 	let orgInfo = $state([]);
 	/** @type {boolean} 부서 목록 로딩 중 */
 	let orgInfoLoading = $state(false);
-	/** @type {Record<string, { salesData: any[], costData: any[], performanceData: any[] }>} 부서별 로드 데이터 */
-	let dataByDept = $state(/** @type {Record<string, { salesData: any[], costData: any[], performanceData: any[] }>} */ ({}));
+	/** @type {Record<string, { salesData: any[], prevYearSalesData: any[], costData: any[], performanceData: any[] }>} 부서별 로드 데이터 */
+	let dataByDept = $state(
+		/** @type {Record<string, { salesData: any[], prevYearSalesData: any[], costData: any[], performanceData: any[] }>} */ ({})
+	);
 	/** @type {boolean} 전체 데이터 로딩 중 */
 	let isLoading = $state(false);
 
@@ -77,15 +79,24 @@
 	$effect(() => {
 		if (!user || !canAccessPerformance || orgInfo.length === 0) return;
 		const year = selectedYear;
+		const priorYear = year - 1;
 		isLoading = true;
-		const next = /** @type {Record<string, { salesData: any[], costData: any[], performanceData: any[] }>} */ ({});
+		const next =
+			/** @type {Record<string, { salesData: any[], prevYearSalesData: any[], costData: any[], performanceData: any[] }>} */ ({});
 		Promise.all(
 			orgInfo.map(async (org) => {
 				const evCodeItems = org.org_code;
 				const companyCodeItems = org.company_code;
-				const [salesRes, costRes, perfRes] = await Promise.all([
+				const [salesRes, priorSalesRes, costRes, perfRes] = await Promise.all([
 					getSales({
 						year,
+						evCodeItems,
+						companyCodeItems,
+						orderByYear: true,
+						orderByMonth: true
+					}),
+					getSales({
+						year: priorYear,
 						evCodeItems,
 						companyCodeItems,
 						orderByYear: true,
@@ -103,6 +114,7 @@
 				return {
 					org_id: org.org_id,
 					salesData: salesRes.data ?? [],
+					prevYearSalesData: priorSalesRes.data ?? [],
 					costData: costRes.data ?? [],
 					performanceData: perfRes.data ?? []
 				};
@@ -111,6 +123,7 @@
 			results.forEach((r) => {
 				next[r.org_id] = {
 					salesData: r.salesData,
+					prevYearSalesData: r.prevYearSalesData,
 					costData: r.costData,
 					performanceData: r.performanceData
 				};
@@ -164,9 +177,26 @@
 	}
 
 	/**
+	 * 부서·데이터 기준 월별 실적 매출 YoY 비교용 (원)
+	 * @param {{ org_code: string[], sales_code: string[] }} org
+	 * @param {{ salesData: any[], prevYearSalesData?: any[] } | null | undefined} data
+	 * @param {number} month
+	 * @returns {{ current: number, prior: number }}
+	 */
+	function getMonthSalesYoYForOrg(org, data, month) {
+		if (!data) return { current: 0, prior: 0 };
+		const priorY = selectedYear - 1;
+		const prevArr = Array.isArray(data.prevYearSalesData) ? data.prevYearSalesData : [];
+		return {
+			current: calculateMonthValue(data.salesData, month, selectedYear, org.org_code, org.sales_code),
+			prior: calculateMonthValue(prevArr, month, priorY, org.org_code, org.sales_code)
+		};
+	}
+
+	/**
 	 * 부서·데이터 기준 월별 데이터 (계획/예상/실제)
 	 * @param {{ org_code: string[], company_code: string[], sales_code: string[], cost_code: string[], org_alias_id: string }} org - 조직 정보
-	 * @param {{ salesData: any[], costData: any[], performanceData: any[] }} data - 해당 부서 데이터
+	 * @param {{ salesData: any[], prevYearSalesData?: any[], costData: any[], performanceData: any[] }} data - 해당 부서 데이터
 	 * @param {number} month - 월
 	 * @returns {{ sales: number, cost: number, profit: number, plannedSales: number, forecastSales: number, plannedCost: number, forecastCost: number }}
 	 */
@@ -394,23 +424,71 @@
 									<SummaryDataCell type="sales" planned={ytot.plannedSales} expected={ytot.forecastSales} actual={ytot.sales} bgColor="yellow-dark" />
 									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										{@const yoyM = getMonthSalesYoYForOrg(org, data, month)}
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={yoyM.current > yoyM.prior}
+											yoySalesCompareForLayer={yoyM}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`co-yoy-${org.org_id}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={q1.plannedSales} expected={q1.forecastSales} actual={q1.sales} bgColor="blue" />
 									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										{@const yoyM = getMonthSalesYoYForOrg(org, data, month)}
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={yoyM.current > yoyM.prior}
+											yoySalesCompareForLayer={yoyM}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`co-yoy-${org.org_id}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={q2.plannedSales} expected={q2.forecastSales} actual={q2.sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={h1.plannedSales} expected={h1.forecastSales} actual={h1.sales} bgColor="yellow" />
 									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										{@const yoyM = getMonthSalesYoYForOrg(org, data, month)}
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={yoyM.current > yoyM.prior}
+											yoySalesCompareForLayer={yoyM}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`co-yoy-${org.org_id}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={q3.plannedSales} expected={q3.forecastSales} actual={q3.sales} bgColor="blue" />
 									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthDataForOrg(org, data, month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} />
+										{@const yoyM = getMonthSalesYoYForOrg(org, data, month)}
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={yoyM.current > yoyM.prior}
+											yoySalesCompareForLayer={yoyM}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`co-yoy-${org.org_id}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={q4.plannedSales} expected={q4.forecastSales} actual={q4.sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={h2.plannedSales} expected={h2.forecastSales} actual={h2.sales} bgColor="yellow" />

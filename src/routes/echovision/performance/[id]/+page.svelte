@@ -1173,12 +1173,34 @@
 									<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={isSalesBeatPriorYear(month)}
+											yoySalesCompareForLayer={getMonthSalesYoY(month)}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`dept-yoy-${departmentId}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(1).plannedSales} expected={getQuarterData(1).forecastSales} actual={getQuarterData(1).sales} bgColor="blue" />
 									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={isSalesBeatPriorYear(month)}
+											yoySalesCompareForLayer={getMonthSalesYoY(month)}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`dept-yoy-${departmentId}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(2).plannedSales} expected={getQuarterData(2).forecastSales} actual={getQuarterData(2).sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={getHalfData(1).plannedSales} expected={getHalfData(1).forecastSales} actual={getHalfData(1).sales} bgColor="yellow" />
@@ -1240,12 +1262,34 @@
 									<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={isSalesBeatPriorYear(month)}
+											yoySalesCompareForLayer={getMonthSalesYoY(month)}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`dept-yoy-${departmentId}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(3).plannedSales} expected={getQuarterData(3).forecastSales} actual={getQuarterData(3).sales} bgColor="blue" />
 									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={isSalesBeatPriorYear(month)}
+											yoySalesCompareForLayer={getMonthSalesYoY(month)}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`dept-yoy-${departmentId}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(4).plannedSales} expected={getQuarterData(4).forecastSales} actual={getQuarterData(4).sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={getHalfData(2).plannedSales} expected={getHalfData(2).forecastSales} actual={getHalfData(2).sales} bgColor="yellow" />
@@ -1316,24 +1360,68 @@
 									<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 									{#each [1, 2, 3] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={isSalesBeatPriorYear(month)}
+											yoySalesCompareForLayer={getMonthSalesYoY(month)}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`dept-yoy-${departmentId}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(1).plannedSales} expected={getQuarterData(1).forecastSales} actual={getQuarterData(1).sales} bgColor="blue" />
 									{#each [4, 5, 6] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={isSalesBeatPriorYear(month)}
+											yoySalesCompareForLayer={getMonthSalesYoY(month)}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`dept-yoy-${departmentId}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(2).plannedSales} expected={getQuarterData(2).forecastSales} actual={getQuarterData(2).sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={getHalfData(1).plannedSales} expected={getHalfData(1).forecastSales} actual={getHalfData(1).sales} bgColor="yellow" />
 									<PerformanceRowLegendColumn visible={showPlanActualLegendColumns} />
 									{#each [7, 8, 9] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={isSalesBeatPriorYear(month)}
+											yoySalesCompareForLayer={getMonthSalesYoY(month)}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`dept-yoy-${departmentId}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(3).plannedSales} expected={getQuarterData(3).forecastSales} actual={getQuarterData(3).sales} bgColor="blue" />
 									{#each [10, 11, 12] as month (month)}
 										{@const monthData = getMonthData(month)}
-										<MonthDataCell type="sales" planned={monthData.plannedSales} expected={monthData.forecastSales} actual={monthData.sales} yoySalesBeatPrev={isSalesBeatPriorYear(month)} />
+										<MonthDataCell
+											type="sales"
+											planned={monthData.plannedSales}
+											expected={monthData.forecastSales}
+											actual={monthData.sales}
+											yoySalesBeatPrev={isSalesBeatPriorYear(month)}
+											yoySalesCompareForLayer={getMonthSalesYoY(month)}
+											compareYearForLayer={selectedYear}
+											yoyCompareMonth={month}
+											yoyOpenPopupOnActualClick={true}
+											yoyLayerTitleId={`dept-yoy-${departmentId}-m${month}`}
+										/>
 									{/each}
 									<SummaryDataCell type="sales" planned={getQuarterData(4).plannedSales} expected={getQuarterData(4).forecastSales} actual={getQuarterData(4).sales} bgColor="green" />
 									<SummaryDataCell type="sales" planned={getHalfData(2).plannedSales} expected={getHalfData(2).forecastSales} actual={getHalfData(2).sales} bgColor="yellow" />
