@@ -58,6 +58,12 @@ let _supabaseInstance = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_K
 });
 
 /**
+ * 탭 전환 감지 플래그
+ * @type {boolean}
+ */
+let _tabWasSwitched = false;
+
+/**
  * 탭 전환 감지하여 클라이언트 재생성
  * - Supabase 2.87.x~2.97.x: getUser()/getSession() 내부 상태 손상으로 탭 복귀 후 멈춤
  * - 해결: visibilitychange에서 포그라운드 복귀 시 클라이언트를 새로 생성하여 내부 상태 초기화
@@ -67,6 +73,7 @@ if (typeof window !== 'undefined') {
   let wasHidden = false;
   document.addEventListener('visibilitychange', () => {
     if (wasHidden && !document.hidden) {
+      _tabWasSwitched = true;
       _supabaseInstance = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
         auth: {
           autoRefreshToken: true,
@@ -83,6 +90,16 @@ if (typeof window !== 'undefined') {
     }
     wasHidden = document.hidden;
   });
+}
+
+/**
+ * 탭 전환 여부 확인 및 플래그 리셋
+ * @returns {boolean} 탭이 전환되었는지 여부
+ */
+export function checkAndResetTabSwitch() {
+  const wasSwitched = _tabWasSwitched;
+  _tabWasSwitched = false;
+  return wasSwitched;
 }
 
 export const supabase = new Proxy({}, {
