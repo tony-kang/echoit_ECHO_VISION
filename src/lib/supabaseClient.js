@@ -27,6 +27,21 @@ const getStorageKey = () => {
   }
 };
 
+// Supabase 경고 메시지 억제
+if (typeof window !== 'undefined') {
+  const originalWarn = console.warn;
+  console.warn = function(...args) {
+    const message = args[0];
+    if (typeof message === 'string' && (
+      message.includes('Multiple GoTrueClient instances') ||
+      message.includes('Lock') && message.includes('was not released')
+    )) {
+      return; // Supabase 경고 메시지 무시
+    }
+    originalWarn.apply(console, args);
+  };
+}
+
 // Supabase 클라이언트 생성
 let _supabaseInstance = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
   auth: {
