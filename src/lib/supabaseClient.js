@@ -17,6 +17,10 @@ if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_ANON_KEY) {
 }
 
 // 프로젝트별 고유 storageKey 생성 (URL에서 호스트 첫 세그먼트 사용)
+/**
+ * Supabase Auth localStorage 키 접두에 쓰는 프로젝트 식별자
+ * @returns {string} storageKey
+ */
 const getStorageKey = () => {
   try {
     const url = new URL(PUBLIC_SUPABASE_URL);
@@ -42,8 +46,11 @@ if (typeof window !== 'undefined') {
   };
 }
 
-// Supabase 클라이언트 생성
-let _supabaseInstance = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+/**
+ * createClient에 넘길 공통 옵션
+ * @returns {{ auth: Record<string, *>, global: { headers: Record<string, string> } }}
+ */
+const buildClientOptions = () => ({
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -58,51 +65,22 @@ let _supabaseInstance = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_K
 });
 
 /**
- * 탭 전환 감지 플래그
- * @type {boolean}
+ * 단일 Supabase 클라이언트 인스턴스.
+ * 과거에는 탭 복귀 시 createClient 재생성 + checkAndResetTabSwitch API가 있었으나,
+ * 근본 원인은 authStore의 onAuthStateChange 교착이므로 재생성 우회는 제거함(authStore에서 queueMicrotask 처리).
  */
-let _tabWasSwitched = false;
-
-/**
- * 탭 전환 감지하여 클라이언트 재생성
- * - Supabase 2.87.x~2.97.x: getUser()/getSession() 내부 상태 손상으로 탭 복귀 후 멈춤
- * - 해결: visibilitychange에서 포그라운드 복귀 시 클라이언트를 새로 생성하여 내부 상태 초기화
- * - 참고: GitHub supabase/supabase-js#36046, #2111
- */
-if (typeof window !== 'undefined') {
-  let wasHidden = false;
-  document.addEventListener('visibilitychange', () => {
-    if (wasHidden && !document.hidden) {
-      _tabWasSwitched = true;
-      _supabaseInstance = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
-        auth: {
-          autoRefreshToken: true,
-          persistSession: true,
-          detectSessionInUrl: true,
-          storage: window.localStorage,
-          storageKey: getStorageKey(),
-          flowType: 'pkce'
-        },
-        global: {
-          headers: {}
-        }
-      });
-    }
-    wasHidden = document.hidden;
-  });
-}
-
-/**
- * 탭 전환 여부 확인 및 플래그 리셋
- * @returns {boolean} 탭이 전환되었는지 여부
- */
-export function checkAndResetTabSwitch() {
-  const wasSwitched = _tabWasSwitched;
-  _tabWasSwitched = false;
-  return wasSwitched;
-}
+const _supabaseInstance = createClient(
+  PUBLIC_SUPABASE_URL,
+  PUBLIC_SUPABASE_ANON_KEY,
+  buildClientOptions()
+);
 
 export const supabase = new Proxy({}, {
+  /**
+   * @param {*} _target
+   * @param {string|symbol} prop
+   * @returns {*}
+   */
   get(_target, prop) {
     return _supabaseInstance[prop];
   }

@@ -2,6 +2,18 @@ import { supabase } from '$lib/supabaseClient';
 import { logAction, ACTION_TYPES, ACTION_CATEGORIES } from '$lib/logService';
 import { getCurrentUserProfile as fetchUserProfile } from '$lib/userService';
 
+/**
+ * Supabase `onAuthStateChange` / 탭 포커스와 데드락
+ *
+ * 다른 탭을 갔다 오면 GoTrue가 `_recoverAndRefresh` 후 구독자에게 `SIGNED_IN` 등을 알리며,
+ * 모든 콜백의 Promise가 끝날 때까지 `_notifyAllSubscribers`가 대기한다. 이 구간은
+ * `_acquireLock`이 잡힌 상태와 겹칠 수 있다.
+ *
+ * `loadProfile`은 내부에서 `supabase.from`·필요 시 `signOut`을 await 하므로,
+ * 알림 콜백이나 그 직후 동기 스택에서 바로 호출하면 재진입으로 무한 대기가 날 수 있다.
+ * `queueMicrotask`로 한 틀 비우면 알림 체인이 먼저 완료된 뒤 프로필 로드가 실행된다.
+ */
+
 // 1. 상태 관리 (Universal Runes)
 let state = $state({
     user: null, session: null, loading: true,
@@ -31,18 +43,36 @@ export const authStore = {
     async initialize() {
         const { data: { session } } = await supabase.auth.getSession();
         this._update(session);
-        
-        supabase.auth.onAuthStateChange(async (event, sess) => {
-            if (event === 'SIGNED_OUT') clearLocalAuth();
-            else if (sess?.user?.id !== lastUserId) this._update(sess);
+
+        /**
+         * @param {string} event
+         * @param {import('@supabase/supabase-js').Session | null} sess
+         * @returns {void}
+         */
+        supabase.auth.onAuthStateChange((event, sess) => {
+            if (event === 'SIGNED_OUT') {
+                clearLocalAuth();
+                return;
+            }
+            if (sess?.user?.id !== lastUserId) {
+                this._update(sess);
+            }
         });
     },
 
+    /**
+     * @param {import('@supabase/supabase-js').Session | null} session
+     * @returns {void}
+     */
     _update(session) {
         state.session = session;
         state.user = session?.user ?? null;
         state.loading = false;
-        if (state.user) this.loadProfile();
+        if (state.user) {
+            queueMicrotask(() => {
+                void this.loadProfile();
+            });
+        }
     },
 
     async loadProfile() {
