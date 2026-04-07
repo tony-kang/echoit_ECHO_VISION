@@ -5,9 +5,10 @@
 		INQUIRY_STATUS_LABELS,
 		PRIORITY_LABELS
 	} from '$lib/inquiryService';
-	import FilterBar from '$lib/components/FilterBar.svelte';
+	import ContentFilter from '$lib/C/ContentFilter.svelte';
 	import DataTable from './DataTable.svelte';
 	import Pagination from './Pagination.svelte';
+	import Modal from '$lib/C/Modal.svelte';
 	
 	/**
 	 * @typedef {Object} Inquiry
@@ -43,14 +44,14 @@
 	 * @param {number} [props.currentPage] - 현재 페이지 번호
 	 * @param {number | null} [props.totalCount] - 전체 문의 개수
 	 * @param {number} [props.pageSize] - 페이지당 항목 수
-	 * @param {Function} props.onApplyFilters
-	 * @param {Function} props.onResetFilters
+	 * @param {Function} [props.onLoad] - 필터 적용/초기화 시 목록 재조회
 	 * @param {Function} props.onStatusChange
 	 * @param {Function} props.onPriorityChange
 	 * @param {Function} props.onOpenModal
 	 * @param {Function} props.onCloseModal
 	 * @param {Function} props.onSaveResponse
 	 * @param {Function} [props.onPageChange] - 페이지 변경 핸들러
+	 * @param {{ total: number; byStatus: Record<string, number>; byType: Record<string, number>; byPriority: Record<string, number> } | null} [props.inquiryStats]
 	 */
 	let { 
 		inquiries,
@@ -60,8 +61,8 @@
 		currentPage = 1,
 		totalCount = null,
 		pageSize = 20,
-		onApplyFilters,
-		onResetFilters,
+		inquiryStats = null,
+		onLoad,
 		onStatusChange,
 		onPriorityChange,
 		onOpenModal,
@@ -89,37 +90,6 @@
 			onPageChange(page);
 		}
 	}
-	
-	/**
-	 * 표시할 페이지 번호 목록 생성
-	 * @type {number[]}
-	 */
-	const pageNumbers = $derived.by(() => {
-		const pages = [];
-		const maxVisible = 5; // 최대 표시할 페이지 번호 개수
-		
-		if (totalPages <= maxVisible) {
-			// 전체 페이지가 maxVisible 이하이면 모두 표시
-			for (let i = 1; i <= totalPages; i++) {
-				pages.push(i);
-			}
-		} else {
-			// 현재 페이지를 중심으로 페이지 번호 생성
-			let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-			let end = Math.min(totalPages, start + maxVisible - 1);
-			
-			// 끝에서 시작하는 경우 조정
-			if (end - start < maxVisible - 1) {
-				start = Math.max(1, end - maxVisible + 1);
-			}
-			
-			for (let i = start; i <= end; i++) {
-				pages.push(i);
-			}
-		}
-		
-		return pages;
-	});
 
 	/**
 	 * 필터 필드 정의
@@ -154,12 +124,45 @@
 
 <div class="inquiry-section">
 	<!-- 필터 -->
-	<FilterBar
+	<ContentFilter
 		bind:filters={inquiryFilters}
 		fields={filterFields}
-		onApply={onApplyFilters}
-		onReset={onResetFilters}
+		onLoad={onLoad}
 	/>
+
+	{#if inquiryStats}
+		<div class="inquiry-stats-panel" aria-label="문의 통계">
+			<p class="inquiry-stats-total">
+				전체 <strong>{inquiryStats.total}</strong>건
+			</p>
+			<div class="inquiry-stats-groups" role="presentation">
+				<div class="inquiry-stats-group">
+					<span class="inquiry-stats-group-title">상태</span>
+					<div class="inquiry-stats-chips">
+						{#each Object.entries(inquiryStats.byStatus) as [key, count] (key)}
+							<span class="inquiry-stats-chip">{INQUIRY_STATUS_LABELS[key] ?? key} <b>{count}</b></span>
+						{/each}
+					</div>
+				</div>
+				<div class="inquiry-stats-group">
+					<span class="inquiry-stats-group-title">유형</span>
+					<div class="inquiry-stats-chips">
+						{#each Object.entries(inquiryStats.byType) as [key, count] (key)}
+							<span class="inquiry-stats-chip">{INQUIRY_TYPE_LABELS[key] ?? key} <b>{count}</b></span>
+						{/each}
+					</div>
+				</div>
+				<div class="inquiry-stats-group">
+					<span class="inquiry-stats-group-title">우선순위</span>
+					<div class="inquiry-stats-chips">
+						{#each Object.entries(inquiryStats.byPriority) as [key, count] (key)}
+							<span class="inquiry-stats-chip">{PRIORITY_LABELS[key] ?? key} <b>{count}</b></span>
+						{/each}
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 	
 	<!-- 문의 테이블 -->
 	<DataTable
@@ -177,7 +180,7 @@
 		rowCount={inquiries.length}
 		emptyMessage="문의가 없습니다."
 	>
-		{#each inquiries as inquiry}
+		{#each inquiries as inquiry, i (i)}
 			<tr>
 				<td>{new Date(inquiry.created_at).toLocaleString('ko-KR')}</td>
 				<td>{inquiry.name}</td>
@@ -198,7 +201,7 @@
 						}}
 						class="status-select status-{inquiry.status}"
 					>
-						{#each Object.entries(INQUIRY_STATUS_LABELS) as [value, label]}
+						{#each Object.entries(INQUIRY_STATUS_LABELS) as [value, label] (value)}
 							<option {value}>{label}</option>
 						{/each}
 					</select>
@@ -214,7 +217,7 @@
 						}}
 						class="priority-select priority-{inquiry.priority}"
 					>
-						{#each Object.entries(PRIORITY_LABELS) as [value, label]}
+						{#each Object.entries(PRIORITY_LABELS) as [value, label] (value)}
 							<option {value}>{label}</option>
 						{/each}
 					</select>
@@ -242,78 +245,196 @@
 </div>
 
 <!-- 응답 모달 -->
-{#if selectedInquiry}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="modal-overlay" onclick={onCloseModal}>
-		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
-			<div class="modal-header">
-				<h2>💬 문의 응답</h2>
-				<button onclick={onCloseModal} class="modal-close">×</button>
+<Modal
+	show={!!selectedInquiry}
+	title="💬 문의 응답"
+	size="xlarge"
+	onClose={onCloseModal}
+	showFooter={true}
+>
+	<div class="inquiry-detail">
+		<h3>문의 정보</h3>
+		<div class="detail-grid">
+			<div class="detail-item">
+				<strong>이름:</strong> {selectedInquiry.name}
 			</div>
-			
-			<div class="modal-body">
-				<div class="inquiry-detail">
-					<h3>문의 정보</h3>
-					<div class="detail-grid">
-						<div class="detail-item">
-							<strong>이름:</strong> {selectedInquiry.name}
-						</div>
-						<div class="detail-item">
-							<strong>이메일:</strong> {selectedInquiry.email}
-						</div>
-						<div class="detail-item">
-							<strong>전화번호:</strong> {selectedInquiry.phone || '-'}
-						</div>
-						<div class="detail-item">
-							<strong>회사명:</strong> {selectedInquiry.company || '-'}
-						</div>
-						<div class="detail-item">
-							<strong>문의 유형:</strong> {getInquiryTypeLabel(selectedInquiry.inquiry_type)}
-						</div>
-						<div class="detail-item">
-							<strong>문의일시:</strong> {new Date(selectedInquiry.created_at).toLocaleString('ko-KR')}
-						</div>
-					</div>
-					
-					<div class="detail-section">
-						<strong>제목:</strong>
-						<p>{selectedInquiry.subject}</p>
-					</div>
-					
-					<div class="detail-section">
-						<strong>문의 내용:</strong>
-						<p class="inquiry-message">{selectedInquiry.message}</p>
-					</div>
-				</div>
-				
-				<div class="response-section">
-					<label for="admin-response">
-						<strong>관리자 응답:</strong>
-					</label>
-					<textarea 
-						id="admin-response"
-						bind:value={adminResponse}
-						placeholder="응답 내용을 입력하세요..."
-						rows="6"
-						class="response-textarea"
-					></textarea>
-				</div>
+			<div class="detail-item">
+				<strong>이메일:</strong> {selectedInquiry.email}
 			</div>
-			
-			<div class="modal-footer">
-				<button onclick={onCloseModal} class="btn btn-secondary">취소</button>
-				<button onclick={() => onSaveResponse(selectedInquiry.id)} class="btn btn-primary">
-					응답 저장
-				</button>
+			<div class="detail-item">
+				<strong>전화번호:</strong> {selectedInquiry.phone || '-'}
+			</div>
+			<div class="detail-item">
+				<strong>회사명:</strong> {selectedInquiry.company || '-'}
+			</div>
+			<div class="detail-item">
+				<strong>문의 유형:</strong> {getInquiryTypeLabel(selectedInquiry.inquiry_type)}
+			</div>
+			<div class="detail-item">
+				<strong>문의일시:</strong> {new Date(selectedInquiry.created_at).toLocaleString('ko-KR')}
 			</div>
 		</div>
+		
+		<div class="detail-section">
+			<strong>제목:</strong>
+			<p>{selectedInquiry.subject}</p>
+		</div>
+		
+		<div class="detail-section">
+			<strong>문의 내용:</strong>
+			<p class="inquiry-message">{selectedInquiry.message}</p>
+		</div>
 	</div>
-{/if}
+	
+	<div class="response-section">
+		<label for="admin-response">
+			<strong>관리자 응답:</strong>
+		</label>
+		<textarea 
+			id="admin-response"
+			bind:value={adminResponse}
+			placeholder="응답 내용을 입력하세요..."
+			rows="6"
+			class="response-textarea"
+		></textarea>
+	</div>
+
+	{#snippet footer()}
+		<button type="button" onclick={onCloseModal} class="btn-cancel btn-md">취소</button>
+		<button
+			type="button"
+			onclick={() => selectedInquiry && onSaveResponse(selectedInquiry.id)}
+			class="btn-save btn-md"
+		>
+			응답 저장
+		</button>
+	{/snippet}
+</Modal>
 
 <style>
 	.inquiry-section {
 		margin-top: 20px;
+	}
+
+	.inquiry-stats-panel {
+		margin: 1rem 0 1.25rem;
+		padding: 0.85rem 1.25rem;
+		background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+		border: 1px solid #e0e7ff;
+		border-radius: 12px;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem 1.5rem;
+	}
+
+	.inquiry-stats-total {
+		margin: 0;
+		flex: 0 0 auto;
+		font-size: 1rem;
+		color: #334155;
+		padding-right: 1rem;
+		border-right: 1px solid #c7d2fe;
+		white-space: nowrap;
+	}
+
+	.inquiry-stats-total strong {
+		font-size: 1.15em;
+		color: #4338ca;
+	}
+
+	.inquiry-stats-groups {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		flex: 1;
+		min-width: 0;
+		gap: 0.5rem 0;
+	}
+
+	.inquiry-stats-group {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.45rem 0.6rem;
+		padding: 0 1rem;
+		border-left: 1px solid #e2e8f0;
+		min-width: 0;
+	}
+
+	.inquiry-stats-group:first-of-type {
+		border-left: none;
+		padding-left: 0;
+	}
+
+	.inquiry-stats-group-title {
+		flex: 0 0 auto;
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #64748b;
+		text-transform: uppercase;
+		letter-spacing: 0.02em;
+		white-space: nowrap;
+	}
+
+	.inquiry-stats-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		align-items: center;
+		min-width: 0;
+	}
+
+	.inquiry-stats-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.25rem 0.6rem;
+		background: #fff;
+		border: 1px solid #e2e8f0;
+		border-radius: 999px;
+		font-size: 0.8rem;
+		color: #475569;
+	}
+
+	.inquiry-stats-chip b {
+		color: #1e293b;
+		font-weight: 700;
+	}
+
+	@media (max-width: 768px) {
+		.inquiry-stats-panel {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.inquiry-stats-total {
+			border-right: none;
+			border-bottom: 1px solid #c7d2fe;
+			padding-right: 0;
+			padding-bottom: 0.65rem;
+		}
+
+		.inquiry-stats-groups {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.65rem 0;
+		}
+
+		.inquiry-stats-group {
+			border-left: none;
+			border-bottom: 1px solid #e2e8f0;
+			padding-left: 0;
+			padding-right: 0;
+			padding-bottom: 0.65rem;
+		}
+
+		.inquiry-stats-group:last-of-type {
+			border-bottom: none;
+			padding-bottom: 0;
+		}
 	}
 	
 	
@@ -414,66 +535,6 @@
 	.btn-small.btn-primary:hover {
 		background: #5568d3;
 	}
-	
-	
-	/* 모달 */
-	.modal-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.5);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-	}
-	
-	.modal-content {
-		background: white;
-		border-radius: 12px;
-		width: 90%;
-		max-width: 800px;
-		max-height: 90vh;
-		overflow-y: auto;
-		box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-	}
-	
-	.modal-header {
-		padding: 20px 24px;
-		border-bottom: 1px solid #e0e0e0;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-	
-	.modal-header h2 {
-		margin: 0;
-		font-size: 1.5em;
-		color: #333;
-	}
-	
-	.modal-close {
-		background: none;
-		border: none;
-		font-size: 2em;
-		cursor: pointer;
-		color: #999;
-		line-height: 1;
-		padding: 0;
-		width: 32px;
-		height: 32px;
-	}
-	
-	.modal-close:hover {
-		color: #333;
-	}
-	
-	.modal-body {
-		padding: 1rem;
-	}
-	
 	.inquiry-detail {
 		margin-bottom: 24px;
 		padding-bottom: 24px;
@@ -550,23 +611,10 @@
 		box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 	}
 	
-	.modal-footer {
-		padding: 16px 24px;
-		border-top: 1px solid #e0e0e0;
-		display: flex;
-		justify-content: flex-end;
-		gap: 12px;
-	}
-	
-	@media (max-width: 1024px) {
+	@media (max-width: 768px) {
 		
 		.data-table {
 			font-size: 0.85em;
-		}
-		
-		.data-table th,
-		.data-table td {
-			padding: 10px 8px;
 		}
 		
 		.status-select,

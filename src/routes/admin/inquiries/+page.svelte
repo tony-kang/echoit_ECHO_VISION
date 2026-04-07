@@ -7,19 +7,17 @@
 		getInquiryStatistics,
 		updateInquiryStatus,
 		updatePriority,
-		addAdminResponse,
-		downloadCSV as downloadInquiryCSV
+		addAdminResponse
 	} from '$lib/inquiryService';
 	import { isAdmin } from '$lib/userService';
 	import InquiryTab from '$lib/components/admin/InquiryTab.svelte';
+	import ContentLoading from '$lib/C/ContentLoading.svelte';
 	import ___prjConst from '$prj/prjConst';
 	
 	/** @type {import('@supabase/supabase-js').User | null} */
 	let user = $derived(authStore.user);
 	/** @type {boolean} */
 	let loading = $derived(authStore.loading);
-	/** @type {Object | null} */
-	let userProfile = $derived(authStore.profile);
 	/** @type {boolean} */
 	let userProfileLoading = $derived(authStore.profileLoading);
 	/** @type {boolean} 관리자 권한 여부 */
@@ -30,7 +28,7 @@
 	/** @type {{ total: number; byStatus: Record<string, number>; byType: Record<string, number>; byPriority: Record<string, number>; } | null} */
 	let inquiryStats = $state(null);
 	let loadingData = $state(false);
-	let error = $state('');
+	let errorMessage = $state('');
 	let selectedInquiry = $state(null);
 	let adminResponse = $state('');
 	
@@ -69,7 +67,7 @@
 		
 		isLoadingData = true;
 		loadingData = true;
-		error = '';
+		errorMessage = '';
 		
 		try {
 			const filters = inquiryFilters;
@@ -78,7 +76,7 @@
 				inquiries = result.data;
 			} else {
 				const err = result.error;
-				error = err?.message || '문의를 불러오는데 실패했습니다.';
+				errorMessage = err?.message || '문의를 불러오는데 실패했습니다.';
 			}
 			
 			// 문의 통계도 가져오기
@@ -87,25 +85,12 @@
 				inquiryStats = inquiryStatsResult.data;
 			}
 		} catch (err) {
-			error = '데이터를 불러오는 중 오류가 발생했습니다.';
+			errorMessage = '데이터를 불러오는 중 오류가 발생했습니다.';
 			console.error(err);
 		} finally {
 			loadingData = false;
 			isLoadingData = false;
 		}
-	}
-	
-	function applyInquiryFilters() {
-		loadData();
-	}
-	
-	function resetInquiryFilters() {
-		inquiryFilters = { status: '', inquiry_type: '', priority: '', search: '' };
-		loadData();
-	}
-	
-	function exportInquiryCSV() {
-		downloadInquiryCSV(inquiries);
 	}
 	
 	/**
@@ -194,30 +179,28 @@
 					<p>사용자 문의를 확인하고 응답할 수 있는 관리 기능을 제공합니다</p>
 				</div>
 				
-				{#if error}
-					<div class="error-message">{error}</div>
-				{/if}
-				
-				{#if loadingData}
-					<div class="loading-data">
-						<div class="spinner-small"></div>
-						<p>데이터 로딩 중...</p>
-					</div>
-				{:else}
+				<ContentLoading
+					loading={loadingData}
+					errorMessage={errorMessage}
+					empty={inquiries.length === 0}
+					emptyTitle="데이터가 없습니다."
+					emptyMessage="검색 조건을 바꿔보거나 필터를 초기화해 보세요."
+					onRetry={loadData}
+				>
 					<InquiryTab
 						inquiries={inquiries}
 						inquiryFilters={inquiryFilters}
+						inquiryStats={inquiryStats}
 						selectedInquiry={selectedInquiry}
 						adminResponse={adminResponse}
-						onApplyFilters={applyInquiryFilters}
-						onResetFilters={resetInquiryFilters}
+						onLoad={loadData}
 						onStatusChange={handleStatusChange}
 						onPriorityChange={handlePriorityChange}
 						onOpenModal={openResponseModal}
 						onCloseModal={closeResponseModal}
 						onSaveResponse={handleAddResponse}
 					/>
-				{/if}
+				</ContentLoading>
 			</div>
 		</main>
 	</div>
@@ -272,39 +255,9 @@
 		animation: spin 1s linear infinite;
 	}
 	
-	.spinner-small {
-		width: 30px;
-		height: 30px;
-		border: 3px solid #e2e8f0;
-		border-top: 3px solid #667eea;
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-	}
-	
 	@keyframes spin {
 		0% { transform: rotate(0deg); }
 		100% { transform: rotate(360deg); }
-	}
-	
-	.loading-data {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 60px 20px;
-	}
-	
-	.loading-data p {
-		margin-top: 20px;
-		color: #718096;
-	}
-	
-	.error-message {
-		background: #fed7d7;
-		color: #c53030;
-		padding: 16px;
-		border-radius: 8px;
-		margin-bottom: 20px;
 	}
 </style>
 
