@@ -33,9 +33,16 @@
 
 <svelte:head>
 	<link rel="icon" type="image/png" href="/logo/favicon.png" />
+	<link rel="apple-touch-icon" href="/logo/favicon.png" />
+	<link rel="manifest" href="/site.webmanifest" />
 	<title>{___prjConst.oAuth.appName}</title>
 	<meta name="application-name" content={___prjConst.oAuth.appName} />
 	<meta property="og:site_name" content={___prjConst.oAuth.appName} />
+	<meta name="theme-color" content="#0f172a" />
+	<meta name="mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+	<meta name="apple-mobile-web-app-title" content={___prjConst.oAuth.appName} />
 </svelte:head>
 
 <!-- Header -->
