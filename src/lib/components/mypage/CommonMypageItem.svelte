@@ -66,7 +66,7 @@
 				<!-- 사용자 정보 요약 -->
 				<div class="mb-6 pb-6 border-b">
 					<div class="flex items-center space-x-3 mb-2">
-						<div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+						<div class="w-12 h-12 bg-linear-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
 							{user.user_metadata?.full_name?.[0] || user.email?.[0] || 'U'}
 						</div>
 						<div class="flex-1 min-w-0">
