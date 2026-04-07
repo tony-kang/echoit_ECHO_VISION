@@ -20,7 +20,7 @@
 		menuItems, 
 		onMenuChange,
 		roleColorClass = 'bg-gray-100 text-gray-800',
-		activeColorClass = 'bg-blue-50 text-blue-700',
+		// activeColorClass = 'bg-blue-50 text-blue-700',
 		children
 	} = $props();
 
@@ -85,7 +85,7 @@
 
 				<!-- 메뉴 목록 -->
 				<nav class="space-y-1">
-					{#each menuItems as item}
+					{#each menuItems as item (item.id)}
 						<button
 							onclick={() => handleMenuClick(item)}
 							class="w-full flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition {
@@ -137,7 +137,7 @@
 									<div class="md:col-span-2">
 										<p class="text-sm text-gray-500">접근 가능한 최상위 코드</p>
 										<div class="flex flex-wrap gap-2 mt-1">
-											{#each userProfile.top_level_codes as code}
+											{#each userProfile.top_level_codes as code (code)}
 												<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
 													{code}
 												</span>
