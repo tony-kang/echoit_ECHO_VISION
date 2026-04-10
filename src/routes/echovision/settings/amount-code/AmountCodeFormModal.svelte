@@ -560,9 +560,7 @@
 	.mr-3 {
 		margin-right: 0.75rem;
 	}
-	.font-mono {
-		font-family: ui-monospace, monospace;
-	}
+	
 	.text-gray-500 {
 		color: #6b7280;
 	}

@@ -15,7 +15,9 @@
 	padding: 12px 20px !important;
 }
 
-
+.font-mono {
+	font-family: ui-monospace, monospace;
+}
 
 /* 실제 터치 기기 감지 (모바일/태블릿) */
 /* hover: none - 호버 불가능한 기기 (터치 기기) */
