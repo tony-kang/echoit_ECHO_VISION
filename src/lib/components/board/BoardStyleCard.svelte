@@ -204,7 +204,6 @@
 		color: rgba(255, 255, 255, 0.15);
 		transform: rotate(-5deg);
 		text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-		font-family: 'Courier New', monospace;
 		line-height: 1;
 	}
 

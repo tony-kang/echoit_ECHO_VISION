@@ -601,7 +601,6 @@
 		border: 1px solid #ddd;
 		border-radius: 6px;
 		font-size: 0.95em;
-		font-family: inherit;
 		resize: vertical;
 	}
 	
