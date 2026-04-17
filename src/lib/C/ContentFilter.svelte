@@ -1,7 +1,4 @@
 <script>
-	/**
-	 * 목록 상단 필터 바 (필드 정의 + onLoad + 액션 버튼)
-	 */
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 
@@ -14,7 +11,6 @@
 	 * @property {string} [placeholder] - placeholder (input 타입용)
 	 * @property {number} [width] - 필터 입력 너비 (px)
 	 * @property {Array<{value: string, label: string, hasChildren?: boolean}> | Record<string, string>} [options] - 옵션 (select 타입용)
-	 * @property {unknown} [resetValue] - 초기화 시 사용할 값 (checkbox 기본 true 등)
 	 */
 	
 	/** @type {Record<string, boolean>} 각 필드별 드롭다운 열림 상태 */
@@ -35,15 +31,28 @@
 	 * @property {FilterField[]} [fields] - 필터 필드 정의 배열 (필터가 있는 경우)
 	 * @property {() => void | Promise<void>} [onLoad] - 목록(데이터) 로드 콜백. 적용/초기화 버튼 시 내부에서 호출
 	 * @property {ActionButton[]} [actions] - 액션 버튼 배열 (버튼이 있는 경우)
-	 * @property {boolean} [showReset=true] - 초기화(X) 버튼 표시 여부
 	 */
-	let { filters = $bindable(), fields = [], onLoad, actions = [], showReset = true } = $props();
+	let { filters = $bindable(), fields = [], onLoad, actions = [] } = $props();
+	
+	/** 모바일 필터 표시 상태 */
+	let mobileFilterOpen = $state(false);
+
+	/**
+	 * 모바일 필터 토글
+	 */
+	function toggleMobileFilter() {
+		mobileFilterOpen = !mobileFilterOpen;
+	}
 
 	/**
 	 * 필터 적용: onLoad 호출
 	 */
 	function handleApply() {
 		if (onLoad) onLoad();
+		// 모바일에서 필터 적용 후 필터 닫기
+		if (window.innerWidth <= 1024) {
+			mobileFilterOpen = false;
+		}
 	}
 
 	/**
@@ -56,22 +65,16 @@
 		if (fields?.length) {
 			const next = { ...filters };
 			for (const field of fields) {
-				if (field.resetValue !== undefined) {
-					next[field.key] = field.resetValue;
-				} else if (field.type === 'select-multiple') {
-					next[field.key] = [];
-				} else if (field.type === 'date') {
-					next[field.key] = null;
-				} else if (field.type === 'checkbox') {
-					next[field.key] = false;
-				} else {
-					next[field.key] = '';
-				}
+				next[field.key] = field.type === 'select-multiple' ? [] : '';
 			}
 			filters = next;
 		}
 
 		if (onLoad) onLoad();
+		// 모바일에서 필터 초기화 후 필터 닫기
+		if (window.innerWidth <= 1024) {
+			mobileFilterOpen = false;
+		}
 	}
 
 	/**
@@ -192,7 +195,32 @@
 
 <div class="filter-bar">
 	{#if fields && fields.length > 0}
-		<div class="filter-grid">
+		<!-- 모바일 필터 토글 버튼 (필터가 3개 이상일 때만 표시) -->
+		{#if fields.length > 2}
+			<button
+				type="button"
+				onclick={toggleMobileFilter}
+				class="mobile-filter-toggle"
+				title="필터 {mobileFilterOpen ? '닫기' : '열기'}"
+				aria-label="필터 {mobileFilterOpen ? '닫기' : '열기'}"
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+				</svg>
+				<span>필터</span>
+				{#if !mobileFilterOpen}
+					<svg class="chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+				{:else}
+					<svg class="chevron-icon rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+				{/if}
+			</button>
+		{/if}
+
+		<div class="filter-grid {fields.length > 2 ? (mobileFilterOpen ? 'mobile-open' : '') : 'always-visible'}">
 			{#each fields as field (field.key)}
 				{#if field.type === 'select'}
 					<select 
@@ -329,18 +357,16 @@
 					<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
 				</svg>
 			</button>
-			{#if showReset}
-				<button
-					onclick={handleReset}
-					class="filter-btn filter-btn-reset"
-					title="필터 초기화"
-					aria-label="필터 초기화"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-					</svg>
-				</button>
-			{/if}
+			<button
+				onclick={handleReset}
+				class="filter-btn filter-btn-reset"
+				title="필터 초기화"
+				aria-label="필터 초기화"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+				</svg>
+			</button>
 		{/if}
 		
 		{#each actions as action (action.label)}
@@ -598,6 +624,7 @@
 		gap: 8px;
 		align-items: center;
 		flex-shrink: 0;
+		flex-wrap: wrap;
 	}
 
 	.filter-btn {
@@ -718,7 +745,52 @@
 		line-height: 1;
 	}
 
+	.mobile-filter-toggle {
+		display: none;
+	}
+
+	.chevron-icon {
+		width: 16px;
+		height: 16px;
+		transition: transform 0.2s;
+	}
+
+	.chevron-icon.rotate-180 {
+		transform: rotate(180deg);
+	}
+
 	@media (max-width: 1024px) {
+		.mobile-filter-toggle {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+			width: 100%;
+			padding: 12px 16px;
+			background: white;
+			border: 1px solid #d1d5db;
+			border-radius: 6px;
+			color: #374151;
+			font-size: 0.95rem;
+			font-weight: 500;
+			cursor: pointer;
+			transition: all 0.2s;
+			margin-bottom: 12px;
+		}
+
+		.mobile-filter-toggle:hover {
+			background: #f9fafb;
+			border-color: #9ca3af;
+		}
+
+		.mobile-filter-toggle:active {
+			transform: scale(0.98);
+		}
+
+		.mobile-filter-toggle svg:first-child {
+			width: 20px;
+			height: 20px;
+		}
 		.filter-bar {
 			flex-direction: column;
 			align-items: stretch;
@@ -726,13 +798,23 @@
 
 		/* 필터 항목 2열 그리드 (2×n) */
 		.filter-grid {
-			display: grid;
+			display: none;
 			grid-template-columns: repeat(2, minmax(0, 1fr));
 			column-gap: 12px;
 			row-gap: 10px;
 			align-items: end;
 			width: 100%;
 			margin-right: 0;
+			margin-bottom: 12px;
+		}
+
+		.filter-grid.mobile-open {
+			display: grid;
+		}
+
+		/* 필터가 2개 이하일 때는 항상 표시 */
+		.filter-grid.always-visible {
+			display: grid;
 		}
 
 		.filter-grid > select.filter-input,
