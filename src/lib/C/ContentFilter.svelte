@@ -423,6 +423,7 @@
 	}
 
 	.filter-input {
+		height: 36px;
 		min-height: 36px;
 		padding: 6px 12px;
 		line-height: 1.35;
@@ -434,12 +435,18 @@
 		transition: all 0.2s;
 		min-width: 150px;
 		box-sizing: border-box;
+		-webkit-appearance: none;
+		-moz-appearance: none;
+		appearance: none;
 	}
 
-	/* iOS Safari: height+padding-y 0이면 input만 select보다 납작하게 그려질 수 있음 */
-	input.filter-input {
-		-webkit-appearance: none;
-		appearance: none;
+	/* Safari select 태그 화살표 복원 */
+	select.filter-input {
+		background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+		background-repeat: no-repeat;
+		background-position: right 8px center;
+		background-size: 16px;
+		padding-right: 32px;
 	}
 
 	input.filter-input[type='search']::-webkit-search-decoration,
